@@ -214,6 +214,49 @@
         </section>
 
         <section class="settings-panel">
+          <h3>Erinnerungen</h3>
+          <p class="settings-help">Reminder erscheinen nur, wenn die erfasste Tageszeit unter deiner Ziel-Arbeitszeit liegt.</p>
+          <form class="reminder-settings-form" id="reminderSettingsForm">
+            <label class="settings-toggle" for="remindersEnabled">
+              <span>
+                <strong>Erinnerungen aktiv</strong>
+                <small>Schaltet Feierabend-Reminder ein oder aus.</small>
+              </span>
+              <input id="remindersEnabled" name="enabled" type="checkbox" />
+            </label>
+
+            <label>
+              Reminder-Text
+              <input id="reminderTextSetting" name="text" type="text" />
+            </label>
+
+            <div class="settings-time-grid">
+              <label>
+                Erinnerung 1
+                <input id="reminderTime1" name="time1" type="time" />
+              </label>
+              <label>
+                Erinnerung 2
+                <input id="reminderTime2" name="time2" type="time" />
+              </label>
+              <label>
+                Erinnerung 3
+                <input id="reminderTime3" name="time3" type="time" />
+              </label>
+            </div>
+
+            <label>
+              Ziel-Arbeitszeit pro Tag
+              <input id="targetWorkHours" name="targetHours" type="number" min="0.5" max="24" step="0.25" inputmode="decimal" />
+            </label>
+
+            <button class="settings-secondary-button" id="restoreReminderDefaultsButton" type="button">
+              Standard wiederherstellen
+            </button>
+          </form>
+        </section>
+
+        <section class="settings-panel">
           <h3>Daten</h3>
           <p class="settings-help">Alle Aktionen betreffen die lokal gespeicherten Zeiteinträge.</p>
           <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>

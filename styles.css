@@ -7,6 +7,7 @@
   --line: #d9dfdc;
   --accent: #21675b;
   --accent-strong: #185249;
+  --danger: #7a2e2e;
   --field: #fbfcfa;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -106,6 +107,7 @@ textarea {
 .manual-save-button:focus-visible,
 .export-csv-button:focus-visible,
 .settings-danger-button:focus-visible,
+.settings-secondary-button:focus-visible,
 .settings-file-label:focus-visible,
 .notification-permission-button:focus-visible,
 .reminder-popup-close:focus-visible,
@@ -955,6 +957,7 @@ textarea:focus {
 }
 
 .settings-danger-button,
+.settings-secondary-button,
 .settings-file-label {
   display: inline-grid;
   align-items: center;
@@ -965,10 +968,46 @@ textarea:focus {
   text-align: center;
 }
 
+.reminder-settings-form {
+  display: grid;
+  gap: 12px;
+}
+
+.reminder-settings-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.reminder-settings-form input[type="text"],
+.reminder-settings-form input[type="time"],
+.reminder-settings-form input[type="number"] {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
+  padding: 0 12px;
+}
+
+.settings-time-grid {
+  display: grid;
+  gap: 10px;
+}
+
 .settings-danger-button {
   border: 1px solid rgba(135, 44, 48, 0.25);
   color: var(--danger);
   background: rgba(135, 44, 48, 0.08);
+}
+
+.settings-secondary-button {
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: var(--surface);
 }
 
 .settings-file-label {
