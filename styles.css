@@ -959,6 +959,28 @@ textarea:focus {
   display: none;
 }
 
+.cloud-status {
+  padding: 10px 12px;
+  border: 1px solid rgba(102, 113, 119, 0.22);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(102, 113, 119, 0.08);
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.cloud-status[data-status="connected"] {
+  border-color: rgba(33, 103, 91, 0.24);
+  color: var(--accent);
+  background: rgba(33, 103, 91, 0.08);
+}
+
+.cloud-status-detail {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
 .settings-danger-button,
 .settings-secondary-button,
 .settings-file-label {

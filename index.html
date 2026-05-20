@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#21675b" />
     <title>TimeKeeper</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=7" />
   </head>
   <body>
     <div class="app-shell">
@@ -216,6 +216,17 @@
         </section>
 
         <section class="settings-panel">
+          <h3>Cloudspeicherung</h3>
+          <p class="settings-help">Supabase ist vorbereitet. LocalStorage bleibt aktiv; es findet noch keine automatische Synchronisation statt.</p>
+          <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
+            Cloudspeicherung nicht verbunden
+          </p>
+          <p class="cloud-status-detail" id="cloudStorageDetail">
+            SUPABASE_URL und SUPABASE_ANON_KEY sind noch nicht konfiguriert.
+          </p>
+        </section>
+
+        <section class="settings-panel">
           <h3>Erinnerungen</h3>
           <p class="settings-help">Reminder erscheinen nur, wenn die erfasste Tageszeit unter deiner Ziel-Arbeitszeit liegt.</p>
           <form class="reminder-settings-form" id="reminderSettingsForm">
@@ -319,6 +330,8 @@
       </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="supabase-config.js?v=1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=7"></script>
   </body>
 </html>

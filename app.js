@@ -63,6 +63,8 @@ const reminderPopupClose = document.querySelector("#reminderPopupClose");
 const reminderPopupManual = document.querySelector("#reminderPopupManual");
 const reminderTestPanel = document.querySelector(".reminder-test-panel");
 const developerModeToggle = document.querySelector("#developerModeToggle");
+const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
+const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
 const settingsMessage = document.querySelector("#settingsMessage");
 const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
 const csvImportInput = document.querySelector("#csvImportInput");
@@ -85,6 +87,21 @@ const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
+const SUPABASE_TABLE_NAME = "time_entries";
+const SUPABASE_TIME_ENTRY_COLUMNS = [
+  "id",
+  "activity",
+  "category",
+  "started_at",
+  "ended_at",
+  "duration_minutes",
+  "note",
+  "edited",
+  "manual",
+  "uploaded",
+  "created_at",
+  "updated_at",
+];
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
@@ -100,6 +117,7 @@ const CALENDAR_VIEW_MODES = {
 };
 let calendarViewMode = "7days";
 let calendarSelectedDate = new Date();
+let supabaseClient = null;
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -176,6 +194,96 @@ function saveReminderSettings(settings) {
     showStorageError("Erinnerungseinstellungen konnten nicht gespeichert werden.");
     return nextSettings;
   }
+}
+
+function getSupabaseConfig() {
+  const config = globalThis.TIMEKEEPER_SUPABASE_CONFIG || {};
+
+  return {
+    url: String(config.SUPABASE_URL || "").trim(),
+    anonKey: String(config.SUPABASE_ANON_KEY || "").trim(),
+  };
+}
+
+function isSupabaseConfigured() {
+  const config = getSupabaseConfig();
+
+  return Boolean(config.url && config.anonKey);
+}
+
+function initializeSupabaseClient() {
+  if (!isSupabaseConfigured()) {
+    supabaseClient = null;
+    return null;
+  }
+
+  if (!globalThis.supabase?.createClient) {
+    supabaseClient = null;
+    return null;
+  }
+
+  const config = getSupabaseConfig();
+
+  try {
+    supabaseClient = globalThis.supabase.createClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+    return supabaseClient;
+  } catch (error) {
+    supabaseClient = null;
+    return null;
+  }
+}
+
+function getSupabaseStatus() {
+  if (!isSupabaseConfigured()) {
+    return {
+      connected: false,
+      message: "Cloudspeicherung nicht verbunden",
+      detail: "SUPABASE_URL und SUPABASE_ANON_KEY sind noch nicht konfiguriert.",
+    };
+  }
+
+  if (!supabaseClient) {
+    return {
+      connected: false,
+      message: "Cloudspeicherung nicht verbunden",
+      detail: "Supabase ist konfiguriert, aber der Client konnte nicht erstellt werden.",
+    };
+  }
+
+  return {
+    connected: true,
+    message: "Cloudspeicherung verbunden",
+    detail: `Tabelle vorbereitet: ${SUPABASE_TABLE_NAME}`,
+  };
+}
+
+function renderSupabaseStatus() {
+  const status = getSupabaseStatus();
+  cloudStorageStatus.textContent = status.message;
+  cloudStorageStatus.dataset.status = status.connected ? "connected" : "disconnected";
+  cloudStorageDetail.textContent = status.detail;
+}
+
+function createSupabaseTimeEntryRecord(entry) {
+  return {
+    id: entry.id,
+    activity: entry.activity,
+    category: entry.category,
+    started_at: entry.startedAt.toISOString(),
+    ended_at: entry.endedAt.toISOString(),
+    duration_minutes: Math.max(0, Math.round((entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000)),
+    note: entry.note || "",
+    edited: Boolean(entry.edited),
+    manual: Boolean(entry.manual),
+    uploaded: Boolean(entry.uploaded),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function getCalendarWeek(date) {
@@ -736,6 +844,7 @@ function showExportView() {
 
 function showSettingsView() {
   renderReminderSettingsForm();
+  renderSupabaseStatus();
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -2180,12 +2289,14 @@ document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
   });
 });
 loadPersistedEntries();
+initializeSupabaseClient();
 loadCalendarState();
 renderHistory();
 renderAnalytics();
 renderWeekplan();
 updateActivitySuggestions();
 renderReminderSettingsForm();
+renderSupabaseStatus();
 restoreActiveTimer();
 registerServiceWorker();
 initializeDeveloperMode();
