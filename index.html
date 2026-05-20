@@ -21,7 +21,7 @@
 
       <nav class="menu-panel" id="mainMenu" aria-label="Bereiche" hidden>
         <a href="#auswertungen" data-view-link="analytics">Auswertungen</a>
-        <a href="#wochenplan" data-view-link="weekplan">Wochenplan</a>
+        <a href="#wochenplan" data-view-link="weekplan">Kalender</a>
         <a href="#nachtragen" data-view-link="manual">Nachtragen</a>
         <a href="#verlauf" data-view-link="history">Verlauf</a>
         <a href="#exportieren" data-view-link="export">Exportieren</a>
@@ -268,14 +268,33 @@
         </section>
       </section>
 
-      <section class="weekplan-screen app-view" id="weekplanView" aria-label="Wochenplan" hidden>
+      <section class="weekplan-screen app-view" id="weekplanView" aria-label="Kalender" hidden>
         <div class="view-header">
           <button class="back-button" type="button" data-view-link="timer">Zurück</button>
-          <h2>Wochenplan</h2>
+          <h2>Kalender</h2>
         </div>
 
+        <section class="calendar-toolbar" aria-label="Kalender steuern">
+          <label for="calendarViewMode">
+            Ansicht
+            <select id="calendarViewMode">
+              <option value="day">Tag</option>
+              <option value="3days">3 Tage</option>
+              <option value="5days">5 Tage</option>
+              <option value="7days">7 Tage</option>
+              <option value="month">Monat</option>
+            </select>
+          </label>
+          <div class="calendar-navigation">
+            <button id="calendarPrevButton" type="button">Zurück</button>
+            <button id="calendarTodayButton" type="button">Heute</button>
+            <button id="calendarNextButton" type="button">Vor</button>
+          </div>
+          <p class="calendar-period" id="calendarPeriodLabel" aria-live="polite"></p>
+        </section>
+
         <section class="weekplan-panel">
-          <div class="weekplan-hours" aria-hidden="true">
+          <div class="weekplan-hours" id="weekplanHours" aria-hidden="true">
             <span>06:00</span>
             <span>09:00</span>
             <span>12:00</span>

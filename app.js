@@ -40,7 +40,13 @@ const dailyAverageElement = document.querySelector("#dailyAverage");
 const analyticsEmpty = document.querySelector("#analyticsEmpty");
 const categoryBars = document.querySelector("#categoryBars");
 const weekdayBars = document.querySelector("#weekdayBars");
+const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
+const calendarViewModeSelect = document.querySelector("#calendarViewMode");
+const calendarPrevButton = document.querySelector("#calendarPrevButton");
+const calendarTodayButton = document.querySelector("#calendarTodayButton");
+const calendarNextButton = document.querySelector("#calendarNextButton");
+const calendarPeriodLabel = document.querySelector("#calendarPeriodLabel");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const exportMessage = document.querySelector("#exportMessage");
 const reminderPanel = document.querySelector("#reminderPanel");
@@ -77,12 +83,23 @@ const REMINDER_FIRED_KEY = "timekeeper.reminders.fired.v1";
 const NOTIFICATION_PERMISSION_KEY = "timekeeper.notifications.permission.v1";
 const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
+const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
+const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
   times: ["17:30", "19:30", "23:00"],
   targetWorkHours: 8,
 };
+const CALENDAR_VIEW_MODES = {
+  day: 1,
+  "3days": 3,
+  "5days": 5,
+  "7days": 7,
+  month: 0,
+};
+let calendarViewMode = "7days";
+let calendarSelectedDate = new Date();
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -184,6 +201,32 @@ function getWeekEnd(date) {
   weekEnd.setDate(weekEnd.getDate() + 7);
 
   return weekEnd;
+}
+
+function startOfDay(date) {
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+
+  return day;
+}
+
+function addDays(date, days) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+
+  return nextDate;
+}
+
+function getMonthStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function getMonthEnd(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
+function addMonths(date, months) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
 function updateCurrentDateTime() {
@@ -946,19 +989,104 @@ function getMinutesSinceDayStart(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+function loadCalendarState() {
+  try {
+    const storedMode = localStorage.getItem(CALENDAR_VIEW_MODE_KEY);
+    const storedDate = localStorage.getItem(CALENDAR_SELECTED_DATE_KEY);
+    const parsedDate = storedDate ? new Date(`${storedDate}T00:00`) : null;
+
+    if (storedMode && Object.prototype.hasOwnProperty.call(CALENDAR_VIEW_MODES, storedMode)) {
+      calendarViewMode = storedMode;
+    }
+
+    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
+      calendarSelectedDate = parsedDate;
+    }
+  } catch (error) {
+    calendarViewMode = "7days";
+    calendarSelectedDate = new Date();
+  }
+}
+
+function saveCalendarState() {
+  try {
+    localStorage.setItem(CALENDAR_VIEW_MODE_KEY, calendarViewMode);
+    localStorage.setItem(CALENDAR_SELECTED_DATE_KEY, toDateInputValue(calendarSelectedDate));
+  } catch (error) {
+    // Calendar state is helpful, but not critical for time tracking.
+  }
+}
+
+function getCalendarRange() {
+  if (calendarViewMode === "month") {
+    return {
+      start: getMonthStart(calendarSelectedDate),
+      end: getMonthEnd(calendarSelectedDate),
+    };
+  }
+
+  const dayCount = CALENDAR_VIEW_MODES[calendarViewMode] || 7;
+  const start = calendarViewMode === "7days" ? getWeekStart(calendarSelectedDate) : startOfDay(calendarSelectedDate);
+
+  return {
+    start,
+    end: addDays(start, dayCount),
+  };
+}
+
+function getEntriesForRange(start, end) {
+  return timeEntries.filter((entry) => entry.startedAt >= start && entry.startedAt < end);
+}
+
+function formatCalendarPeriod(start, end) {
+  if (calendarViewMode === "month") {
+    return new Intl.DateTimeFormat("de-DE", {
+      month: "long",
+      year: "numeric",
+    }).format(start);
+  }
+
+  const lastVisibleDay = addDays(end, -1);
+
+  if (toDateInputValue(start) === toDateInputValue(lastVisibleDay)) {
+    return new Intl.DateTimeFormat("de-DE", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(start);
+  }
+
+  return `${formatDate(start)} bis ${formatDate(lastVisibleDay)}`;
+}
+
+function updateCalendarToolbar(start, end) {
+  calendarViewModeSelect.value = calendarViewMode;
+  calendarPeriodLabel.textContent = formatCalendarPeriod(start, end);
+}
+
 function renderWeekplan() {
-  const weekStart = getWeekStart(new Date());
+  const { start, end } = getCalendarRange();
+  const dayCount = calendarViewMode === "month" ? 0 : Math.round((end - start) / 86400000);
   const visibleStart = 6 * 60;
   const visibleEnd = 24 * 60;
   const visibleMinutes = visibleEnd - visibleStart;
-  const weekEntries = getCurrentWeekEntries();
+  const calendarEntries = getEntriesForRange(start, end);
+  updateCalendarToolbar(start, end);
   weekplanDays.innerHTML = "";
+  weekplanDays.className = "weekplan-days";
+  weekplanDays.dataset.viewMode = calendarViewMode;
+  weekplanHours.hidden = calendarViewMode === "month";
 
-  for (let index = 0; index < 7; index += 1) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + index);
+  if (calendarViewMode === "month") {
+    renderMonthCalendar(start, end, calendarEntries);
+    return;
+  }
+
+  for (let index = 0; index < dayCount; index += 1) {
+    const day = addDays(start, index);
     const dayKey = toDateInputValue(day);
-    const dayEntries = weekEntries
+    const dayEntries = calendarEntries
       .filter((entry) => toDateInputValue(entry.startedAt) === dayKey)
       .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
     const dayColumn = document.createElement("section");
@@ -991,7 +1119,7 @@ function renderWeekplan() {
       }
 
       const block = document.createElement("article");
-      block.className = "weekplan-entry";
+      block.className = `weekplan-entry weekplan-entry-${calendarViewMode}`;
       block.style.top = `${((startMinute - visibleStart) / visibleMinutes) * 100}%`;
       block.style.height = `${((endMinute - startMinute) / visibleMinutes) * 100}%`;
       block.style.background = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
@@ -1002,7 +1130,10 @@ function renderWeekplan() {
       block.append(label);
 
       const time = document.createElement("span");
-      time.textContent = `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)}`;
+      time.textContent =
+        calendarViewMode === "day"
+          ? `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`
+          : `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)}`;
       block.append(time);
       timeline.append(block);
     });
@@ -1010,6 +1141,91 @@ function renderWeekplan() {
     dayColumn.append(timeline);
     weekplanDays.append(dayColumn);
   }
+}
+
+function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
+  weekplanDays.classList.add("calendar-month-grid");
+  const gridStart = getWeekStart(monthStart);
+  const gridEnd = addDays(getWeekStart(addDays(monthEnd, 6)), 7);
+
+  for (let day = new Date(gridStart); day < gridEnd; day = addDays(day, 1)) {
+    const currentDay = new Date(day);
+    const dayKey = toDateInputValue(currentDay);
+    const dayEntries = monthEntries.filter((entry) => toDateInputValue(entry.startedAt) === dayKey);
+    const totalMinutes = dayEntries.reduce(
+      (total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000),
+      0,
+    );
+    const categorySet = [...new Set(dayEntries.map((entry) => entry.category))].slice(0, 4);
+    const dayButton = document.createElement("button");
+    dayButton.type = "button";
+    dayButton.className = "calendar-month-day";
+    dayButton.dataset.date = dayKey;
+
+    if (currentDay.getMonth() !== monthStart.getMonth()) {
+      dayButton.classList.add("is-outside-month");
+    }
+
+    const dayNumber = document.createElement("strong");
+    dayNumber.textContent = new Intl.DateTimeFormat("de-DE", { day: "2-digit" }).format(currentDay);
+    dayButton.append(dayNumber);
+
+    const total = document.createElement("span");
+    total.textContent = totalMinutes ? formatAnalyticsDuration(totalMinutes) : "";
+    dayButton.append(total);
+
+    const indicators = document.createElement("span");
+    indicators.className = "calendar-category-indicators";
+    categorySet.forEach((category) => {
+      const indicator = document.createElement("i");
+      indicator.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+      indicators.append(indicator);
+    });
+    dayButton.append(indicators);
+
+    weekplanDays.append(dayButton);
+  }
+}
+
+function shiftCalendarPeriod(direction) {
+  if (calendarViewMode === "month") {
+    calendarSelectedDate = addMonths(calendarSelectedDate, direction);
+  } else {
+    const dayCount = CALENDAR_VIEW_MODES[calendarViewMode] || 7;
+    calendarSelectedDate = addDays(calendarSelectedDate, dayCount * direction);
+  }
+
+  saveCalendarState();
+  renderWeekplan();
+}
+
+function showTodayInCalendar() {
+  calendarSelectedDate = new Date();
+  saveCalendarState();
+  renderWeekplan();
+}
+
+function changeCalendarViewMode(nextMode) {
+  if (!Object.prototype.hasOwnProperty.call(CALENDAR_VIEW_MODES, nextMode)) {
+    return;
+  }
+
+  calendarViewMode = nextMode;
+  saveCalendarState();
+  renderWeekplan();
+}
+
+function openCalendarDay(dateValue) {
+  const selectedDate = new Date(`${dateValue}T00:00`);
+
+  if (Number.isNaN(selectedDate.getTime())) {
+    return;
+  }
+
+  calendarViewMode = "day";
+  calendarSelectedDate = selectedDate;
+  saveCalendarState();
+  renderWeekplan();
 }
 
 function escapeCsvValue(value) {
@@ -1856,6 +2072,23 @@ weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();
   showWeekplanView();
 });
+calendarViewModeSelect.addEventListener("change", () => {
+  changeCalendarViewMode(calendarViewModeSelect.value);
+});
+calendarPrevButton.addEventListener("click", () => {
+  shiftCalendarPeriod(-1);
+});
+calendarTodayButton.addEventListener("click", showTodayInCalendar);
+calendarNextButton.addEventListener("click", () => {
+  shiftCalendarPeriod(1);
+});
+weekplanDays.addEventListener("click", (event) => {
+  const monthDay = event.target.closest(".calendar-month-day");
+
+  if (monthDay) {
+    openCalendarDay(monthDay.dataset.date);
+  }
+});
 exportLink.addEventListener("click", (event) => {
   event.preventDefault();
   showExportView();
@@ -1927,6 +2160,7 @@ document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
   });
 });
 loadPersistedEntries();
+loadCalendarState();
 renderHistory();
 renderAnalytics();
 renderWeekplan();
