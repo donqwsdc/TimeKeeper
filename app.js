@@ -1538,6 +1538,18 @@ function scheduleReminderTest() {
   }, 60000);
 }
 
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {
+      // PWA support should never block time tracking.
+    });
+  });
+}
+
 function renderEditForm(entry) {
   const item = historyList.querySelector(`[data-entry-id="${entry.id}"]`);
 
@@ -1921,6 +1933,7 @@ renderWeekplan();
 updateActivitySuggestions();
 renderReminderSettingsForm();
 restoreActiveTimer();
+registerServiceWorker();
 initializeDeveloperMode();
 initializeNotificationPermissionState();
 checkReminders();
