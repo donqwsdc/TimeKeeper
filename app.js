@@ -1201,6 +1201,7 @@ function shiftCalendarPeriod(direction) {
 }
 
 function showTodayInCalendar() {
+  handleCalendarViewModeChange();
   calendarSelectedDate = new Date();
   saveCalendarState();
   renderWeekplan();
@@ -1214,6 +1215,10 @@ function changeCalendarViewMode(nextMode) {
   calendarViewMode = nextMode;
   saveCalendarState();
   renderWeekplan();
+}
+
+function handleCalendarViewModeChange() {
+  changeCalendarViewMode(calendarViewModeSelect.value);
 }
 
 function openCalendarDay(dateValue) {
@@ -2073,17 +2078,25 @@ weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();
   showWeekplanView();
 });
-calendarViewModeSelect.addEventListener("input", () => {
-  changeCalendarViewMode(calendarViewModeSelect.value);
+calendarViewModeSelect.addEventListener("input", handleCalendarViewModeChange);
+calendarViewModeSelect.addEventListener("change", handleCalendarViewModeChange);
+weekplanView.addEventListener("input", (event) => {
+  if (event.target === calendarViewModeSelect) {
+    handleCalendarViewModeChange();
+  }
 });
-calendarViewModeSelect.addEventListener("change", () => {
-  changeCalendarViewMode(calendarViewModeSelect.value);
+weekplanView.addEventListener("change", (event) => {
+  if (event.target === calendarViewModeSelect) {
+    handleCalendarViewModeChange();
+  }
 });
 calendarPrevButton.addEventListener("click", () => {
+  handleCalendarViewModeChange();
   shiftCalendarPeriod(-1);
 });
 calendarTodayButton.addEventListener("click", showTodayInCalendar);
 calendarNextButton.addEventListener("click", () => {
+  handleCalendarViewModeChange();
   shiftCalendarPeriod(1);
 });
 weekplanDays.addEventListener("click", (event) => {

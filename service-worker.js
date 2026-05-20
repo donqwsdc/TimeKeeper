@@ -1,4 +1,4 @@
-const CACHE_NAME = "timekeeper-pwa-v3";
+const CACHE_NAME = "timekeeper-pwa-v4";
 const APP_FILES = [
   "./index.html",
   "./styles.css",
