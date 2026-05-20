@@ -1,4 +1,4 @@
-const CACHE_NAME = "timekeeper-pwa-v4";
+const CACHE_NAME = "timekeeper-pwa-v5";
 const APP_FILES = [
   "./index.html",
   "./styles.css",
@@ -8,11 +8,17 @@ const APP_FILES = [
   "./icons/icon-512.png",
 ];
 
+function isAppFile(request) {
+  const requestUrl = new URL(request.url);
+
+  return APP_FILES.some((file) => requestUrl.pathname.endsWith(file.replace("./", "/")));
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_FILES))
+      .then((cache) => cache.addAll(APP_FILES.map((file) => new Request(file, { cache: "reload" }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -34,6 +40,22 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
+    return;
+  }
+
+  if (isAppFile(event.request) || event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cachedResponse) => cachedResponse || caches.match("./index.html"))),
+    );
     return;
   }
 
