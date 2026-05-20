@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TimeKeeper</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header" aria-label="App-Navigation">
+        <button class="menu-button" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mainMenu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <h1>TimeKeeper</h1>
+      </header>
+
+      <nav class="menu-panel" id="mainMenu" aria-label="Bereiche" hidden>
+        <a href="#auswertungen" data-view-link="analytics">Auswertungen</a>
+        <a href="#wochenplan" data-view-link="weekplan">Wochenplan</a>
+        <a href="#nachtragen" data-view-link="manual">Nachtragen</a>
+        <a href="#verlauf" data-view-link="history">Verlauf</a>
+        <a href="#exportieren" data-view-link="export">Exportieren</a>
+        <a href="#einstellungen" data-view-link="settings">Einstellungen</a>
+      </nav>
+
+      <main class="timer-screen app-view" id="timerView" data-state="neutral">
+        <section class="time-card" aria-label="Aktuelle Zeit">
+          <p class="weekday" id="weekday">--</p>
+          <p class="date-line" id="dateLine">--</p>
+          <p class="clock" id="clock">--:--</p>
+          <p class="calendar-week" id="calendarWeek">KW --</p>
+        </section>
+
+        <section class="timer-action" aria-label="Timer steuern">
+          <p class="timer-state" id="timerState">Bereit zum Starten</p>
+          <p class="elapsed-time" id="elapsedTime" aria-live="polite" hidden>00:00:00</p>
+          <button class="start-button" type="button" aria-pressed="false">Start</button>
+        </section>
+
+        <p class="timer-message" id="timerMessage" role="status" aria-live="polite" hidden></p>
+
+        <section class="reminder-panel" id="reminderPanel" aria-label="Feierabend-Erinnerung" hidden>
+          <p id="reminderMessage">Was hast du mit deiner Zeit gemacht?</p>
+          <button class="notification-permission-button" id="notificationPermissionButton" type="button">
+            Benachrichtigungen erlauben
+          </button>
+        </section>
+
+        <section class="reminder-test-panel" aria-label="Temporärer Reminder-Testmodus" hidden>
+          <h2>Temporärer Reminder-Testmodus</h2>
+          <p>Nur für Entwicklung. Später leicht entfernbar.</p>
+          <div class="reminder-test-actions">
+            <button id="testReminderNowButton" type="button">Jetzt testen</button>
+            <button id="testReminderUnderButton" type="button">Test &lt; 8h</button>
+            <button id="testReminderFullButton" type="button">Test >= 8h</button>
+            <button id="scheduleReminderTestButton" type="button">In 1 Min. testen</button>
+          </div>
+          <p class="reminder-test-output" id="reminderTestOutput" role="status" aria-live="polite">
+            Noch kein Reminder-Test ausgeführt.
+          </p>
+        </section>
+
+        <form class="entry-form" aria-label="Tätigkeit vorbereiten">
+          <label for="activity">Tätigkeit</label>
+          <input
+            id="activity"
+            name="activity"
+            type="text"
+            list="activitySuggestions"
+            placeholder="Tätigkeit eingeben"
+            autocomplete="off"
+            aria-describedby="timerMessage"
+          />
+
+          <label for="category">Kategorie</label>
+          <select id="category" name="category" aria-describedby="timerMessage">
+            <option value="">Kategorie auswählen</option>
+            <option>Organisation</option>
+            <option>Meetings</option>
+            <option>Marketing Zentral</option>
+            <option>Filialmarketing</option>
+            <option>Eventplanung</option>
+            <option>Administration</option>
+            <option>Netzwerk</option>
+            <option>Fläche</option>
+            <option>Sonstiges</option>
+          </select>
+        </form>
+
+        <section class="completion-panel" id="completionPanel" aria-label="Eintrag abschließen" hidden>
+          <label for="note">Optionale Notiz</label>
+          <textarea id="note" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+
+          <div class="completion-actions">
+            <button class="save-button" type="button">Speichern</button>
+            <button class="discard-button" type="button">Verwerfen</button>
+          </div>
+        </section>
+
+      </main>
+
+      <section class="history-screen app-view" id="historyView" aria-label="Verlauf" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button">Zurück</button>
+          <h2>Verlauf</h2>
+        </div>
+        <p class="history-empty" id="historyEmpty">Noch keine gespeicherten Einträge.</p>
+        <p class="storage-message" id="storageMessage" role="status" aria-live="polite" hidden></p>
+        <ol class="history-list" id="historyList"></ol>
+      </section>
+
+      <section class="manual-screen app-view" id="manualView" aria-label="Zeit nachtragen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Nachtragen</h2>
+        </div>
+
+        <form class="manual-form" id="manualForm" aria-describedby="manualMessage">
+          <label for="manualActivity">Tätigkeit</label>
+          <input id="manualActivity" name="activity" type="text" list="activitySuggestions" placeholder="Tätigkeit eingeben" autocomplete="off" />
+          <datalist id="activitySuggestions"></datalist>
+
+          <label for="manualCategory">Kategorie</label>
+          <select id="manualCategory" name="category">
+            <option value="">Kategorie auswählen</option>
+            <option>Organisation</option>
+            <option>Meetings</option>
+            <option>Marketing Zentral</option>
+            <option>Filialmarketing</option>
+            <option>Eventplanung</option>
+            <option>Administration</option>
+            <option>Netzwerk</option>
+            <option>Fläche</option>
+            <option>Sonstiges</option>
+          </select>
+
+          <label for="manualDate">Datum</label>
+          <input id="manualDate" name="date" type="date" />
+
+          <label for="manualStart">Arbeitsbeginn</label>
+          <input id="manualStart" name="start" type="time" />
+
+          <label for="manualEnd">Arbeitsende</label>
+          <input id="manualEnd" name="end" type="time" />
+
+          <label for="manualNote">Notiz</label>
+          <textarea id="manualNote" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+
+          <p class="manual-message" id="manualMessage" role="status" aria-live="polite" hidden></p>
+
+          <button class="manual-save-button" type="submit">Speichern</button>
+        </form>
+      </section>
+
+      <section class="analytics-screen app-view" id="analyticsView" aria-label="Auswertungen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Auswertungen</h2>
+        </div>
+
+        <div class="analytics-summary" aria-label="Wochenwerte">
+          <section class="analytics-card">
+            <p>Gesamtzeit diese Woche</p>
+            <strong id="weeklyTotal">0 Min.</strong>
+          </section>
+          <section class="analytics-card">
+            <p>Durchschnitt pro Arbeitstag</p>
+            <strong id="dailyAverage">0 Min.</strong>
+          </section>
+        </div>
+
+        <section class="category-stats" aria-label="Zeit je Kategorie">
+          <h3>Zeit je Kategorie</h3>
+          <p class="analytics-empty" id="analyticsEmpty">Für diese Woche gibt es noch keine Einträge.</p>
+          <div class="category-bars" id="categoryBars"></div>
+        </section>
+
+        <section class="weekday-stats" aria-label="Arbeitszeit nach Wochentag">
+          <h3>Arbeitszeit nach Wochentag</h3>
+          <div class="weekday-bars" id="weekdayBars"></div>
+        </section>
+      </section>
+
+      <section class="export-screen app-view" id="exportView" aria-label="Exportieren" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Exportieren</h2>
+        </div>
+
+        <section class="export-panel">
+          <p id="exportSummary">Alle gespeicherten Zeiteinträge werden als CSV exportiert.</p>
+          <p class="export-message" id="exportMessage" role="status" aria-live="polite" hidden></p>
+          <button class="export-csv-button" id="exportCsvButton" type="button">CSV herunterladen</button>
+        </section>
+      </section>
+
+      <section class="settings-screen app-view" id="settingsView" aria-label="Einstellungen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Einstellungen</h2>
+        </div>
+
+        <section class="settings-panel">
+          <label class="settings-toggle" for="developerModeToggle">
+            <span>
+              <strong>Entwickler-Modus</strong>
+              <small>Zeigt temporäre Testfunktionen wie den Reminder-Testmodus.</small>
+            </span>
+            <input id="developerModeToggle" type="checkbox" />
+          </label>
+        </section>
+
+        <section class="settings-panel">
+          <h3>Daten</h3>
+          <p class="settings-help">Alle Aktionen betreffen die lokal gespeicherten Zeiteinträge.</p>
+          <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
+          <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
+          <label class="settings-file-label" for="csvImportInput">CSV hochladen</label>
+          <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
+        </section>
+      </section>
+
+      <section class="weekplan-screen app-view" id="weekplanView" aria-label="Wochenplan" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Wochenplan</h2>
+        </div>
+
+        <section class="weekplan-panel">
+          <div class="weekplan-hours" aria-hidden="true">
+            <span>06:00</span>
+            <span>09:00</span>
+            <span>12:00</span>
+            <span>15:00</span>
+            <span>18:00</span>
+            <span>21:00</span>
+            <span>23:59</span>
+          </div>
+          <div class="weekplan-days" id="weekplanDays"></div>
+        </section>
+      </section>
+    </div>
+
+    <div class="reminder-popup" id="reminderPopup" role="dialog" aria-modal="true" aria-labelledby="reminderPopupTitle" hidden>
+      <div class="reminder-popup-content">
+        <h2 id="reminderPopupTitle">Feierabend-Erinnerung</h2>
+        <p id="reminderPopupMessage">Was hast du mit deiner Zeit gemacht?</p>
+        <div class="reminder-popup-actions">
+          <button class="reminder-popup-manual" id="reminderPopupManual" type="button">Nachtragen</button>
+          <button class="reminder-popup-close" id="reminderPopupClose" type="button">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
