@@ -60,15 +60,29 @@ const developerModeToggle = document.querySelector("#developerModeToggle");
 const settingsMessage = document.querySelector("#settingsMessage");
 const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
 const csvImportInput = document.querySelector("#csvImportInput");
+const reminderSettingsForm = document.querySelector("#reminderSettingsForm");
+const remindersEnabledInput = document.querySelector("#remindersEnabled");
+const reminderTextSettingInput = document.querySelector("#reminderTextSetting");
+const reminderTimeInputs = [
+  document.querySelector("#reminderTime1"),
+  document.querySelector("#reminderTime2"),
+  document.querySelector("#reminderTime3"),
+];
+const targetWorkHoursInput = document.querySelector("#targetWorkHours");
+const restoreReminderDefaultsButton = document.querySelector("#restoreReminderDefaultsButton");
 
 const STORAGE_KEY = "timekeeper.entries.v1";
 const ACTIVE_TIMER_KEY = "timekeeper.activeTimer.v1";
 const REMINDER_FIRED_KEY = "timekeeper.reminders.fired.v1";
 const NOTIFICATION_PERMISSION_KEY = "timekeeper.notifications.permission.v1";
 const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
-const REMINDER_TEXT = "Was hast du mit deiner Zeit gemacht?";
-const REMINDER_TIMES = ["17:30", "19:30", "23:00"];
-const FULL_WORKDAY_MINUTES = 8 * 60;
+const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
+const DEFAULT_REMINDER_SETTINGS = {
+  enabled: true,
+  text: "Was hast du mit deiner Zeit gemacht?",
+  times: ["17:30", "19:30", "23:00"],
+  targetWorkHours: 8,
+};
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -91,6 +105,61 @@ const CATEGORY_COLORS = {
   Fläche: "#8f6b3d",
   Sonstiges: "#6b7280",
 };
+
+function isValidReminderTime(value) {
+  return /^\d{2}:\d{2}$/.test(value);
+}
+
+function normalizeReminderSettings(settings = {}) {
+  const reminderTimes = Array.isArray(settings.times)
+    ? settings.times
+        .map((time) => String(time || "").trim())
+        .filter(isValidReminderTime)
+        .slice(0, 3)
+    : [];
+  const targetWorkHours = Number(settings.targetWorkHours);
+
+  return {
+    enabled: typeof settings.enabled === "boolean" ? settings.enabled : DEFAULT_REMINDER_SETTINGS.enabled,
+    text: String(settings.text || DEFAULT_REMINDER_SETTINGS.text).trim() || DEFAULT_REMINDER_SETTINGS.text,
+    times: [...reminderTimes, ...DEFAULT_REMINDER_SETTINGS.times].slice(0, 3),
+    targetWorkHours:
+      Number.isFinite(targetWorkHours) && targetWorkHours > 0
+        ? Math.min(targetWorkHours, 24)
+        : DEFAULT_REMINDER_SETTINGS.targetWorkHours,
+  };
+}
+
+function getReminderSettings() {
+  try {
+    const storedSettings = localStorage.getItem(REMINDER_SETTINGS_KEY);
+
+    if (!storedSettings) {
+      return normalizeReminderSettings(DEFAULT_REMINDER_SETTINGS);
+    }
+
+    return normalizeReminderSettings(JSON.parse(storedSettings));
+  } catch (error) {
+    return normalizeReminderSettings(DEFAULT_REMINDER_SETTINGS);
+  }
+}
+
+function getTargetWorkMinutes() {
+  return getReminderSettings().targetWorkHours * 60;
+}
+
+function saveReminderSettings(settings) {
+  const nextSettings = normalizeReminderSettings(settings);
+
+  try {
+    localStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify(nextSettings));
+    clearStorageError();
+    return nextSettings;
+  } catch (error) {
+    showStorageError("Erinnerungseinstellungen konnten nicht gespeichert werden.");
+    return nextSettings;
+  }
+}
 
 function getCalendarWeek(date) {
   const currentDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -407,7 +476,7 @@ function refreshEntryViews() {
   renderWeekplan();
   updateActivitySuggestions();
 
-  if (getTodayTotalMinutes() >= FULL_WORKDAY_MINUTES) {
+  if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
   }
 }
@@ -623,6 +692,7 @@ function showExportView() {
 }
 
 function showSettingsView() {
+  renderReminderSettingsForm();
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -1009,6 +1079,40 @@ function clearSettingsMessage() {
   settingsMessage.hidden = true;
 }
 
+function renderReminderSettingsForm() {
+  const settings = getReminderSettings();
+  remindersEnabledInput.checked = settings.enabled;
+  reminderTextSettingInput.value = settings.text;
+  reminderTimeInputs.forEach((input, index) => {
+    input.value = settings.times[index] || DEFAULT_REMINDER_SETTINGS.times[index];
+  });
+  targetWorkHoursInput.value = String(settings.targetWorkHours);
+}
+
+function collectReminderSettingsFromForm() {
+  return {
+    enabled: remindersEnabledInput.checked,
+    text: reminderTextSettingInput.value,
+    times: reminderTimeInputs.map((input) => input.value),
+    targetWorkHours: Number(targetWorkHoursInput.value),
+  };
+}
+
+function saveReminderSettingsFromForm() {
+  saveReminderSettings(collectReminderSettingsFromForm());
+
+  if (!getReminderSettings().enabled || getTodayTotalMinutes() >= getTargetWorkMinutes()) {
+    hideInAppReminder();
+  }
+}
+
+function restoreDefaultReminderSettings() {
+  saveReminderSettings(DEFAULT_REMINDER_SETTINGS);
+  renderReminderSettingsForm();
+  hideInAppReminder();
+  showSettingsMessage("Erinnerungen wurden auf Standardwerte zurückgesetzt.", "success");
+}
+
 function parseCsvRows(text) {
   const rows = [];
   let row = [];
@@ -1265,7 +1369,7 @@ function markReminderAsFired(reminderId) {
   }
 }
 
-function showInAppReminder(message = REMINDER_TEXT, showPermissionButton = false) {
+function showInAppReminder(message = getReminderSettings().text, showPermissionButton = false) {
   reminderMessage.textContent = message;
   notificationPermissionButton.hidden = !showPermissionButton;
   reminderPanel.hidden = false;
@@ -1277,7 +1381,7 @@ function hideInAppReminder() {
   hideReminderPopup();
 }
 
-function showReminderPopup(message = REMINDER_TEXT) {
+function showReminderPopup(message = getReminderSettings().text) {
   reminderPopupMessage.textContent = message;
   reminderPopup.hidden = false;
 }
@@ -1332,7 +1436,7 @@ function initializeNotificationPermissionState() {
 async function requestNotificationPermission() {
   if (!canUseBrowserNotifications()) {
     saveNotificationPermissionState("unavailable");
-    showInAppReminder("Browser-Benachrichtigungen sind hier nicht möglich. Was hast du mit deiner Zeit gemacht?");
+    showInAppReminder(`Browser-Benachrichtigungen sind hier nicht möglich. ${getReminderSettings().text}`);
     return;
   }
 
@@ -1344,16 +1448,23 @@ async function requestNotificationPermission() {
     return;
   }
 
-  showInAppReminder("Benachrichtigungen sind nicht erlaubt. Was hast du mit deiner Zeit gemacht?");
+  showInAppReminder(`Benachrichtigungen sind nicht erlaubt. ${getReminderSettings().text}`);
 }
 
 function deliverReminder(reminderId, totalMinutes = getTodayTotalMinutes(), markAsFired = true) {
-  if (totalMinutes >= FULL_WORKDAY_MINUTES) {
+  const reminderSettings = getReminderSettings();
+
+  if (!reminderSettings.enabled) {
+    hideInAppReminder();
+    return "disabled";
+  }
+
+  if (totalMinutes >= reminderSettings.targetWorkHours * 60) {
     return "suppressed";
   }
 
   if (canUseBrowserNotifications() && Notification.permission === "granted") {
-    new Notification(REMINDER_TEXT);
+    new Notification(reminderSettings.text);
     hideInAppReminder();
     if (markAsFired) {
       markReminderAsFired(reminderId);
@@ -1362,14 +1473,14 @@ function deliverReminder(reminderId, totalMinutes = getTodayTotalMinutes(), mark
   }
 
   if (canUseBrowserNotifications() && Notification.permission === "default") {
-    showInAppReminder(REMINDER_TEXT, true);
+    showInAppReminder(reminderSettings.text, true);
     if (markAsFired) {
       markReminderAsFired(reminderId);
     }
     return "in-app";
   }
 
-  showInAppReminder(REMINDER_TEXT);
+  showInAppReminder(reminderSettings.text);
   if (markAsFired) {
     markReminderAsFired(reminderId);
   }
@@ -1377,12 +1488,19 @@ function deliverReminder(reminderId, totalMinutes = getTodayTotalMinutes(), mark
 }
 
 function checkReminders() {
+  const reminderSettings = getReminderSettings();
+
+  if (!reminderSettings.enabled) {
+    hideInAppReminder();
+    return;
+  }
+
   const now = new Date();
   const today = toDateInputValue(now);
   const currentTime = formatReminderTime(now);
   const firedReminderIds = new Set(getFiredReminderIds());
 
-  REMINDER_TIMES.forEach((reminderTime) => {
+  reminderSettings.times.forEach((reminderTime) => {
     const reminderId = `${today}-${reminderTime}`;
 
     if (currentTime === reminderTime && !firedReminderIds.has(reminderId)) {
@@ -1392,13 +1510,18 @@ function checkReminders() {
 }
 
 function updateReminderTestOutput(result) {
+  if (result === "disabled") {
+    reminderTestOutput.textContent = "Reminder deaktiviert";
+    return;
+  }
+
   if (result === "suppressed") {
-    reminderTestOutput.textContent = "Reminder unterdrückt wegen >= 8 Stunden";
+    reminderTestOutput.textContent = "Reminder unterdrückt wegen erreichter Ziel-Arbeitszeit";
     return;
   }
 
   reminderTestOutput.textContent = "Reminder ausgelöst";
-  showReminderPopup(REMINDER_TEXT);
+  showReminderPopup(getReminderSettings().text);
 }
 
 function runReminderTest(totalMinutes = getTodayTotalMinutes()) {
@@ -1519,7 +1642,7 @@ function updateHistoryEntry(form) {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
-  if (getTodayTotalMinutes() >= FULL_WORKDAY_MINUTES) {
+  if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
   }
   updateActivitySuggestions();
@@ -1548,7 +1671,7 @@ function deleteHistoryEntry(entryId) {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
-  if (getTodayTotalMinutes() >= FULL_WORKDAY_MINUTES) {
+  if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
   }
   updateActivitySuggestions();
@@ -1586,7 +1709,7 @@ function saveCurrentEntry() {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
-  if (getTodayTotalMinutes() >= FULL_WORKDAY_MINUTES) {
+  if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
   }
   updateActivitySuggestions();
@@ -1658,7 +1781,7 @@ function saveManualEntry(event) {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
-  if (getTodayTotalMinutes() >= FULL_WORKDAY_MINUTES) {
+  if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
   }
   updateActivitySuggestions();
@@ -1768,6 +1891,9 @@ manualForm.addEventListener("submit", saveManualEntry);
 exportCsvButton.addEventListener("click", downloadCsvExport);
 deleteAllDataButton.addEventListener("click", deleteAllEntries);
 csvImportInput.addEventListener("change", importCsvEntries);
+reminderSettingsForm.addEventListener("input", saveReminderSettingsFromForm);
+reminderSettingsForm.addEventListener("change", saveReminderSettingsFromForm);
+restoreReminderDefaultsButton.addEventListener("click", restoreDefaultReminderSettings);
 notificationPermissionButton.addEventListener("click", requestNotificationPermission);
 reminderPopupClose.addEventListener("click", hideReminderPopup);
 reminderPopupManual.addEventListener("click", () => {
@@ -1779,8 +1905,8 @@ developerModeToggle.addEventListener("change", () => {
   window.location.reload();
 });
 testReminderNowButton.addEventListener("click", () => runReminderTest());
-testReminderUnderButton.addEventListener("click", () => runReminderTest(FULL_WORKDAY_MINUTES - 1));
-testReminderFullButton.addEventListener("click", () => runReminderTest(FULL_WORKDAY_MINUTES));
+testReminderUnderButton.addEventListener("click", () => runReminderTest(Math.max(0, getTargetWorkMinutes() - 1)));
+testReminderFullButton.addEventListener("click", () => runReminderTest(getTargetWorkMinutes()));
 scheduleReminderTestButton.addEventListener("click", scheduleReminderTest);
 document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
   link.addEventListener("click", () => {
@@ -1793,6 +1919,7 @@ renderHistory();
 renderAnalytics();
 renderWeekplan();
 updateActivitySuggestions();
+renderReminderSettingsForm();
 restoreActiveTimer();
 initializeDeveloperMode();
 initializeNotificationPermissionState();
