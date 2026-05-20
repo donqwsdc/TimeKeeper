@@ -1152,13 +1152,17 @@ textarea:focus {
 }
 
 .weekplan-days[data-view-mode="day"],
-.weekplan-days[data-view-mode="3days"] {
+.weekplan-days[data-view-mode="3days"],
+.weekplan-days-day,
+.weekplan-days-3days {
   grid-auto-columns: minmax(0, 1fr);
   overflow-x: hidden;
 }
 
 .weekplan-days[data-view-mode="5days"],
-.weekplan-days[data-view-mode="7days"] {
+.weekplan-days[data-view-mode="7days"],
+.weekplan-days-5days,
+.weekplan-days-7days {
   grid-auto-columns: minmax(118px, 1fr);
 }
 

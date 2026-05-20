@@ -1076,6 +1076,7 @@ function renderWeekplan() {
   weekplanDays.innerHTML = "";
   weekplanDays.className = "weekplan-days";
   weekplanDays.dataset.viewMode = calendarViewMode;
+  weekplanDays.classList.add(`weekplan-days-${calendarViewMode}`);
   weekplanHours.hidden = calendarViewMode === "month";
 
   if (calendarViewMode === "month") {
@@ -2071,6 +2072,9 @@ analyticsLink.addEventListener("click", (event) => {
 weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();
   showWeekplanView();
+});
+calendarViewModeSelect.addEventListener("input", () => {
+  changeCalendarViewMode(calendarViewModeSelect.value);
 });
 calendarViewModeSelect.addEventListener("change", () => {
   changeCalendarViewMode(calendarViewModeSelect.value);
