@@ -642,6 +642,11 @@ textarea:focus {
   background: rgba(79, 79, 131, 0.12);
 }
 
+.history-badge-user {
+  color: #2f596d;
+  background: rgba(47, 89, 109, 0.12);
+}
+
 .history-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1064,11 +1069,15 @@ textarea:focus {
   text-align: center;
 }
 
+.settings-field,
+.user-settings-form,
 .reminder-settings-form {
   display: grid;
   gap: 12px;
 }
 
+.settings-field,
+.user-settings-form label,
 .reminder-settings-form label {
   display: grid;
   gap: 7px;
@@ -1077,6 +1086,8 @@ textarea:focus {
   font-weight: 650;
 }
 
+.settings-field select,
+.user-settings-form input[type="text"],
 .reminder-settings-form input[type="text"],
 .reminder-settings-form input[type="time"],
 .reminder-settings-form input[type="number"] {

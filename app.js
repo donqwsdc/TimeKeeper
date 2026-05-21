@@ -63,6 +63,14 @@ const reminderPopupClose = document.querySelector("#reminderPopupClose");
 const reminderPopupManual = document.querySelector("#reminderPopupManual");
 const reminderTestPanel = document.querySelector(".reminder-test-panel");
 const developerModeToggle = document.querySelector("#developerModeToggle");
+const activeUserSelect = document.querySelector("#activeUserSelect");
+const userSettingsForm = document.querySelector("#userSettingsForm");
+const userProfileMessage = document.querySelector("#userProfileMessage");
+const userNameInputs = [
+  document.querySelector("#userName1"),
+  document.querySelector("#userName2"),
+  document.querySelector("#userName3"),
+];
 const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
 const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
 const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
@@ -88,6 +96,8 @@ const ACTIVE_TIMER_KEY = "timekeeper.activeTimer.v1";
 const REMINDER_FIRED_KEY = "timekeeper.reminders.fired.v1";
 const NOTIFICATION_PERMISSION_KEY = "timekeeper.notifications.permission.v1";
 const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
+const ACTIVE_USER_KEY = "timekeeper.activeUser.v1";
+const USERS_KEY = "timekeeper.users.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
@@ -112,6 +122,11 @@ const DEFAULT_REMINDER_SETTINGS = {
   times: ["17:30", "19:30", "23:00"],
   targetWorkHours: 8,
 };
+const DEFAULT_USERS = [
+  { id: "user_1", name: "Nutzer 1" },
+  { id: "user_2", name: "Nutzer 2" },
+  { id: "user_3", name: "Nutzer 3" },
+];
 const CALENDAR_VIEW_MODES = {
   day: 1,
   "3days": 3,
@@ -130,6 +145,8 @@ let lastElapsedMilliseconds = 0;
 let activeActivity = "";
 let activeCategory = "";
 let cloudImportConflicts = [];
+let activeUserId = DEFAULT_USERS[0].id;
+let users = DEFAULT_USERS.map((user) => ({ ...user }));
 const timeEntries = [];
 const categoryOptions = Array.from(categorySelect.options)
   .map((option) => option.value || option.textContent)
@@ -199,6 +216,107 @@ function saveReminderSettings(settings) {
     showStorageError("Erinnerungseinstellungen konnten nicht gespeichert werden.");
     return nextSettings;
   }
+}
+
+function getValidUserId(userId) {
+  return DEFAULT_USERS.some((user) => user.id === userId) ? userId : DEFAULT_USERS[0].id;
+}
+
+function normalizeUsers(savedUsers = []) {
+  const savedUserMap = new Map(
+    (Array.isArray(savedUsers) ? savedUsers : [])
+      .filter((user) => user && getValidUserId(user.id) === user.id)
+      .map((user) => [user.id, String(user.name || "").trim()]),
+  );
+
+  return DEFAULT_USERS.map((defaultUser) => ({
+    id: defaultUser.id,
+    name: savedUserMap.get(defaultUser.id) || defaultUser.name,
+  }));
+}
+
+function getUserName(userId) {
+  const validUserId = getValidUserId(userId);
+  return users.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
+}
+
+function loadUserProfiles() {
+  try {
+    users = normalizeUsers(JSON.parse(localStorage.getItem(USERS_KEY) || "[]"));
+    activeUserId = getValidUserId(localStorage.getItem(ACTIVE_USER_KEY));
+  } catch (error) {
+    users = normalizeUsers();
+    activeUserId = DEFAULT_USERS[0].id;
+  }
+}
+
+function saveUserProfiles() {
+  try {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    localStorage.setItem(ACTIVE_USER_KEY, activeUserId);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function showUserProfileMessage(message, type = "info") {
+  userProfileMessage.textContent = message;
+  userProfileMessage.dataset.type = type;
+  userProfileMessage.hidden = false;
+}
+
+function clearUserProfileMessage() {
+  userProfileMessage.textContent = "";
+  userProfileMessage.removeAttribute("data-type");
+  userProfileMessage.hidden = true;
+}
+
+function renderUserProfileSettings() {
+  activeUserSelect.innerHTML = "";
+
+  users.forEach((user) => {
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = user.name;
+    activeUserSelect.append(option);
+  });
+
+  activeUserSelect.value = activeUserId;
+  userNameInputs.forEach((input, index) => {
+    input.value = users[index]?.name || DEFAULT_USERS[index].name;
+  });
+}
+
+function saveActiveUserFromSettings() {
+  activeUserId = getValidUserId(activeUserSelect.value);
+
+  if (!saveUserProfiles()) {
+    showUserProfileMessage("Nutzerprofil konnte nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    return;
+  }
+
+  renderUserProfileSettings();
+  showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
+}
+
+function saveUserNamesFromSettings() {
+  users = DEFAULT_USERS.map((defaultUser, index) => ({
+    id: defaultUser.id,
+    name: userNameInputs[index].value.trim() || defaultUser.name,
+  }));
+
+  if (!saveUserProfiles()) {
+    showUserProfileMessage("Nutzernamen konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    return;
+  }
+
+  Array.from(activeUserSelect.options).forEach((option) => {
+    option.textContent = getUserName(option.value);
+  });
+  activeUserSelect.value = activeUserId;
+  renderHistory();
+  showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
 }
 
 function getSupabaseConfig() {
@@ -290,6 +408,7 @@ function createSupabaseTimeEntryRecord(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
+    user_id: getValidUserId(entry.user_id),
     created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
     updated_at: now,
   };
@@ -321,6 +440,29 @@ function getSupabaseErrorMessage(error) {
   return `Supabase-Fehler: ${error.message || error.details || "Die Daten konnten nicht verarbeitet werden."}`;
 }
 
+function isMissingSupabaseUserIdColumnError(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return message.includes("user_id") && (message.includes("column") || message.includes("schema"));
+}
+
+function removeUserIdFromSupabaseRecords(records) {
+  return records.map(({ user_id: userId, ...record }) => record);
+}
+
+async function upsertSupabaseTimeEntryRecords(records) {
+  const result = await supabaseClient
+    .from(SUPABASE_TABLE_NAME)
+    .upsert(records, { onConflict: "id" });
+
+  if (result.error && isMissingSupabaseUserIdColumnError(result.error)) {
+    return supabaseClient
+      .from(SUPABASE_TABLE_NAME)
+      .upsert(removeUserIdFromSupabaseRecords(records), { onConflict: "id" });
+  }
+
+  return result;
+}
+
 async function backupLocalEntriesToCloud() {
   const status = getSupabaseStatus();
   renderSupabaseStatus();
@@ -338,9 +480,7 @@ async function backupLocalEntriesToCloud() {
   const records = timeEntries.map(createSupabaseTimeEntryRecord);
 
   try {
-    const { error } = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .upsert(records, { onConflict: "id" });
+    const { error } = await upsertSupabaseTimeEntryRecords(records);
 
     if (error) {
       showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -373,6 +513,7 @@ function createLocalEntryFromSupabaseRecord(record) {
     edited: Boolean(record.edited),
     manual: Boolean(record.manual),
     uploaded: Boolean(record.uploaded),
+    user_id: getValidUserId(record.user_id),
     cloud_saved: true,
   };
 }
@@ -779,6 +920,7 @@ function serializeEntry(entry) {
     edited: entry.edited,
     manual: entry.manual,
     uploaded: entry.uploaded,
+    user_id: getValidUserId(entry.user_id),
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -801,6 +943,7 @@ function deserializeEntry(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
+    user_id: getValidUserId(entry.user_id),
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -823,8 +966,12 @@ function loadPersistedEntries() {
       return;
     }
 
-    const entries = JSON.parse(storedEntries).map(deserializeEntry).filter(Boolean);
+    const parsedEntries = JSON.parse(storedEntries);
+    const entries = parsedEntries.map(deserializeEntry).filter(Boolean);
     timeEntries.splice(0, timeEntries.length, ...entries);
+    if (parsedEntries.some((entry) => !entry.user_id)) {
+      persistEntries(entries);
+    }
     clearStorageError();
   } catch (error) {
     showStorageError("Gespeicherte Einträge konnten nicht geladen werden.");
@@ -1167,6 +1314,7 @@ function showExportView() {
 }
 
 function showSettingsView() {
+  renderUserProfileSettings();
   renderReminderSettingsForm();
   renderSupabaseStatus();
   timerView.hidden = true;
@@ -1179,6 +1327,7 @@ function showSettingsView() {
   clearSettingsMessage();
   clearCloudStorageMessage();
   clearCloudConflictPanel();
+  clearUserProfileMessage();
   menuButton.setAttribute("aria-expanded", "false");
   menuPanel.hidden = true;
   window.location.hash = "einstellungen";
@@ -1246,6 +1395,11 @@ function renderHistory() {
     const title = document.createElement("h3");
     title.textContent = entry.activity;
     item.append(title);
+
+    const userBadge = document.createElement("p");
+    userBadge.className = "history-badge history-badge-user";
+    userBadge.textContent = getUserName(entry.user_id);
+    item.append(userBadge);
 
     if (entry.edited) {
       const badge = document.createElement("p");
@@ -1677,6 +1831,8 @@ function escapeCsvValue(value) {
 
 function createCsvExport() {
   const header = [
+    "Nutzer-ID",
+    "Nutzername",
     "Datum",
     "Tätigkeit",
     "Kategorie",
@@ -1690,6 +1846,8 @@ function createCsvExport() {
   const rows = [...timeEntries]
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
     .map((entry) => [
+      getValidUserId(entry.user_id),
+      getUserName(entry.user_id),
       formatDate(entry.startedAt),
       entry.activity,
       entry.category,
@@ -2366,6 +2524,7 @@ function saveCurrentEntry() {
       edited: false,
       manual: false,
       uploaded: false,
+      user_id: activeUserId,
     },
     ...timeEntries,
   ];
@@ -2439,6 +2598,7 @@ function saveManualEntry(event) {
       edited: false,
       manual: true,
       uploaded: false,
+      user_id: activeUserId,
     },
     ...timeEntries,
   ];
@@ -2643,6 +2803,9 @@ developerModeToggle.addEventListener("change", () => {
   setDeveloperMode(developerModeToggle.checked);
   window.location.reload();
 });
+activeUserSelect.addEventListener("change", saveActiveUserFromSettings);
+userSettingsForm.addEventListener("input", saveUserNamesFromSettings);
+userSettingsForm.addEventListener("change", saveUserNamesFromSettings);
 testReminderNowButton.addEventListener("click", () => runReminderTest());
 testReminderUnderButton.addEventListener("click", () => runReminderTest(Math.max(0, getTargetWorkMinutes() - 1)));
 testReminderFullButton.addEventListener("click", () => runReminderTest(getTargetWorkMinutes()));
@@ -2653,6 +2816,7 @@ document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
     window.location.hash = "";
   });
 });
+loadUserProfiles();
 loadPersistedEntries();
 initializeSupabaseClient();
 loadCalendarState();
@@ -2660,6 +2824,7 @@ renderHistory();
 renderAnalytics();
 renderWeekplan();
 updateActivitySuggestions();
+renderUserProfileSettings();
 renderReminderSettingsForm();
 renderSupabaseStatus();
 restoreActiveTimer();

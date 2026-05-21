@@ -216,6 +216,30 @@
         </section>
 
         <section class="settings-panel">
+          <h3>Nutzerprofile</h3>
+          <p class="settings-help">Neue Zeiteintraege werden dem aktiven lokalen Nutzerprofil zugeordnet.</p>
+          <label class="settings-field" for="activeUserSelect">
+            Aktiver Nutzer
+            <select id="activeUserSelect"></select>
+          </label>
+          <form class="user-settings-form" id="userSettingsForm">
+            <label>
+              Nutzer 1
+              <input id="userName1" name="user_1" type="text" />
+            </label>
+            <label>
+              Nutzer 2
+              <input id="userName2" name="user_2" type="text" />
+            </label>
+            <label>
+              Nutzer 3
+              <input id="userName3" name="user_3" type="text" />
+            </label>
+          </form>
+          <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section class="settings-panel">
           <h3>Cloudspeicherung</h3>
           <p class="settings-help">Supabase ist vorbereitet. LocalStorage bleibt aktiv; es findet noch keine automatische Synchronisation statt.</p>
           <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
