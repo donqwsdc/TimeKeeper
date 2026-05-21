@@ -47,6 +47,8 @@ const calendarPrevButton = document.querySelector("#calendarPrevButton");
 const calendarTodayButton = document.querySelector("#calendarTodayButton");
 const calendarNextButton = document.querySelector("#calendarNextButton");
 const calendarPeriodLabel = document.querySelector("#calendarPeriodLabel");
+const exportSummary = document.querySelector("#exportSummary");
+const exportScopeSelect = document.querySelector("#exportScopeSelect");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const exportMessage = document.querySelector("#exportMessage");
 const reminderPanel = document.querySelector("#reminderPanel");
@@ -307,6 +309,7 @@ function saveActiveUserFromSettings() {
 
   renderUserProfileSettings();
   showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
+  refreshEntryViews();
 }
 
 function saveUserNamesFromSettings() {
@@ -330,7 +333,7 @@ function saveUserNamesFromSettings() {
     option.textContent = getUserName(option.value);
   });
   activeUserSelect.value = activeUserId;
-  renderHistory();
+  refreshEntryViews();
   showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
 }
 
@@ -1064,6 +1067,18 @@ function createEntryId() {
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now());
 }
 
+function isEntryForActiveUser(entry) {
+  return getValidUserId(entry.user_id) === activeUserId;
+}
+
+function getEntriesForActiveUser(entries = timeEntries) {
+  return entries.filter(isEntryForActiveUser);
+}
+
+function getExportEntries() {
+  return exportScopeSelect.value === "all" ? [...timeEntries] : getEntriesForActiveUser();
+}
+
 function serializeEntry(entry) {
   return {
     id: entry.id,
@@ -1251,6 +1266,7 @@ function refreshEntryViews() {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
+  renderExportSummary();
   updateActivitySuggestions();
 
   if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
@@ -1455,6 +1471,7 @@ function showAnalyticsView() {
 }
 
 function showExportView() {
+  renderExportSummary();
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -1527,7 +1544,7 @@ function initializeDeveloperMode() {
 }
 
 function updateActivitySuggestions() {
-  const activities = [...new Set(timeEntries.map((entry) => entry.activity))];
+  const activities = [...new Set(getEntriesForActiveUser().map((entry) => entry.activity))];
   activitySuggestions.innerHTML = "";
 
   activities.forEach((activity) => {
@@ -1538,12 +1555,13 @@ function updateActivitySuggestions() {
 }
 
 function renderHistory() {
-  historyEmpty.hidden = timeEntries.length > 0;
+  const visibleEntries = getEntriesForActiveUser();
+  historyEmpty.hidden = visibleEntries.length > 0;
   historyList.innerHTML = "";
 
-  timeEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  visibleEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
 
-  timeEntries.forEach((entry) => {
+  visibleEntries.forEach((entry) => {
     const item = document.createElement("li");
     item.className = "history-entry";
     item.dataset.entryId = entry.id;
@@ -1619,7 +1637,7 @@ function getCurrentWeekEntries() {
   const weekStart = getWeekStart(now);
   const weekEnd = getWeekEnd(now);
 
-  return timeEntries.filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
+  return getEntriesForActiveUser().filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
 }
 
 function renderAnalytics() {
@@ -1780,7 +1798,7 @@ function getCalendarRange() {
 }
 
 function getEntriesForRange(start, end) {
-  return timeEntries.filter((entry) => entry.startedAt >= start && entry.startedAt < end);
+  return getEntriesForActiveUser().filter((entry) => entry.startedAt >= start && entry.startedAt < end);
 }
 
 function formatCalendarPeriod(start, end) {
@@ -1985,7 +2003,17 @@ function escapeCsvValue(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function createCsvExport() {
+function renderExportSummary() {
+  const activeCount = getEntriesForActiveUser().length;
+  const totalCount = timeEntries.length;
+
+  exportSummary.textContent =
+    exportScopeSelect.value === "all"
+      ? `${totalCount} Einträge von allen Nutzern werden als CSV exportiert.`
+      : `${activeCount} Einträge von ${getUserName(activeUserId)} werden als CSV exportiert.`;
+}
+
+function createCsvExport(entries = getExportEntries()) {
   const header = [
     "Nutzer-ID",
     "Nutzername",
@@ -1999,7 +2027,7 @@ function createCsvExport() {
     "bearbeitet",
     "nachgetragen",
   ];
-  const rows = [...timeEntries]
+  const rows = [...entries]
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
     .map((entry) => [
       getValidUserId(entry.user_id),
@@ -2019,13 +2047,18 @@ function createCsvExport() {
 }
 
 function downloadCsvExport() {
-  if (!timeEntries.length) {
-    exportMessage.textContent = "Es gibt noch keine Zeiteinträge für den Export.";
+  const exportEntries = getExportEntries();
+
+  if (!exportEntries.length) {
+    exportMessage.textContent =
+      exportScopeSelect.value === "all"
+        ? "Es gibt noch keine Zeiteinträge für den Export."
+        : `Es gibt noch keine Zeiteinträge für ${getUserName(activeUserId)}.`;
     exportMessage.hidden = false;
     return;
   }
 
-  const csv = `\uFEFF${createCsvExport()}`;
+  const csv = `\uFEFF${createCsvExport(exportEntries)}`;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -2317,7 +2350,7 @@ function importCsvEntries(event) {
 function getTodayTotalMinutes() {
   const today = toDateInputValue(new Date());
 
-  return timeEntries
+  return getEntriesForActiveUser()
     .filter((entry) => toDateInputValue(entry.startedAt) === today)
     .reduce((total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000), 0);
 }
@@ -2905,6 +2938,10 @@ backButton.addEventListener("click", () => {
 });
 manualForm.addEventListener("submit", saveManualEntry);
 exportCsvButton.addEventListener("click", downloadCsvExport);
+exportScopeSelect.addEventListener("change", () => {
+  renderExportSummary();
+  exportMessage.hidden = true;
+});
 cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 cloudImportButton.addEventListener("click", importCloudEntriesToApp);
 cloudConflictPanel.addEventListener("click", (event) => {
@@ -2983,6 +3020,7 @@ updateActivitySuggestions();
 renderUserProfileSettings();
 renderReminderSettingsForm();
 renderSupabaseStatus();
+renderExportSummary();
 restoreActiveTimer();
 registerServiceWorker();
 initializeDeveloperMode();

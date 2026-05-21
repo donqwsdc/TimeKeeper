@@ -920,6 +920,24 @@ textarea:focus {
   font-weight: 760;
 }
 
+.export-scope {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.export-scope select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
+  padding: 0 12px;
+}
+
 .settings-panel {
   display: grid;
   gap: 12px;

@@ -194,6 +194,13 @@
 
         <section class="export-panel">
           <p id="exportSummary">Alle gespeicherten Zeiteinträge werden als CSV exportiert.</p>
+          <label class="export-scope" for="exportScopeSelect">
+            Exportumfang
+            <select id="exportScopeSelect">
+              <option value="active">Nur aktiven Nutzer exportieren</option>
+              <option value="all">Alle Nutzer exportieren</option>
+            </select>
+          </label>
           <p class="export-message" id="exportMessage" role="status" aria-live="polite" hidden></p>
           <button class="export-csv-button" id="exportCsvButton" type="button">CSV herunterladen</button>
         </section>
