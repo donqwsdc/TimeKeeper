@@ -106,7 +106,6 @@ textarea {
 .history-cancel-edit-button:focus-visible,
 .manual-save-button:focus-visible,
 .export-csv-button:focus-visible,
-.settings-primary-button:focus-visible,
 .settings-danger-button:focus-visible,
 .settings-secondary-button:focus-visible,
 .settings-file-label:focus-visible,
@@ -982,76 +981,6 @@ textarea:focus {
   line-height: 1.4;
 }
 
-.cloud-conflicts {
-  display: grid;
-  gap: 12px;
-}
-
-.cloud-conflicts[hidden] {
-  display: none;
-}
-
-.cloud-conflict-header,
-.cloud-conflict-card,
-.cloud-conflict-entry {
-  display: grid;
-  gap: 10px;
-}
-
-.cloud-conflict-header h4 {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.cloud-conflict-card {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--field);
-}
-
-.cloud-conflict-versions {
-  display: grid;
-  gap: 10px;
-}
-
-.cloud-conflict-entry {
-  padding: 10px;
-  border: 1px solid rgba(102, 113, 119, 0.18);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.cloud-conflict-entry dl {
-  display: grid;
-  gap: 7px;
-  margin: 0;
-}
-
-.cloud-conflict-entry div {
-  display: grid;
-  gap: 2px;
-}
-
-.cloud-conflict-entry dt {
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 700;
-}
-
-.cloud-conflict-entry dd {
-  margin: 0;
-  color: var(--text);
-  font-size: 0.86rem;
-  overflow-wrap: anywhere;
-}
-
-.cloud-conflict-actions {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-primary-button,
 .settings-danger-button,
 .settings-secondary-button,
 .settings-file-label {
@@ -1094,18 +1023,6 @@ textarea:focus {
   gap: 10px;
 }
 
-.settings-primary-button {
-  border: 0;
-  color: #ffffff;
-  background: var(--accent);
-}
-
-.settings-primary-button:disabled,
-.settings-secondary-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .settings-danger-button {
   border: 1px solid rgba(135, 44, 48, 0.25);
   color: var(--danger);
@@ -1116,6 +1033,13 @@ textarea:focus {
   border: 1px solid var(--line);
   color: var(--text);
   background: var(--surface);
+}
+
+.settings-secondary-button:disabled {
+  color: var(--muted);
+  background: rgba(102, 113, 119, 0.08);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .settings-file-label {
@@ -1133,12 +1057,6 @@ textarea:focus {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-@media (min-width: 760px) {
-  .cloud-conflict-versions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .settings-toggle {
