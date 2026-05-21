@@ -310,9 +310,11 @@ function renderUserProfileSettings() {
 
   activeUserSelect.value = activeUserId;
   userSettingsForm.hidden = !canEditUserNames;
+  userSettingsForm.setAttribute("aria-hidden", String(!canEditUserNames));
   userNameInputs.forEach((input, index) => {
     input.value = users[index]?.name || DEFAULT_USERS[index].name;
     input.disabled = !canEditUserNames;
+    input.tabIndex = canEditUserNames ? 0 : -1;
   });
 }
 
@@ -2171,6 +2173,9 @@ function isDeveloperModeEnabled() {
 function setDeveloperMode(enabled) {
   reminderTestPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
+  if (!enabled) {
+    clearUserProfileMessage();
+  }
   renderUserProfileSettings();
 
   try {
