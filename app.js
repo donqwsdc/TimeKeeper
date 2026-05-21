@@ -65,8 +65,10 @@ const reminderTestPanel = document.querySelector(".reminder-test-panel");
 const developerModeToggle = document.querySelector("#developerModeToggle");
 const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
 const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
-const backupLocalDataButton = document.querySelector("#backupLocalDataButton");
-const cloudBackupMessage = document.querySelector("#cloudBackupMessage");
+const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
+const cloudBackupButton = document.querySelector("#cloudBackupButton");
+const cloudImportButton = document.querySelector("#cloudImportButton");
+const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
 const settingsMessage = document.querySelector("#settingsMessage");
 const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
 const csvImportInput = document.querySelector("#csvImportInput");
@@ -127,6 +129,7 @@ let timerInterval = null;
 let lastElapsedMilliseconds = 0;
 let activeActivity = "";
 let activeCategory = "";
+let cloudImportConflicts = [];
 const timeEntries = [];
 const categoryOptions = Array.from(categorySelect.options)
   .map((option) => option.value || option.textContent)
@@ -269,13 +272,12 @@ function renderSupabaseStatus() {
   cloudStorageStatus.textContent = status.message;
   cloudStorageStatus.dataset.status = status.connected ? "connected" : "disconnected";
   cloudStorageDetail.textContent = status.detail;
-  backupLocalDataButton.disabled = !status.connected;
+  cloudBackupButton.disabled = !status.connected;
+  cloudImportButton.disabled = !status.connected;
 }
 
 function createSupabaseTimeEntryRecord(entry) {
-  const createdAt = entry.createdAt instanceof Date && !Number.isNaN(entry.createdAt.getTime())
-    ? entry.createdAt.toISOString()
-    : new Date().toISOString();
+  const now = new Date().toISOString();
 
   return {
     id: entry.id,
@@ -288,9 +290,322 @@ function createSupabaseTimeEntryRecord(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
-    created_at: createdAt,
-    updated_at: new Date().toISOString(),
+    created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
+    updated_at: now,
   };
+}
+
+function showCloudStorageMessage(message, type = "info") {
+  cloudStorageMessage.textContent = message;
+  cloudStorageMessage.dataset.type = type;
+  cloudStorageMessage.hidden = false;
+}
+
+function clearCloudStorageMessage() {
+  cloudStorageMessage.textContent = "";
+  cloudStorageMessage.removeAttribute("data-type");
+  cloudStorageMessage.hidden = true;
+}
+
+function clearCloudConflictPanel() {
+  cloudImportConflicts = [];
+  cloudConflictPanel.innerHTML = "";
+  cloudConflictPanel.hidden = true;
+}
+
+function getSupabaseErrorMessage(error) {
+  if (!error) {
+    return "Supabase-Fehler: Die Daten konnten nicht verarbeitet werden.";
+  }
+
+  return `Supabase-Fehler: ${error.message || error.details || "Die Daten konnten nicht verarbeitet werden."}`;
+}
+
+async function backupLocalEntriesToCloud() {
+  const status = getSupabaseStatus();
+  renderSupabaseStatus();
+
+  if (!status.connected) {
+    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+    return;
+  }
+
+  if (!timeEntries.length) {
+    showCloudStorageMessage("Keine lokalen Einträge vorhanden");
+    return;
+  }
+
+  const records = timeEntries.map(createSupabaseTimeEntryRecord);
+
+  try {
+    const { error } = await supabaseClient
+      .from(SUPABASE_TABLE_NAME)
+      .upsert(records, { onConflict: "id" });
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    showCloudStorageMessage(`${records.length} Einträge wurden in der Cloud gesichert`, "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  } finally {
+    renderSupabaseStatus();
+  }
+}
+
+function createLocalEntryFromSupabaseRecord(record) {
+  const startedAt = new Date(record.started_at);
+  const endedAt = new Date(record.ended_at);
+
+  if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    activity: record.activity || "",
+    category: record.category || "",
+    startedAt,
+    endedAt,
+    note: record.note || "",
+    edited: Boolean(record.edited),
+    manual: Boolean(record.manual),
+    uploaded: Boolean(record.uploaded),
+    cloud_saved: true,
+  };
+}
+
+function getEntryDuplicateKey(entry) {
+  return [
+    String(entry.activity || "").trim(),
+    String(entry.category || "").trim(),
+    entry.startedAt.toISOString(),
+    entry.endedAt.toISOString(),
+  ].join("|");
+}
+
+function findDuplicateLocalEntries(cloudEntry, localEntries = timeEntries) {
+  const cloudDuplicateKey = getEntryDuplicateKey(cloudEntry);
+
+  return localEntries.filter(
+    (localEntry) => localEntry.id === cloudEntry.id || getEntryDuplicateKey(localEntry) === cloudDuplicateKey,
+  );
+}
+
+function cloneCloudEntryForLocalConflict(entry, forceNewId = false) {
+  return {
+    ...entry,
+    id: forceNewId ? `${entry.id}-cloud-${Date.now()}` : entry.id,
+    startedAt: new Date(entry.startedAt),
+    endedAt: new Date(entry.endedAt),
+  };
+}
+
+function renderCloudConflictEntry(entry, sourceLabel) {
+  const flags = [
+    entry.edited ? "bearbeitet" : "nicht bearbeitet",
+    entry.manual ? "nachgetragen" : "nicht nachgetragen",
+  ].join(", ");
+
+  return `
+    <article class="cloud-conflict-entry">
+      <strong>${sourceLabel}</strong>
+      <dl>
+        <div><dt>Tätigkeit</dt><dd>${escapeHtml(entry.activity || "-")}</dd></div>
+        <div><dt>Kategorie</dt><dd>${escapeHtml(entry.category || "-")}</dd></div>
+        <div><dt>Arbeitsbeginn</dt><dd>${formatDate(entry.startedAt)} ${formatTime(entry.startedAt)}</dd></div>
+        <div><dt>Arbeitsende</dt><dd>${formatDate(entry.endedAt)} ${formatTime(entry.endedAt)}</dd></div>
+        <div><dt>Dauer</dt><dd>${getEntryDurationMinutes(entry)} Min.</dd></div>
+        <div><dt>Notiz</dt><dd>${escapeHtml(entry.note || "-")}</dd></div>
+        <div><dt>Markierung</dt><dd>${flags}</dd></div>
+        <div><dt>Herkunft</dt><dd>${sourceLabel}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
+function renderCloudConflictPanel() {
+  if (!cloudImportConflicts.length) {
+    clearCloudConflictPanel();
+    return;
+  }
+
+  cloudConflictPanel.hidden = false;
+  cloudConflictPanel.innerHTML = `
+    <div class="cloud-conflict-header">
+      <h4>${cloudImportConflicts.length} Konflikte gefunden</h4>
+      <div class="cloud-conflict-actions">
+        <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local-all">
+          Für alle lokale Einträge behalten
+        </button>
+        <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud-all">
+          Für alle Cloud-Einträge übernehmen
+        </button>
+      </div>
+    </div>
+    ${cloudImportConflicts
+      .map(
+        (conflict, index) => `
+          <section class="cloud-conflict-card" data-conflict-index="${index}">
+            <div class="cloud-conflict-versions">
+              ${renderCloudConflictEntry(conflict.localEntry, "Lokal")}
+              ${renderCloudConflictEntry(conflict.cloudEntry, "Cloud")}
+            </div>
+            <div class="cloud-conflict-actions">
+              <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local" data-conflict-index="${index}">
+                Lokalen Eintrag behalten
+              </button>
+              <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud" data-conflict-index="${index}">
+                Cloud-Eintrag übernehmen
+              </button>
+              <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-both" data-conflict-index="${index}">
+                Beide behalten
+              </button>
+            </div>
+          </section>
+        `,
+      )
+      .join("")}
+  `;
+}
+
+function saveCloudImportEntries(nextEntries, successMessage) {
+  const sortedEntries = [...nextEntries].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+  if (!persistEntries(sortedEntries)) {
+    showCloudStorageMessage("Cloud-Daten konnten nicht lokal gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length, ...sortedEntries);
+  refreshEntryViews();
+  showCloudStorageMessage(successMessage, "success");
+  return true;
+}
+
+function resolveCloudConflict(index, decision) {
+  const conflict = cloudImportConflicts[index];
+
+  if (!conflict) {
+    return;
+  }
+
+  let nextEntries = [...timeEntries];
+
+  if (decision === "use-cloud") {
+    const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
+    nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
+    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+  }
+
+  if (decision === "keep-both") {
+    const hasSameId = nextEntries.some((entry) => entry.id === conflict.cloudEntry.id);
+    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry, hasSameId));
+  }
+
+  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
+    return;
+  }
+
+  cloudImportConflicts.splice(index, 1);
+  renderCloudConflictPanel();
+}
+
+function resolveAllCloudConflicts(decision) {
+  let nextEntries = [...timeEntries];
+
+  if (decision === "use-cloud") {
+    cloudImportConflicts.forEach((conflict) => {
+      const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
+      nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
+      nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+    });
+  }
+
+  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
+    return;
+  }
+
+  clearCloudConflictPanel();
+}
+
+async function importCloudEntriesToApp() {
+  const status = getSupabaseStatus();
+  renderSupabaseStatus();
+  clearCloudConflictPanel();
+
+  if (!status.connected) {
+    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_TABLE_NAME)
+      .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
+
+    if (!cloudEntries.length) {
+      showCloudStorageMessage("Keine Cloud-Einträge gefunden");
+      return;
+    }
+
+    const newEntries = [];
+    const conflicts = [];
+    const comparisonEntries = [...timeEntries];
+
+    cloudEntries.forEach((cloudEntry) => {
+      const duplicates = findDuplicateLocalEntries(cloudEntry, comparisonEntries);
+
+      if (duplicates.length) {
+        conflicts.push({
+          localEntry: duplicates[0],
+          cloudEntry,
+          duplicates,
+        });
+        return;
+      }
+
+      newEntries.push(cloudEntry);
+      comparisonEntries.push(cloudEntry);
+    });
+
+    if (newEntries.length) {
+      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], `${newEntries.length} neue Einträge wurden geladen`);
+
+      if (!imported) {
+        return;
+      }
+    }
+
+    if (conflicts.length) {
+      cloudImportConflicts = conflicts;
+      renderCloudConflictPanel();
+      showCloudStorageMessage(
+        newEntries.length
+          ? `${newEntries.length} neue Einträge wurden geladen. ${conflicts.length} Konflikte gefunden`
+          : `${conflicts.length} Konflikte gefunden`,
+        "info",
+      );
+      return;
+    }
+
+    if (!newEntries.length) {
+      showCloudStorageMessage("Keine neuen Cloud-Einträge gefunden");
+    }
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  } finally {
+    renderSupabaseStatus();
+  }
 }
 
 function getCalendarWeek(date) {
@@ -464,6 +779,7 @@ function serializeEntry(entry) {
     edited: entry.edited,
     manual: entry.manual,
     uploaded: entry.uploaded,
+    cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
 
@@ -485,6 +801,7 @@ function deserializeEntry(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
+    cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
 
@@ -860,6 +1177,8 @@ function showSettingsView() {
   settingsView.hidden = false;
   weekplanView.hidden = true;
   clearSettingsMessage();
+  clearCloudStorageMessage();
+  clearCloudConflictPanel();
   menuButton.setAttribute("aria-expanded", "false");
   menuPanel.hidden = true;
   window.location.hash = "einstellungen";
@@ -1415,59 +1734,6 @@ function clearSettingsMessage() {
   settingsMessage.textContent = "";
   settingsMessage.removeAttribute("data-type");
   settingsMessage.hidden = true;
-}
-
-function showCloudBackupMessage(message, type = "info") {
-  cloudBackupMessage.textContent = message;
-  cloudBackupMessage.dataset.type = type;
-  cloudBackupMessage.hidden = false;
-}
-
-function getSupabaseErrorMessage(error) {
-  if (!error) {
-    return "Supabase-Fehler: Die lokalen Einträge konnten nicht gesichert werden.";
-  }
-
-  return `Supabase-Fehler: ${error.message || error.details || "Die lokalen Einträge konnten nicht gesichert werden."}`;
-}
-
-async function backupLocalEntriesToCloud() {
-  if (!getSupabaseStatus().connected) {
-    showCloudBackupMessage("Supabase ist nicht verbunden", "error");
-    return;
-  }
-
-  if (!timeEntries.length) {
-    showCloudBackupMessage("Keine lokalen Einträge vorhanden");
-    return;
-  }
-
-  backupLocalDataButton.disabled = true;
-
-  try {
-    const entriesForUpload = timeEntries.map((entry) => ({
-      ...entry,
-      uploaded: true,
-    }));
-    const records = entriesForUpload.map(createSupabaseTimeEntryRecord);
-    const { error } = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .upsert(records, { onConflict: "id" });
-
-    if (error) {
-      showCloudBackupMessage(getSupabaseErrorMessage(error), "error");
-      return;
-    }
-
-    timeEntries.splice(0, timeEntries.length, ...entriesForUpload);
-    persistEntries();
-    renderHistory();
-    showCloudBackupMessage(`${records.length} Einträge wurden in der Cloud gesichert`, "success");
-  } catch (error) {
-    showCloudBackupMessage(getSupabaseErrorMessage(error), "error");
-  } finally {
-    renderSupabaseStatus();
-  }
 }
 
 function renderReminderSettingsForm() {
@@ -2323,9 +2589,47 @@ backButton.addEventListener("click", () => {
 });
 manualForm.addEventListener("submit", saveManualEntry);
 exportCsvButton.addEventListener("click", downloadCsvExport);
+cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
+cloudImportButton.addEventListener("click", importCloudEntriesToApp);
+cloudConflictPanel.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("button[data-cloud-conflict-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const action = actionButton.dataset.cloudConflictAction;
+
+  if (action === "keep-local-all") {
+    resolveAllCloudConflicts("keep-local");
+    return;
+  }
+
+  if (action === "use-cloud-all") {
+    resolveAllCloudConflicts("use-cloud");
+    return;
+  }
+
+  const conflictIndex = Number(actionButton.dataset.conflictIndex);
+
+  if (!Number.isInteger(conflictIndex)) {
+    return;
+  }
+
+  if (action === "keep-local") {
+    resolveCloudConflict(conflictIndex, "keep-local");
+  }
+
+  if (action === "use-cloud") {
+    resolveCloudConflict(conflictIndex, "use-cloud");
+  }
+
+  if (action === "keep-both") {
+    resolveCloudConflict(conflictIndex, "keep-both");
+  }
+});
 deleteAllDataButton.addEventListener("click", deleteAllEntries);
 csvImportInput.addEventListener("change", importCsvEntries);
-backupLocalDataButton.addEventListener("click", backupLocalEntriesToCloud);
 reminderSettingsForm.addEventListener("input", saveReminderSettingsFromForm);
 reminderSettingsForm.addEventListener("change", saveReminderSettingsFromForm);
 restoreReminderDefaultsButton.addEventListener("click", restoreDefaultReminderSettings);
