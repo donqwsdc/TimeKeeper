@@ -73,6 +73,10 @@ const userNameInputs = [
   document.querySelector("#userName2"),
   document.querySelector("#userName3"),
 ];
+const categorySettingsForm = document.querySelector("#categorySettingsForm");
+const categorySettingsList = document.querySelector("#categorySettingsList");
+const categorySettingsMessage = document.querySelector("#categorySettingsMessage");
+const newCategoryNameInput = document.querySelector("#newCategoryName");
 const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
 const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
 const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
@@ -100,11 +104,13 @@ const NOTIFICATION_PERMISSION_KEY = "timekeeper.notifications.permission.v1";
 const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
 const ACTIVE_USER_KEY = "timekeeper.activeUser.v1";
 const USERS_KEY = "timekeeper.users.v1";
+const CATEGORIES_KEY = "timekeeper.categories.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const SUPABASE_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
+const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
 const SUPABASE_TIME_ENTRY_COLUMNS = [
   "id",
   "user_id",
@@ -124,6 +130,7 @@ const SUPABASE_TIME_ENTRY_COLUMNS = [
   "updated_at",
 ];
 const SUPABASE_USER_COLUMNS = ["id", "name", "created_at", "updated_at"];
+const SUPABASE_CATEGORY_COLUMNS = ["id", "user_id", "name", "sort_order", "created_at", "updated_at"];
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
@@ -134,6 +141,17 @@ const DEFAULT_USERS = [
   { id: "user_1", name: "Nutzer 1" },
   { id: "user_2", name: "Nutzer 2" },
   { id: "user_3", name: "Nutzer 3" },
+];
+const DEFAULT_CATEGORY_NAMES = [
+  "Organisation",
+  "Meetings",
+  "Marketing Zentral",
+  "Filialmarketing",
+  "Eventplanung",
+  "Administration",
+  "Netzwerk",
+  "FlÃ¤che",
+  "Sonstiges",
 ];
 const CALENDAR_VIEW_MODES = {
   day: 1,
@@ -155,10 +173,8 @@ let activeCategory = "";
 let cloudImportConflicts = [];
 let activeUserId = DEFAULT_USERS[0].id;
 let users = DEFAULT_USERS.map((user) => ({ ...user }));
+let categories = [];
 const timeEntries = [];
-const categoryOptions = Array.from(categorySelect.options)
-  .map((option) => option.value || option.textContent)
-  .filter(Boolean);
 const CATEGORY_COLORS = {
   Organisation: "#21675b",
   Meetings: "#4f6f9f",
@@ -308,6 +324,7 @@ function saveActiveUserFromSettings() {
   }
 
   renderUserProfileSettings();
+  renderCategorySettings();
   showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
   refreshEntryViews();
 }
@@ -335,6 +352,370 @@ function saveUserNamesFromSettings() {
   activeUserSelect.value = activeUserId;
   refreshEntryViews();
   showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
+}
+
+function createCategoryId(userId, name) {
+  const slug = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+
+  return `${getValidUserId(userId)}_${slug || Date.now()}`;
+}
+
+function createDefaultCategoriesForUser(userId) {
+  return DEFAULT_CATEGORY_NAMES.map((name, index) => ({
+    id: createCategoryId(userId, name),
+    user_id: getValidUserId(userId),
+    name,
+    sort_order: index,
+  }));
+}
+
+function normalizeCategory(category, index = 0) {
+  const userId = getValidUserId(category?.user_id);
+  const name = String(category?.name || "").trim();
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: String(category?.id || createCategoryId(userId, name)),
+    user_id: userId,
+    name,
+    sort_order: Number.isFinite(Number(category?.sort_order)) ? Number(category.sort_order) : index,
+  };
+}
+
+function ensureDefaultCategoriesForAllUsers(nextCategories) {
+  const normalized = nextCategories.map(normalizeCategory).filter(Boolean);
+
+  DEFAULT_USERS.forEach((user) => {
+    if (!normalized.some((category) => category.user_id === user.id)) {
+      normalized.push(...createDefaultCategoriesForUser(user.id));
+    }
+  });
+
+  return normalized;
+}
+
+function loadCategories() {
+  try {
+    categories = ensureDefaultCategoriesForAllUsers(JSON.parse(localStorage.getItem(CATEGORIES_KEY) || "[]"));
+  } catch (error) {
+    categories = ensureDefaultCategoriesForAllUsers([]);
+  }
+  saveCategories();
+}
+
+function saveCategories() {
+  try {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+    return true;
+  } catch (error) {
+    showStorageError("Kategorien konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.");
+    return false;
+  }
+}
+
+function getCategoriesForUser(userId = activeUserId) {
+  const validUserId = getValidUserId(userId);
+  const userCategories = categories
+    .filter((category) => category.user_id === validUserId)
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "de"));
+
+  if (userCategories.length) {
+    return userCategories;
+  }
+
+  const defaults = createDefaultCategoriesForUser(validUserId);
+  categories.push(...defaults);
+  saveCategories();
+  return defaults;
+}
+
+function getCategoryNamesForActiveUser() {
+  return getCategoriesForUser(activeUserId).map((category) => category.name);
+}
+
+function getCategoryNamesForActiveUserWithCurrent(currentCategory = "") {
+  const names = getCategoryNamesForActiveUser();
+
+  if (currentCategory && !names.includes(currentCategory)) {
+    return [currentCategory, ...names];
+  }
+
+  return names;
+}
+
+function renderCategorySelect(select, selectedValue = "") {
+  select.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Kategorie auswählen";
+  select.append(placeholder);
+
+  getCategoriesForUser(activeUserId).forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category.name;
+    option.textContent = category.name;
+    select.append(option);
+  });
+
+  select.value = selectedValue;
+}
+
+function renderCategoryDropdowns() {
+  renderCategorySelect(categorySelect, categorySelect.value);
+  renderCategorySelect(manualForm.elements.category, manualForm.elements.category.value);
+}
+
+function showCategorySettingsMessage(message, type = "info") {
+  categorySettingsMessage.textContent = message;
+  categorySettingsMessage.dataset.type = type;
+  categorySettingsMessage.hidden = false;
+}
+
+function clearCategorySettingsMessage() {
+  categorySettingsMessage.textContent = "";
+  categorySettingsMessage.removeAttribute("data-type");
+  categorySettingsMessage.hidden = true;
+}
+
+function renderCategorySettings() {
+  const userCategories = getCategoriesForUser(activeUserId);
+  categorySettingsList.innerHTML = "";
+
+  userCategories.forEach((category, index) => {
+    const item = document.createElement("li");
+    item.className = "category-settings-item";
+    item.dataset.categoryId = category.id;
+    item.innerHTML = `
+      <span>${escapeHtml(category.name)}</span>
+      <div class="category-settings-actions">
+        <button class="settings-secondary-button" type="button" data-category-action="up" ${index === 0 ? "disabled" : ""}>Hoch</button>
+        <button class="settings-secondary-button" type="button" data-category-action="down" ${index === userCategories.length - 1 ? "disabled" : ""}>Runter</button>
+        <button class="settings-secondary-button" type="button" data-category-action="rename">Umbenennen</button>
+        <button class="settings-danger-button" type="button" data-category-action="delete">Löschen</button>
+      </div>
+    `;
+    categorySettingsList.append(item);
+  });
+
+  renderCategoryDropdowns();
+}
+
+function refreshCategoryViews() {
+  renderCategorySettings();
+  renderAnalytics();
+  renderWeekplan();
+}
+
+function addCategory(event) {
+  event.preventDefault();
+  const name = newCategoryNameInput.value.trim();
+
+  if (!name) {
+    showCategorySettingsMessage("Bitte einen Kategorienamen eingeben.", "error");
+    return;
+  }
+
+  if (getCategoryNamesForActiveUser().some((categoryName) => categoryName.toLowerCase() === name.toLowerCase())) {
+    showCategorySettingsMessage("Diese Kategorie gibt es bereits.", "error");
+    return;
+  }
+
+  const userCategories = getCategoriesForUser(activeUserId);
+  categories.push({
+    id: createCategoryId(activeUserId, name),
+    user_id: activeUserId,
+    name,
+    sort_order: userCategories.length,
+  });
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Kategorie konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  newCategoryNameInput.value = "";
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde hinzugefügt.", "success");
+}
+
+function updateEntriesForRenamedCategory(oldName, newName) {
+  const shouldUpdateEntries = window.confirm("Bestehende Einträge mit dieser Kategorie ebenfalls umbenennen?");
+
+  if (!shouldUpdateEntries) {
+    return true;
+  }
+
+  const nextEntries = timeEntries.map((entry) =>
+    getValidUserId(entry.user_id) === activeUserId && entry.category === oldName
+      ? { ...entry, category: newName, edited: true }
+      : entry,
+  );
+
+  if (!persistEntries(nextEntries)) {
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  return true;
+}
+
+function renameCategory(category) {
+  const nextName = window.prompt("Neuer Kategoriename", category.name)?.trim();
+
+  if (!nextName || nextName === category.name) {
+    return;
+  }
+
+  if (getCategoryNamesForActiveUser().some((categoryName) => categoryName.toLowerCase() === nextName.toLowerCase())) {
+    showCategorySettingsMessage("Diese Kategorie gibt es bereits.", "error");
+    return;
+  }
+
+  const oldName = category.name;
+  category.name = nextName;
+
+  if (!updateEntriesForRenamedCategory(oldName, nextName)) {
+    category.name = oldName;
+    showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+    return;
+  }
+
+  if (!saveCategories()) {
+    category.name = oldName;
+    showCategorySettingsMessage("Kategorie konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  refreshEntryViews();
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde umbenannt.", "success");
+}
+
+function deleteCategory(category) {
+  const usedEntries = timeEntries.filter(
+    (entry) => getValidUserId(entry.user_id) === activeUserId && entry.category === category.name,
+  );
+
+  if (usedEntries.length) {
+    const choice = window.prompt(
+      `Diese Kategorie wird in ${usedEntries.length} Einträgen verwendet.\n1 = Kategorie löschen und alte Einträge behalten\n2 = Einträge auf andere Kategorie umstellen\n3 = Abbrechen`,
+      "3",
+    );
+
+    if (choice === "2") {
+      const replacement = window.prompt(
+        `Neue Kategorie für bestehende Einträge:\n${getCategoryNamesForActiveUser()
+          .filter((name) => name !== category.name)
+          .join(", ")}`,
+      )?.trim();
+
+      if (!replacement) {
+        return;
+      }
+
+      if (!getCategoryNamesForActiveUser().some((name) => name === replacement && name !== category.name)) {
+        showCategorySettingsMessage("Bitte eine bestehende andere Kategorie eingeben.", "error");
+        return;
+      }
+
+      const nextEntries = timeEntries.map((entry) =>
+        getValidUserId(entry.user_id) === activeUserId && entry.category === category.name
+          ? { ...entry, category: replacement, edited: true }
+          : entry,
+      );
+
+      if (!persistEntries(nextEntries)) {
+        showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+        return;
+      }
+
+      timeEntries.splice(0, timeEntries.length, ...nextEntries);
+    } else if (choice !== "1") {
+      return;
+    }
+  } else if (!window.confirm("Kategorie wirklich löschen?")) {
+    return;
+  }
+
+  categories = categories.filter((item) => item.id !== category.id);
+  normalizeCategorySortOrders(activeUserId);
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Kategorie konnte nicht gelöscht werden.", "error");
+    return;
+  }
+
+  refreshEntryViews();
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde gelöscht.", "success");
+}
+
+function normalizeCategorySortOrders(userId = activeUserId) {
+  getCategoriesForUser(userId).forEach((category, index) => {
+    category.sort_order = index;
+  });
+}
+
+function moveCategory(category, direction) {
+  const userCategories = getCategoriesForUser(activeUserId);
+  const index = userCategories.findIndex((item) => item.id === category.id);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+
+  if (index < 0 || swapIndex < 0 || swapIndex >= userCategories.length) {
+    return;
+  }
+
+  const currentOrder = userCategories[index].sort_order;
+  userCategories[index].sort_order = userCategories[swapIndex].sort_order;
+  userCategories[swapIndex].sort_order = currentOrder;
+  normalizeCategorySortOrders(activeUserId);
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Reihenfolge konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  refreshCategoryViews();
+  showCategorySettingsMessage("Reihenfolge wurde gespeichert.", "success");
+}
+
+function handleCategorySettingsAction(event) {
+  const actionButton = event.target.closest("button[data-category-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const categoryId = actionButton.closest("[data-category-id]")?.dataset.categoryId;
+  const category = categories.find((item) => item.id === categoryId && item.user_id === activeUserId);
+
+  if (!category) {
+    return;
+  }
+
+  const action = actionButton.dataset.categoryAction;
+
+  if (action === "rename") {
+    renameCategory(category);
+  }
+
+  if (action === "delete") {
+    deleteCategory(category);
+  }
+
+  if (action === "up" || action === "down") {
+    moveCategory(category, action);
+  }
 }
 
 function getSupabaseConfig() {
@@ -451,6 +832,19 @@ function createSupabaseUserRecord(user) {
   };
 }
 
+function createSupabaseCategoryRecord(category) {
+  const now = new Date().toISOString();
+
+  return {
+    id: category.id,
+    user_id: getValidUserId(category.user_id),
+    name: category.name,
+    sort_order: Number(category.sort_order) || 0,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 function ensureLocalTimeEntriesHaveUserIds() {
   let changed = false;
 
@@ -541,6 +935,12 @@ async function upsertSupabaseUserProfiles() {
     .upsert(users.map(createSupabaseUserRecord), { onConflict: "id" });
 }
 
+async function upsertSupabaseCategories() {
+  return supabaseClient
+    .from(SUPABASE_CATEGORIES_TABLE_NAME)
+    .upsert(categories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+}
+
 async function loadSupabaseUserProfiles() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_USERS_TABLE_NAME)
@@ -574,6 +974,37 @@ async function loadSupabaseUserProfiles() {
   }
 
   return { error: null, updated: changed };
+}
+
+async function loadSupabaseCategories() {
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_CATEGORIES_TABLE_NAME)
+    .select(SUPABASE_CATEGORY_COLUMNS.join(","));
+
+  if (error) {
+    return { error, updated: false };
+  }
+
+  const cloudCategories = (data || []).map(normalizeCategory).filter(Boolean);
+
+  if (!cloudCategories.length) {
+    return { error: null, updated: false };
+  }
+
+  const cloudUserIds = new Set(cloudCategories.map((category) => category.user_id));
+  categories = [
+    ...categories.filter((category) => !cloudUserIds.has(category.user_id)),
+    ...cloudCategories,
+  ];
+  categories = ensureDefaultCategoriesForAllUsers(categories);
+
+  if (!saveCategories()) {
+    return { error: { message: "Kategorien konnten nicht lokal gespeichert werden." }, updated: false };
+  }
+
+  renderCategorySettings();
+  refreshEntryViews();
+  return { error: null, updated: true };
 }
 
 async function loadSupabaseTimeEntryRecords() {
@@ -610,8 +1041,15 @@ async function backupLocalEntriesToCloud() {
       return;
     }
 
+    const categoryResult = await upsertSupabaseCategories();
+
+    if (categoryResult.error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(categoryResult.error), "error");
+      return;
+    }
+
     if (!timeEntries.length) {
-      showCloudStorageMessage("Nutzerprofile in Cloud gesichert. Keine lokalen Einträge vorhanden", "success");
+      showCloudStorageMessage("Nutzerprofile und Kategorien in Cloud gesichert. Keine lokalen Einträge vorhanden", "success");
       return;
     }
 
@@ -626,7 +1064,7 @@ async function backupLocalEntriesToCloud() {
       return;
     }
 
-    showCloudStorageMessage(`Nutzerprofile in Cloud gesichert. ${records.length} Zeiteinträge in Cloud gesichert`, "success");
+    showCloudStorageMessage(`Nutzerprofile und Kategorien in Cloud gesichert. ${records.length} Zeiteinträge in Cloud gesichert`, "success");
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
   } finally {
@@ -843,6 +1281,13 @@ async function importCloudEntriesToApp() {
       return;
     }
 
+    const categoryResult = await loadSupabaseCategories();
+
+    if (categoryResult.error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(categoryResult.error), "error");
+      return;
+    }
+
     const { data, error } = await loadSupabaseTimeEntryRecords();
 
     if (error) {
@@ -853,7 +1298,7 @@ async function importCloudEntriesToApp() {
     const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
 
     if (!cloudEntries.length) {
-      showCloudStorageMessage(userResult.updated ? "Cloud-Daten geladen" : "Keine Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Cloud-Daten geladen" : "Keine Cloud-Einträge gefunden");
       return;
     }
 
@@ -898,7 +1343,7 @@ async function importCloudEntriesToApp() {
     }
 
     if (!newEntries.length) {
-      showCloudStorageMessage(userResult.updated ? "Cloud-Daten geladen" : "Keine neuen Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Cloud-Daten geladen" : "Keine neuen Cloud-Einträge gefunden");
     }
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -1409,6 +1854,7 @@ function resetTimerScreen(options = {}) {
   noteInput.value = "";
   activityInput.value = "";
   categorySelect.value = "";
+  renderCategoryDropdowns();
   activeActivity = "";
   activeCategory = "";
   if (!keepStoredActiveTimer) {
@@ -1487,6 +1933,7 @@ function showExportView() {
 
 function showSettingsView() {
   renderUserProfileSettings();
+  renderCategorySettings();
   renderReminderSettingsForm();
   renderSupabaseStatus();
   timerView.hidden = true;
@@ -1500,6 +1947,7 @@ function showSettingsView() {
   clearCloudStorageMessage();
   clearCloudConflictPanel();
   clearUserProfileMessage();
+  clearCategorySettingsMessage();
   menuButton.setAttribute("aria-expanded", "false");
   menuPanel.hidden = true;
   window.location.hash = "einstellungen";
@@ -2578,7 +3026,7 @@ function renderEditForm(entry) {
     <label>
       Kategorie
       <select name="category" required>
-        ${categoryOptions
+        ${getCategoryNamesForActiveUserWithCurrent(entry.category)
           .map(
             (category) =>
               `<option value="${escapeHtml(category)}" ${category === entry.category ? "selected" : ""}>${escapeHtml(category)}</option>`,
@@ -2942,6 +3390,8 @@ exportScopeSelect.addEventListener("change", () => {
   renderExportSummary();
   exportMessage.hidden = true;
 });
+categorySettingsForm.addEventListener("submit", addCategory);
+categorySettingsList.addEventListener("click", handleCategorySettingsAction);
 cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 cloudImportButton.addEventListener("click", importCloudEntriesToApp);
 cloudConflictPanel.addEventListener("click", (event) => {
@@ -3010,6 +3460,7 @@ document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
   });
 });
 loadUserProfiles();
+loadCategories();
 loadPersistedEntries();
 initializeSupabaseClient();
 loadCalendarState();
@@ -3018,6 +3469,7 @@ renderAnalytics();
 renderWeekplan();
 updateActivitySuggestions();
 renderUserProfileSettings();
+renderCategorySettings();
 renderReminderSettingsForm();
 renderSupabaseStatus();
 renderExportSummary();

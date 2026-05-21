@@ -247,6 +247,20 @@
         </section>
 
         <section class="settings-panel">
+          <h3>Kategorien verwalten</h3>
+          <p class="settings-help">Kategorien gelten nur fÃ¼r den aktiven Nutzer.</p>
+          <form class="category-settings-form" id="categorySettingsForm">
+            <label>
+              Neue Kategorie
+              <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
+            </label>
+            <button class="settings-secondary-button" type="submit">Kategorie hinzufÃ¼gen</button>
+          </form>
+          <ol class="category-settings-list" id="categorySettingsList"></ol>
+          <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section class="settings-panel">
           <h3>Cloudspeicherung</h3>
           <p class="settings-help">Supabase ist vorbereitet. LocalStorage bleibt aktiv; es findet noch keine automatische Synchronisation statt.</p>
           <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">

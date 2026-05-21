@@ -1088,6 +1088,7 @@ textarea:focus {
 }
 
 .settings-field,
+.category-settings-form,
 .user-settings-form,
 .reminder-settings-form {
   display: grid;
@@ -1095,6 +1096,7 @@ textarea:focus {
 }
 
 .settings-field,
+.category-settings-form label,
 .user-settings-form label,
 .reminder-settings-form label {
   display: grid;
@@ -1105,6 +1107,7 @@ textarea:focus {
 }
 
 .settings-field select,
+.category-settings-form input[type="text"],
 .user-settings-form input[type="text"],
 .reminder-settings-form input[type="text"],
 .reminder-settings-form input[type="time"],
@@ -1116,6 +1119,33 @@ textarea:focus {
   color: var(--text);
   background: var(--field);
   padding: 0 12px;
+}
+
+.category-settings-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-settings-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.category-settings-item > span {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.category-settings-actions {
+  display: grid;
+  gap: 8px;
 }
 
 .settings-time-grid {
