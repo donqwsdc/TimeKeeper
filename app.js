@@ -15,6 +15,7 @@ const categorySelect = document.querySelector("#category");
 const saveButton = document.querySelector(".save-button");
 const discardButton = document.querySelector(".discard-button");
 const timerMessage = document.querySelector("#timerMessage");
+const syncStatusMessage = document.querySelector("#syncStatusMessage");
 const historyEmpty = document.querySelector("#historyEmpty");
 const historyList = document.querySelector("#historyList");
 const timerView = document.querySelector("#timerView");
@@ -557,7 +558,7 @@ function updateEntriesForRenamedCategory(oldName, newName) {
 
   const nextEntries = timeEntries.map((entry) =>
     getValidUserId(entry.user_id) === activeUserId && entry.category === oldName
-      ? { ...entry, category: newName, edited: true }
+      ? { ...entry, category: newName, edited: true, updated_at: getNowIsoString() }
       : entry,
   );
 
@@ -630,7 +631,7 @@ function deleteCategory(category) {
 
       const nextEntries = timeEntries.map((entry) =>
         getValidUserId(entry.user_id) === activeUserId && entry.category === category.name
-          ? { ...entry, category: replacement, edited: true }
+          ? { ...entry, category: replacement, edited: true, updated_at: getNowIsoString() }
           : entry,
       );
 
@@ -800,6 +801,8 @@ function toSupabaseTimeValue(date) {
 function createSupabaseTimeEntryRecord(entry) {
   const now = new Date().toISOString();
   const userId = getValidUserId(entry.user_id);
+  const updatedAt = entry.updated_at || entry.updatedAt || now;
+  const createdAt = entry.created_at || entry.createdAt || updatedAt;
 
   return {
     id: entry.id,
@@ -816,8 +819,8 @@ function createSupabaseTimeEntryRecord(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
-    created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
-    updated_at: now,
+    created_at: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
+    updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt,
   };
 }
 
@@ -915,15 +918,42 @@ function removeOptionalSupabaseTimeEntryColumns(records) {
   return records.map(({ date, start_time: startTime, end_time: endTime, ...record }) => record);
 }
 
+function keepRequestedSupabaseTimeEntryColumns(records) {
+  return records.map((record) => ({
+    id: record.id,
+    user_id: record.user_id,
+    date: record.date,
+    start_time: record.start_time,
+    end_time: record.end_time,
+    duration_minutes: record.duration_minutes,
+    category: record.category,
+    note: record.note,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+  }));
+}
+
 async function upsertSupabaseTimeEntryRecords(records) {
   const result = await supabaseClient
     .from(SUPABASE_TABLE_NAME)
     .upsert(records, { onConflict: "id" });
 
   if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
-    return supabaseClient
+    const requestedStructureResult = await supabaseClient
       .from(SUPABASE_TABLE_NAME)
-      .upsert(removeOptionalSupabaseTimeEntryColumns(records), { onConflict: "id" });
+      .upsert(keepRequestedSupabaseTimeEntryColumns(records), { onConflict: "id" });
+
+    if (!requestedStructureResult.error) {
+      return requestedStructureResult;
+    }
+
+    if (isMissingSupabaseColumnError(requestedStructureResult.error)) {
+      return supabaseClient
+        .from(SUPABASE_TABLE_NAME)
+        .upsert(removeOptionalSupabaseTimeEntryColumns(records), { onConflict: "id" });
+    }
+
+    return requestedStructureResult;
   }
 
   return result;
@@ -1013,15 +1043,137 @@ async function loadSupabaseTimeEntryRecords() {
     .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
 
   if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
-    const fallbackColumns = SUPABASE_TIME_ENTRY_COLUMNS.filter(
-      (column) => !["date", "start_time", "end_time"].includes(column),
-    );
+    const fallbackColumns = ["id", "user_id", "date", "start_time", "end_time", "duration_minutes", "category", "note", "created_at", "updated_at"];
     return supabaseClient
       .from(SUPABASE_TABLE_NAME)
       .select(fallbackColumns.join(","));
   }
 
   return result;
+}
+
+function mergeCloudEntriesIntoLocal(cloudEntries) {
+  const nextEntries = [...timeEntries];
+  let addedCount = 0;
+  let updatedCount = 0;
+
+  cloudEntries.forEach((cloudEntry) => {
+    const sameIdIndex = nextEntries.findIndex((entry) => entry.id === cloudEntry.id);
+
+    if (sameIdIndex >= 0) {
+      const localEntry = nextEntries[sameIdIndex];
+
+      if (areEntriesDifferent(localEntry, cloudEntry) && getEntryUpdatedAtTime(cloudEntry) > getEntryUpdatedAtTime(localEntry)) {
+        nextEntries[sameIdIndex] = cloudEntry;
+        updatedCount += 1;
+      }
+      return;
+    }
+
+    const duplicate = nextEntries.find((entry) => getCloudEntryDuplicateKey(entry) === getCloudEntryDuplicateKey(cloudEntry));
+
+    if (!duplicate) {
+      nextEntries.push(cloudEntry);
+      addedCount += 1;
+    }
+  });
+
+  if (addedCount || updatedCount) {
+    const sortedEntries = nextEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+    if (!persistEntries(sortedEntries)) {
+      return { addedCount: 0, updatedCount: 0, error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." } };
+    }
+
+    timeEntries.splice(0, timeEntries.length, ...sortedEntries);
+  }
+
+  return { addedCount, updatedCount, error: null };
+}
+
+function showStartupSyncMessage(message, type = "info") {
+  syncStatusMessage.textContent = message;
+  syncStatusMessage.dataset.type = type;
+  syncStatusMessage.hidden = false;
+
+  window.setTimeout(() => {
+    if (syncStatusMessage.textContent === message) {
+      syncStatusMessage.hidden = true;
+      syncStatusMessage.removeAttribute("data-type");
+    }
+  }, 5000);
+}
+
+async function synchronizeWithSupabaseOnStartup() {
+  const status = getSupabaseStatus();
+
+  if (!status.connected) {
+    showStartupSyncMessage("Keine Supabase-Verbindung - lokale Daten werden verwendet");
+    return;
+  }
+
+  try {
+    ensureLocalTimeEntriesHaveUserIds();
+
+    const userResult = await loadSupabaseUserProfiles();
+
+    if (userResult.error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(userResult.error), "error");
+      return;
+    }
+
+    const categoryResult = await loadSupabaseCategories();
+
+    if (categoryResult.error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(categoryResult.error), "error");
+      return;
+    }
+
+    const { data, error } = await loadSupabaseTimeEntryRecords();
+
+    if (error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
+    const mergeResult = mergeCloudEntriesIntoLocal(cloudEntries);
+
+    if (mergeResult.error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(mergeResult.error), "error");
+      return;
+    }
+
+    const userUploadResult = await upsertSupabaseUserProfiles();
+
+    if (userUploadResult.error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(userUploadResult.error), "error");
+      return;
+    }
+
+    const categoryUploadResult = await upsertSupabaseCategories();
+
+    if (categoryUploadResult.error) {
+      showStartupSyncMessage(getSupabaseErrorMessage(categoryUploadResult.error), "error");
+      return;
+    }
+
+    if (timeEntries.length) {
+      const entryUploadResult = await upsertSupabaseTimeEntryRecords(timeEntries.map(createSupabaseTimeEntryRecord));
+
+      if (entryUploadResult.error) {
+        showStartupSyncMessage(getSupabaseErrorMessage(entryUploadResult.error), "error");
+        return;
+      }
+    }
+
+    refreshEntryViews();
+    renderUserProfileSettings();
+    renderCategorySettings();
+    showStartupSyncMessage("Synchronisierung abgeschlossen", "success");
+  } catch (error) {
+    showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
+  }
 }
 
 async function backupLocalEntriesToCloud() {
@@ -1073,8 +1225,8 @@ async function backupLocalEntriesToCloud() {
 }
 
 function createLocalEntryFromSupabaseRecord(record) {
-  const startedAt = new Date(record.started_at);
-  const endedAt = new Date(record.ended_at);
+  const startedAt = record.started_at ? new Date(record.started_at) : parseCloudDateTime(record.date, record.start_time);
+  const endedAt = record.ended_at ? new Date(record.ended_at) : parseCloudDateTime(record.date, record.end_time);
 
   if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
     return null;
@@ -1082,7 +1234,7 @@ function createLocalEntryFromSupabaseRecord(record) {
 
   return {
     id: record.id,
-    activity: record.activity || "",
+    activity: record.activity || record.description || record.note || "Zeiteintrag",
     category: record.category || "",
     startedAt,
     endedAt,
@@ -1091,6 +1243,8 @@ function createLocalEntryFromSupabaseRecord(record) {
     manual: Boolean(record.manual),
     uploaded: Boolean(record.uploaded),
     user_id: getValidUserId(record.user_id),
+    created_at: record.created_at || startedAt.toISOString(),
+    updated_at: record.updated_at || endedAt.toISOString(),
     cloud_saved: true,
   };
 }
@@ -1107,8 +1261,9 @@ function getEntryDuplicateKey(entry) {
 function getCloudEntryDuplicateKey(entry) {
   return [
     getValidUserId(entry.user_id),
-    entry.startedAt.toISOString(),
-    entry.endedAt.toISOString(),
+    toDateInputValue(entry.startedAt),
+    toSupabaseTimeValue(entry.startedAt),
+    toSupabaseTimeValue(entry.endedAt),
     String(entry.category || "").trim(),
     String(entry.note || "").trim(),
   ].join("|");
@@ -1500,6 +1655,10 @@ function getEntryDurationMinutes(entry) {
   return formatDurationInMinutes(entry.endedAt.getTime() - entry.startedAt.getTime());
 }
 
+function getNowIsoString() {
+  return new Date().toISOString();
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -1510,6 +1669,34 @@ function escapeHtml(value) {
 
 function createEntryId() {
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now());
+}
+
+function parseCloudDateTime(dateValue, timeValue) {
+  if (!dateValue || !timeValue) {
+    return null;
+  }
+
+  const date = new Date(`${dateValue}T${String(timeValue).slice(0, 8)}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getEntryUpdatedAtTime(entry) {
+  const updatedAt = new Date(entry.updated_at || entry.updatedAt || entry.endedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
+function areEntriesDifferent(firstEntry, secondEntry) {
+  return [
+    "user_id",
+    "activity",
+    "category",
+    "note",
+    "edited",
+    "manual",
+    "uploaded",
+  ].some((key) => String(firstEntry[key] ?? "") !== String(secondEntry[key] ?? "")) ||
+    firstEntry.startedAt?.toISOString() !== secondEntry.startedAt?.toISOString() ||
+    firstEntry.endedAt?.toISOString() !== secondEntry.endedAt?.toISOString();
 }
 
 function isEntryForActiveUser(entry) {
@@ -1525,6 +1712,8 @@ function getExportEntries() {
 }
 
 function serializeEntry(entry) {
+  const now = getNowIsoString();
+
   return {
     id: entry.id,
     activity: entry.activity,
@@ -1536,6 +1725,8 @@ function serializeEntry(entry) {
     manual: entry.manual,
     uploaded: entry.uploaded,
     user_id: getValidUserId(entry.user_id),
+    created_at: entry.created_at || entry.createdAt || now,
+    updated_at: entry.updated_at || entry.updatedAt || now,
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -1559,6 +1750,8 @@ function deserializeEntry(entry) {
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
     user_id: getValidUserId(entry.user_id),
+    created_at: entry.created_at || entry.createdAt || entry.startedAt || new Date().toISOString(),
+    updated_at: entry.updated_at || entry.updatedAt || entry.endedAt || new Date().toISOString(),
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -2729,6 +2922,9 @@ function entriesFromCsvText(text) {
       edited: parseCsvBoolean(getCsvValue(row, headerMap, "bearbeitet")),
       manual: parseCsvBoolean(getCsvValue(row, headerMap, "nachgetragen")),
       uploaded: true,
+      user_id: activeUserId,
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     });
   });
 
@@ -3097,6 +3293,7 @@ function updateHistoryEntry(form) {
           endedAt,
           note: formData.get("note").trim(),
           edited: true,
+          updated_at: getNowIsoString(),
         }
       : item,
   );
@@ -3162,6 +3359,8 @@ function saveCurrentEntry() {
       manual: false,
       uploaded: false,
       user_id: activeUserId,
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     },
     ...timeEntries,
   ];
@@ -3236,6 +3435,8 @@ function saveManualEntry(event) {
       manual: true,
       uploaded: false,
       user_id: activeUserId,
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     },
     ...timeEntries,
   ];
@@ -3478,6 +3679,7 @@ registerServiceWorker();
 initializeDeveloperMode();
 initializeNotificationPermissionState();
 checkReminders();
+synchronizeWithSupabaseOnStartup();
 setInterval(checkReminders, 30000);
 
 if (window.location.hash === "#verlauf") {
