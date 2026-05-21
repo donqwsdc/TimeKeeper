@@ -102,12 +102,17 @@ const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const SUPABASE_TABLE_NAME = "time_entries";
+const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_TIME_ENTRY_COLUMNS = [
   "id",
+  "user_id",
   "activity",
   "category",
   "started_at",
   "ended_at",
+  "date",
+  "start_time",
+  "end_time",
   "duration_minutes",
   "note",
   "edited",
@@ -116,6 +121,7 @@ const SUPABASE_TIME_ENTRY_COLUMNS = [
   "created_at",
   "updated_at",
 ];
+const SUPABASE_USER_COLUMNS = ["id", "name", "created_at", "updated_at"];
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
@@ -273,6 +279,7 @@ function clearUserProfileMessage() {
 }
 
 function renderUserProfileSettings() {
+  const canEditUserNames = isDeveloperModeEnabled();
   activeUserSelect.innerHTML = "";
 
   users.forEach((user) => {
@@ -283,8 +290,10 @@ function renderUserProfileSettings() {
   });
 
   activeUserSelect.value = activeUserId;
+  userSettingsForm.hidden = !canEditUserNames;
   userNameInputs.forEach((input, index) => {
     input.value = users[index]?.name || DEFAULT_USERS[index].name;
+    input.disabled = !canEditUserNames;
   });
 }
 
@@ -301,6 +310,12 @@ function saveActiveUserFromSettings() {
 }
 
 function saveUserNamesFromSettings() {
+  if (!isDeveloperModeEnabled()) {
+    renderUserProfileSettings();
+    clearUserProfileMessage();
+    return;
+  }
+
   users = DEFAULT_USERS.map((defaultUser, index) => ({
     id: defaultUser.id,
     name: userNameInputs[index].value.trim() || defaultUser.name,
@@ -394,24 +409,65 @@ function renderSupabaseStatus() {
   cloudImportButton.disabled = !status.connected;
 }
 
+function toSupabaseTimeValue(date) {
+  return date.toTimeString().slice(0, 8);
+}
+
 function createSupabaseTimeEntryRecord(entry) {
   const now = new Date().toISOString();
+  const userId = getValidUserId(entry.user_id);
 
   return {
     id: entry.id,
+    user_id: userId,
     activity: entry.activity,
     category: entry.category,
     started_at: entry.startedAt.toISOString(),
     ended_at: entry.endedAt.toISOString(),
+    date: toDateInputValue(entry.startedAt),
+    start_time: toSupabaseTimeValue(entry.startedAt),
+    end_time: toSupabaseTimeValue(entry.endedAt),
     duration_minutes: Math.max(0, Math.round((entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000)),
     note: entry.note || "",
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
-    user_id: getValidUserId(entry.user_id),
     created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
     updated_at: now,
   };
+}
+
+function createSupabaseUserRecord(user) {
+  const now = new Date().toISOString();
+
+  return {
+    id: getValidUserId(user.id),
+    name: String(user.name || getUserName(user.id)).trim() || getUserName(user.id),
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function ensureLocalTimeEntriesHaveUserIds() {
+  let changed = false;
+
+  timeEntries.forEach((entry) => {
+    if (!entry.user_id) {
+      entry.user_id = DEFAULT_USERS[0].id;
+      changed = true;
+      return;
+    }
+
+    const validUserId = getValidUserId(entry.user_id);
+    if (validUserId !== entry.user_id) {
+      entry.user_id = validUserId;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    persistEntries(timeEntries);
+  }
 }
 
 function showCloudStorageMessage(message, type = "info") {
@@ -437,7 +493,15 @@ function getSupabaseErrorMessage(error) {
     return "Supabase-Fehler: Die Daten konnten nicht verarbeitet werden.";
   }
 
-  return `Supabase-Fehler: ${error.message || error.details || "Die Daten konnten nicht verarbeitet werden."}`;
+  return [
+    "Supabase-Fehler:",
+    error.message,
+    error.details,
+    error.hint,
+    error.code,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function isMissingSupabaseUserIdColumnError(error) {
@@ -445,8 +509,13 @@ function isMissingSupabaseUserIdColumnError(error) {
   return message.includes("user_id") && (message.includes("column") || message.includes("schema"));
 }
 
-function removeUserIdFromSupabaseRecords(records) {
-  return records.map(({ user_id: userId, ...record }) => record);
+function isMissingSupabaseColumnError(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return message.includes("column") || message.includes("schema cache") || message.includes("schema");
+}
+
+function removeOptionalSupabaseTimeEntryColumns(records) {
+  return records.map(({ date, start_time: startTime, end_time: endTime, ...record }) => record);
 }
 
 async function upsertSupabaseTimeEntryRecords(records) {
@@ -454,10 +523,68 @@ async function upsertSupabaseTimeEntryRecords(records) {
     .from(SUPABASE_TABLE_NAME)
     .upsert(records, { onConflict: "id" });
 
-  if (result.error && isMissingSupabaseUserIdColumnError(result.error)) {
+  if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
     return supabaseClient
       .from(SUPABASE_TABLE_NAME)
-      .upsert(removeUserIdFromSupabaseRecords(records), { onConflict: "id" });
+      .upsert(removeOptionalSupabaseTimeEntryColumns(records), { onConflict: "id" });
+  }
+
+  return result;
+}
+
+async function upsertSupabaseUserProfiles() {
+  return supabaseClient
+    .from(SUPABASE_USERS_TABLE_NAME)
+    .upsert(users.map(createSupabaseUserRecord), { onConflict: "id" });
+}
+
+async function loadSupabaseUserProfiles() {
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_USERS_TABLE_NAME)
+    .select(SUPABASE_USER_COLUMNS.join(","));
+
+  if (error) {
+    return { error, updated: false };
+  }
+
+  const cloudUserMap = new Map(
+    (data || [])
+      .filter((user) => user && getValidUserId(user.id) === user.id)
+      .map((user) => [user.id, String(user.name || "").trim()]),
+  );
+
+  if (!cloudUserMap.size) {
+    return { error: null, updated: false };
+  }
+
+  const nextUsers = DEFAULT_USERS.map((defaultUser) => ({
+    id: defaultUser.id,
+    name: cloudUserMap.get(defaultUser.id) || getUserName(defaultUser.id),
+  }));
+  const changed = nextUsers.some((user) => user.name !== getUserName(user.id));
+
+  if (changed) {
+    users = nextUsers;
+    saveUserProfiles();
+    renderUserProfileSettings();
+    renderHistory();
+  }
+
+  return { error: null, updated: changed };
+}
+
+async function loadSupabaseTimeEntryRecords() {
+  const result = await supabaseClient
+    .from(SUPABASE_TABLE_NAME)
+    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
+
+  if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
+    const fallbackColumns = SUPABASE_TIME_ENTRY_COLUMNS.filter(
+      (column) => !["date", "start_time", "end_time"].includes(column),
+    );
+    return supabaseClient
+      .from(SUPABASE_TABLE_NAME)
+      .select(fallbackColumns.join(","));
   }
 
   return result;
@@ -468,18 +595,27 @@ async function backupLocalEntriesToCloud() {
   renderSupabaseStatus();
 
   if (!status.connected) {
-    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+    showCloudStorageMessage("Keine Cloud-Verbindung", "error");
     return;
   }
-
-  if (!timeEntries.length) {
-    showCloudStorageMessage("Keine lokalen Einträge vorhanden");
-    return;
-  }
-
-  const records = timeEntries.map(createSupabaseTimeEntryRecord);
 
   try {
+    const userResult = await upsertSupabaseUserProfiles();
+
+    if (userResult.error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(userResult.error), "error");
+      return;
+    }
+
+    if (!timeEntries.length) {
+      showCloudStorageMessage("Nutzerprofile in Cloud gesichert. Keine lokalen Einträge vorhanden", "success");
+      return;
+    }
+
+    ensureLocalTimeEntriesHaveUserIds();
+    const records = timeEntries.map((entry) =>
+      createSupabaseTimeEntryRecord({ ...entry, user_id: getValidUserId(entry.user_id) }),
+    );
     const { error } = await upsertSupabaseTimeEntryRecords(records);
 
     if (error) {
@@ -487,7 +623,7 @@ async function backupLocalEntriesToCloud() {
       return;
     }
 
-    showCloudStorageMessage(`${records.length} Einträge wurden in der Cloud gesichert`, "success");
+    showCloudStorageMessage(`Nutzerprofile in Cloud gesichert. ${records.length} Zeiteinträge in Cloud gesichert`, "success");
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
   } finally {
@@ -527,11 +663,25 @@ function getEntryDuplicateKey(entry) {
   ].join("|");
 }
 
+function getCloudEntryDuplicateKey(entry) {
+  return [
+    getValidUserId(entry.user_id),
+    entry.startedAt.toISOString(),
+    entry.endedAt.toISOString(),
+    String(entry.category || "").trim(),
+    String(entry.note || "").trim(),
+  ].join("|");
+}
+
 function findDuplicateLocalEntries(cloudEntry, localEntries = timeEntries) {
   const cloudDuplicateKey = getEntryDuplicateKey(cloudEntry);
+  const cloudDetailedDuplicateKey = getCloudEntryDuplicateKey(cloudEntry);
 
   return localEntries.filter(
-    (localEntry) => localEntry.id === cloudEntry.id || getEntryDuplicateKey(localEntry) === cloudDuplicateKey,
+    (localEntry) =>
+      localEntry.id === cloudEntry.id ||
+      getEntryDuplicateKey(localEntry) === cloudDuplicateKey ||
+      getCloudEntryDuplicateKey(localEntry) === cloudDetailedDuplicateKey,
   );
 }
 
@@ -678,14 +828,19 @@ async function importCloudEntriesToApp() {
   clearCloudConflictPanel();
 
   if (!status.connected) {
-    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+    showCloudStorageMessage("Keine Cloud-Verbindung", "error");
     return;
   }
 
   try {
-    const { data, error } = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
+    const userResult = await loadSupabaseUserProfiles();
+
+    if (userResult.error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(userResult.error), "error");
+      return;
+    }
+
+    const { data, error } = await loadSupabaseTimeEntryRecords();
 
     if (error) {
       showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -695,7 +850,7 @@ async function importCloudEntriesToApp() {
     const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
 
     if (!cloudEntries.length) {
-      showCloudStorageMessage("Keine Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated ? "Cloud-Daten geladen" : "Keine Cloud-Einträge gefunden");
       return;
     }
 
@@ -720,7 +875,7 @@ async function importCloudEntriesToApp() {
     });
 
     if (newEntries.length) {
-      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], `${newEntries.length} neue Einträge wurden geladen`);
+      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], `${newEntries.length} neue Einträge wurden geladen. Cloud-Daten geladen`);
 
       if (!imported) {
         return;
@@ -740,7 +895,7 @@ async function importCloudEntriesToApp() {
     }
 
     if (!newEntries.length) {
-      showCloudStorageMessage("Keine neuen Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated ? "Cloud-Daten geladen" : "Keine neuen Cloud-Einträge gefunden");
     }
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -1358,6 +1513,7 @@ function isDeveloperModeEnabled() {
 function setDeveloperMode(enabled) {
   reminderTestPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
+  renderUserProfileSettings();
 
   try {
     localStorage.setItem(DEVELOPER_MODE_KEY, String(enabled));
