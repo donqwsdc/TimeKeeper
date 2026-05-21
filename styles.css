@@ -106,6 +106,7 @@ textarea {
 .history-cancel-edit-button:focus-visible,
 .manual-save-button:focus-visible,
 .export-csv-button:focus-visible,
+.settings-primary-button:focus-visible,
 .settings-danger-button:focus-visible,
 .settings-secondary-button:focus-visible,
 .settings-file-label:focus-visible,
@@ -981,6 +982,7 @@ textarea:focus {
   line-height: 1.4;
 }
 
+.settings-primary-button,
 .settings-danger-button,
 .settings-secondary-button,
 .settings-file-label {
@@ -1021,6 +1023,17 @@ textarea:focus {
 .settings-time-grid {
   display: grid;
   gap: 10px;
+}
+
+.settings-primary-button {
+  border: 0;
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.settings-primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .settings-danger-button {

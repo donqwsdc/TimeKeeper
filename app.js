@@ -65,6 +65,8 @@ const reminderTestPanel = document.querySelector(".reminder-test-panel");
 const developerModeToggle = document.querySelector("#developerModeToggle");
 const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
 const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
+const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
+const cloudBackupButton = document.querySelector("#cloudBackupButton");
 const settingsMessage = document.querySelector("#settingsMessage");
 const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
 const csvImportInput = document.querySelector("#csvImportInput");
@@ -267,9 +269,12 @@ function renderSupabaseStatus() {
   cloudStorageStatus.textContent = status.message;
   cloudStorageStatus.dataset.status = status.connected ? "connected" : "disconnected";
   cloudStorageDetail.textContent = status.detail;
+  cloudBackupButton.disabled = !status.connected;
 }
 
 function createSupabaseTimeEntryRecord(entry) {
+  const now = new Date().toISOString();
+
   return {
     id: entry.id,
     activity: entry.activity,
@@ -281,9 +286,63 @@ function createSupabaseTimeEntryRecord(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
+    updated_at: now,
   };
+}
+
+function showCloudStorageMessage(message, type = "info") {
+  cloudStorageMessage.textContent = message;
+  cloudStorageMessage.dataset.type = type;
+  cloudStorageMessage.hidden = false;
+}
+
+function clearCloudStorageMessage() {
+  cloudStorageMessage.textContent = "";
+  cloudStorageMessage.removeAttribute("data-type");
+  cloudStorageMessage.hidden = true;
+}
+
+function getSupabaseErrorMessage(error) {
+  if (!error) {
+    return "Supabase-Fehler: Die Daten konnten nicht gesichert werden.";
+  }
+
+  return `Supabase-Fehler: ${error.message || error.details || "Die Daten konnten nicht gesichert werden."}`;
+}
+
+async function backupLocalEntriesToCloud() {
+  const status = getSupabaseStatus();
+  renderSupabaseStatus();
+
+  if (!status.connected) {
+    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+    return;
+  }
+
+  if (!timeEntries.length) {
+    showCloudStorageMessage("Keine lokalen Einträge vorhanden");
+    return;
+  }
+
+  const records = timeEntries.map(createSupabaseTimeEntryRecord);
+
+  try {
+    const { error } = await supabaseClient
+      .from(SUPABASE_TABLE_NAME)
+      .upsert(records, { onConflict: "id" });
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    showCloudStorageMessage(`${records.length} Einträge wurden in der Cloud gesichert`, "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  } finally {
+    renderSupabaseStatus();
+  }
 }
 
 function getCalendarWeek(date) {
@@ -853,6 +912,7 @@ function showSettingsView() {
   settingsView.hidden = false;
   weekplanView.hidden = true;
   clearSettingsMessage();
+  clearCloudStorageMessage();
   menuButton.setAttribute("aria-expanded", "false");
   menuPanel.hidden = true;
   window.location.hash = "einstellungen";
@@ -2263,6 +2323,7 @@ backButton.addEventListener("click", () => {
 });
 manualForm.addEventListener("submit", saveManualEntry);
 exportCsvButton.addEventListener("click", downloadCsvExport);
+cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 deleteAllDataButton.addEventListener("click", deleteAllEntries);
 csvImportInput.addEventListener("change", importCsvEntries);
 reminderSettingsForm.addEventListener("input", saveReminderSettingsFromForm);
