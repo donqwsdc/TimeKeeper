@@ -43,6 +43,7 @@
         </section>
 
         <p class="timer-message" id="timerMessage" role="status" aria-live="polite" hidden></p>
+        <p class="sync-status-message" id="syncStatusMessage" role="status" aria-live="polite" hidden></p>
 
         <section class="reminder-panel" id="reminderPanel" aria-label="Feierabend-Erinnerung" hidden>
           <p id="reminderMessage">Was hast du mit deiner Zeit gemacht?</p>
@@ -212,7 +213,8 @@
           <h2>Einstellungen</h2>
         </div>
 
-        <section class="settings-panel">
+        <details class="settings-panel">
+          <summary>Entwickler-Modus</summary>
           <label class="settings-toggle" for="developerModeToggle">
             <span>
               <strong>Entwickler-Modus</strong>
@@ -220,11 +222,11 @@
             </span>
             <input id="developerModeToggle" type="checkbox" />
           </label>
-        </section>
+        </details>
 
-        <section class="settings-panel">
-          <h3>Nutzerprofile</h3>
-          <p class="settings-help">Neue Zeiteintraege werden dem aktiven lokalen Nutzerprofil zugeordnet.</p>
+        <details class="settings-panel" open>
+          <summary>Nutzerprofile</summary>
+          <p class="settings-help">Aktiver Nutzer für neue Einträge.</p>
           <label class="settings-field" for="activeUserSelect">
             Aktiver Nutzer
             <select id="activeUserSelect"></select>
@@ -244,25 +246,25 @@
             </label>
           </form>
           <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
-        </section>
+        </details>
 
-        <section class="settings-panel">
-          <h3>Kategorien verwalten</h3>
-          <p class="settings-help">Kategorien gelten nur fÃ¼r den aktiven Nutzer.</p>
+        <details class="settings-panel">
+          <summary>Kategorien verwalten</summary>
+          <p class="settings-help">Kategorien des aktiven Nutzers.</p>
           <form class="category-settings-form" id="categorySettingsForm">
             <label>
               Neue Kategorie
               <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
             </label>
-            <button class="settings-secondary-button" type="submit">Kategorie hinzufÃ¼gen</button>
+            <button class="settings-secondary-button" type="submit">Kategorie hinzufügen</button>
           </form>
           <ol class="category-settings-list" id="categorySettingsList"></ol>
           <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
-        </section>
+        </details>
 
-        <section class="settings-panel">
-          <h3>Cloudspeicherung</h3>
-          <p class="settings-help">Supabase ist vorbereitet. LocalStorage bleibt aktiv; es findet noch keine automatische Synchronisation statt.</p>
+        <details class="settings-panel" open>
+          <summary>Cloudspeicherung</summary>
+          <p class="settings-help">Manuelle Sicherung und Import aus Supabase.</p>
           <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
             Cloudspeicherung nicht verbunden
           </p>
@@ -277,11 +279,11 @@
             Cloud-Daten in App laden
           </button>
           <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
-        </section>
+        </details>
 
-        <section class="settings-panel">
-          <h3>Erinnerungen</h3>
-          <p class="settings-help">Reminder erscheinen nur, wenn die erfasste Tageszeit unter deiner Ziel-Arbeitszeit liegt.</p>
+        <details class="settings-panel">
+          <summary>Erinnerungen</summary>
+          <p class="settings-help">Reminder unterhalb der Ziel-Arbeitszeit.</p>
           <form class="reminder-settings-form" id="reminderSettingsForm">
             <label class="settings-toggle" for="remindersEnabled">
               <span>
@@ -320,16 +322,16 @@
               Standard wiederherstellen
             </button>
           </form>
-        </section>
+        </details>
 
-        <section class="settings-panel">
-          <h3>Daten</h3>
-          <p class="settings-help">Alle Aktionen betreffen die lokal gespeicherten Zeiteinträge.</p>
+        <details class="settings-panel">
+          <summary>Datenverwaltung</summary>
+          <p class="settings-help">Lokale Daten löschen oder CSV importieren.</p>
           <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
           <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
           <label class="settings-file-label" for="csvImportInput">CSV hochladen</label>
           <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
-        </section>
+        </details>
       </section>
 
       <section class="weekplan-screen app-view" id="weekplanView" aria-label="Kalender" hidden>

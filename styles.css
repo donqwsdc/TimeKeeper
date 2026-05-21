@@ -343,6 +343,28 @@ textarea:focus {
   background: #fff8dc;
 }
 
+.sync-status-message {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(33, 103, 91, 0.22);
+  border-radius: 8px;
+  color: var(--accent);
+  background: rgba(33, 103, 91, 0.08);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sync-status-message[data-type="error"] {
+  border-color: rgba(135, 44, 48, 0.25);
+  color: var(--danger);
+  background: rgba(135, 44, 48, 0.08);
+}
+
+.sync-status-message[hidden] {
+  display: none;
+}
+
 .reminder-panel {
   display: grid;
   gap: 10px;
@@ -940,11 +962,38 @@ textarea:focus {
 
 .settings-panel {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.settings-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.96rem;
+  font-weight: 800;
+  list-style: none;
+}
+
+.settings-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel summary::after {
+  content: "+";
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.settings-panel[open] summary::after {
+  content: "-";
 }
 
 .settings-panel h3,
@@ -959,12 +1008,12 @@ textarea:focus {
 
 .settings-help {
   color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.4;
+  font-size: 0.82rem;
+  line-height: 1.32;
 }
 
 .settings-message {
-  padding: 12px 14px;
+  padding: 9px 10px;
   border: 1px solid rgba(33, 103, 91, 0.22);
   border-radius: 8px;
   color: var(--accent);
@@ -984,7 +1033,7 @@ textarea:focus {
 }
 
 .cloud-status {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid rgba(102, 113, 119, 0.22);
   border-radius: 8px;
   color: var(--muted);
@@ -1007,7 +1056,7 @@ textarea:focus {
 
 .cloud-conflicts {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .cloud-conflicts[hidden] {
@@ -1018,7 +1067,7 @@ textarea:focus {
 .cloud-conflict-card,
 .cloud-conflict-entry {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cloud-conflict-header h4 {
@@ -1027,7 +1076,7 @@ textarea:focus {
 }
 
 .cloud-conflict-card {
-  padding: 12px;
+  padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--field);
@@ -1039,7 +1088,7 @@ textarea:focus {
 }
 
 .cloud-conflict-entry {
-  padding: 10px;
+  padding: 8px;
   border: 1px solid rgba(102, 113, 119, 0.18);
   border-radius: 8px;
   background: var(--surface);
@@ -1081,10 +1130,17 @@ textarea:focus {
   display: inline-grid;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: 40px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 12px;
   border-radius: 8px;
   font-weight: 760;
   text-align: center;
+}
+
+.settings-primary-button {
+  width: 100%;
 }
 
 .settings-field,
@@ -1092,7 +1148,7 @@ textarea:focus {
 .user-settings-form,
 .reminder-settings-form {
   display: grid;
-  gap: 12px;
+  gap: 9px;
 }
 
 .settings-field,
@@ -1100,7 +1156,7 @@ textarea:focus {
 .user-settings-form label,
 .reminder-settings-form label {
   display: grid;
-  gap: 7px;
+  gap: 5px;
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 650;
@@ -1113,7 +1169,7 @@ textarea:focus {
 .reminder-settings-form input[type="time"],
 .reminder-settings-form input[type="number"] {
   width: 100%;
-  min-height: 48px;
+  min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text);
@@ -1123,7 +1179,7 @@ textarea:focus {
 
 .category-settings-list {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1131,8 +1187,8 @@ textarea:focus {
 
 .category-settings-item {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--field);
@@ -1144,8 +1200,9 @@ textarea:focus {
 }
 
 .category-settings-actions {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .settings-time-grid {

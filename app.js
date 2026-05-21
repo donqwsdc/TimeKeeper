@@ -151,7 +151,7 @@ const DEFAULT_CATEGORY_NAMES = [
   "Eventplanung",
   "Administration",
   "Netzwerk",
-  "FlÃ¤che",
+  "Fläche",
   "Sonstiges",
 ];
 const CALENDAR_VIEW_MODES = {
