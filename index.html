@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#21675b" />
     <title>TimeKeeper</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <div class="app-shell">
@@ -213,20 +213,9 @@
           <h2>Einstellungen</h2>
         </div>
 
-        <details class="settings-panel">
-          <summary>Entwickler-Modus</summary>
-          <label class="settings-toggle" for="developerModeToggle">
-            <span>
-              <strong>Entwickler-Modus</strong>
-              <small>Zeigt temporäre Testfunktionen wie den Reminder-Testmodus.</small>
-            </span>
-            <input id="developerModeToggle" type="checkbox" />
-          </label>
-        </details>
-
         <details class="settings-panel" open>
           <summary>Nutzerprofile</summary>
-          <p class="settings-help">Aktiver Nutzer für neue Einträge.</p>
+          <p class="settings-help">Kontext für neue Einträge.</p>
           <label class="settings-field" for="activeUserSelect">
             Aktiver Nutzer
             <select id="activeUserSelect"></select>
@@ -250,7 +239,7 @@
 
         <details class="settings-panel">
           <summary>Kategorien verwalten</summary>
-          <p class="settings-help">Kategorien des aktiven Nutzers.</p>
+          <p class="settings-help">Liste für den aktiven Nutzer.</p>
           <form class="category-settings-form" id="categorySettingsForm">
             <label>
               Neue Kategorie
@@ -264,7 +253,7 @@
 
         <details class="settings-panel" open>
           <summary>Cloudspeicherung</summary>
-          <p class="settings-help">Manuelle Sicherung und Import aus Supabase.</p>
+          <p class="settings-help">Manuell sichern oder laden.</p>
           <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
             Cloudspeicherung nicht verbunden
           </p>
@@ -283,7 +272,7 @@
 
         <details class="settings-panel">
           <summary>Erinnerungen</summary>
-          <p class="settings-help">Reminder unterhalb der Ziel-Arbeitszeit.</p>
+          <p class="settings-help">Reminder bei kurzer Tageszeit.</p>
           <form class="reminder-settings-form" id="reminderSettingsForm">
             <label class="settings-toggle" for="remindersEnabled">
               <span>
@@ -326,11 +315,22 @@
 
         <details class="settings-panel">
           <summary>Datenverwaltung</summary>
-          <p class="settings-help">Lokale Daten löschen oder CSV importieren.</p>
+          <p class="settings-help">Import und lokale Daten.</p>
           <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
           <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
           <label class="settings-file-label" for="csvImportInput">CSV hochladen</label>
           <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
+        </details>
+
+        <details class="settings-panel settings-panel-developer">
+          <summary>Entwicklerbereich</summary>
+          <label class="settings-toggle" for="developerModeToggle">
+            <span>
+              <strong>Entwickler-Modus</strong>
+              <small>Zeigt temporäre Testfunktionen.</small>
+            </span>
+            <input id="developerModeToggle" type="checkbox" />
+          </label>
         </details>
       </section>
 
