@@ -139,9 +139,9 @@ const DEFAULT_REMINDER_SETTINGS = {
   targetWorkHours: 8,
 };
 const DEFAULT_USERS = [
-  { id: "user_1", name: "Nutzer 1" },
-  { id: "user_2", name: "Nutzer 2" },
-  { id: "user_3", name: "Nutzer 3" },
+  { id: "user_1", name: "Nutzer 1", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
+  { id: "user_2", name: "Nutzer 2", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
+  { id: "user_3", name: "Nutzer 3", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
 ];
 const DEFAULT_CATEGORY_NAMES = [
   "Organisation",
@@ -251,12 +251,20 @@ function normalizeUsers(savedUsers = []) {
   const savedUserMap = new Map(
     (Array.isArray(savedUsers) ? savedUsers : [])
       .filter((user) => user && getValidUserId(user.id) === user.id)
-      .map((user) => [user.id, String(user.name || "").trim()]),
+      .map((user) => [user.id, user]),
   );
 
   return DEFAULT_USERS.map((defaultUser) => ({
     id: defaultUser.id,
-    name: savedUserMap.get(defaultUser.id) || defaultUser.name,
+    name: String(savedUserMap.get(defaultUser.id)?.name || "").trim() || defaultUser.name,
+    created_at: savedUserMap.get(defaultUser.id)?.created_at || defaultUser.created_at,
+    updated_at:
+      savedUserMap.get(defaultUser.id)?.updated_at ||
+      savedUserMap.get(defaultUser.id)?.updatedAt ||
+      (String(savedUserMap.get(defaultUser.id)?.name || "").trim() &&
+      String(savedUserMap.get(defaultUser.id)?.name || "").trim() !== defaultUser.name
+        ? getNowIsoString()
+        : defaultUser.updated_at),
   }));
 }
 
@@ -265,13 +273,25 @@ function getUserName(userId) {
   return users.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
 }
 
+function getDefaultUserName(userId) {
+  const validUserId = getValidUserId(userId);
+  return DEFAULT_USERS.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
+}
+
+function getUserUpdatedAtTime(user) {
+  const updatedAt = new Date(user?.updated_at || user?.updatedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
 function loadUserProfiles() {
   try {
     users = normalizeUsers(JSON.parse(localStorage.getItem(USERS_KEY) || "[]"));
     activeUserId = getValidUserId(localStorage.getItem(ACTIVE_USER_KEY));
+    saveUserProfiles();
   } catch (error) {
     users = normalizeUsers();
     activeUserId = DEFAULT_USERS[0].id;
+    saveUserProfiles();
   }
 }
 
@@ -339,9 +359,15 @@ function saveUserNamesFromSettings() {
     return;
   }
 
+  const now = getNowIsoString();
   users = DEFAULT_USERS.map((defaultUser, index) => ({
     id: defaultUser.id,
     name: userNameInputs[index].value.trim() || defaultUser.name,
+    created_at: users[index]?.created_at || defaultUser.created_at,
+    updated_at:
+      (userNameInputs[index].value.trim() || defaultUser.name) !== (users[index]?.name || defaultUser.name)
+        ? now
+        : users[index]?.updated_at || defaultUser.updated_at,
   }));
 
   if (!saveUserProfiles()) {
@@ -828,12 +854,13 @@ function createSupabaseTimeEntryRecord(entry) {
 
 function createSupabaseUserRecord(user) {
   const now = new Date().toISOString();
+  const validUserId = getValidUserId(user.id);
 
   return {
-    id: getValidUserId(user.id),
-    name: String(user.name || getUserName(user.id)).trim() || getUserName(user.id),
-    created_at: now,
-    updated_at: now,
+    id: validUserId,
+    name: String(user.name || getUserName(validUserId)).trim() || getUserName(validUserId),
+    created_at: user.created_at || user.createdAt || now,
+    updated_at: user.updated_at || user.updatedAt || now,
   };
 }
 
@@ -985,18 +1012,43 @@ async function loadSupabaseUserProfiles() {
   const cloudUserMap = new Map(
     (data || [])
       .filter((user) => user && getValidUserId(user.id) === user.id)
-      .map((user) => [user.id, String(user.name || "").trim()]),
+      .map((user) => [user.id, user]),
   );
 
   if (!cloudUserMap.size) {
     return { error: null, updated: false };
   }
 
-  const nextUsers = DEFAULT_USERS.map((defaultUser) => ({
-    id: defaultUser.id,
-    name: cloudUserMap.get(defaultUser.id) || getUserName(defaultUser.id),
-  }));
-  const changed = nextUsers.some((user) => user.name !== getUserName(user.id));
+  const nextUsers = DEFAULT_USERS.map((defaultUser) => {
+    const localUser = users.find((user) => user.id === defaultUser.id) || defaultUser;
+    const cloudUser = cloudUserMap.get(defaultUser.id);
+    const cloudName = String(cloudUser?.name || "").trim();
+    const localName = String(localUser.name || defaultUser.name).trim() || defaultUser.name;
+    const localIsCustom = localName !== defaultUser.name;
+    const cloudIsDefault = !cloudName || cloudName === defaultUser.name;
+    const cloudIsNewer = getUserUpdatedAtTime(cloudUser) > getUserUpdatedAtTime(localUser);
+
+    if (cloudName && (cloudIsNewer || (!localIsCustom && !cloudIsDefault)) && !(localIsCustom && cloudIsDefault)) {
+      return {
+        id: defaultUser.id,
+        name: cloudName,
+        created_at: cloudUser.created_at || localUser.created_at || defaultUser.created_at,
+        updated_at: cloudUser.updated_at || cloudUser.updatedAt || localUser.updated_at || defaultUser.updated_at,
+      };
+    }
+
+    return {
+      id: defaultUser.id,
+      name: localName,
+      created_at: localUser.created_at || defaultUser.created_at,
+      updated_at: localUser.updated_at || localUser.updatedAt || defaultUser.updated_at,
+    };
+  });
+  const changed = nextUsers.some(
+    (user) =>
+      user.name !== getUserName(user.id) ||
+      user.updated_at !== (users.find((localUser) => localUser.id === user.id)?.updated_at || DEFAULT_USERS.find((defaultUser) => defaultUser.id === user.id)?.updated_at),
+  );
 
   if (changed) {
     users = nextUsers;
@@ -2171,18 +2223,25 @@ function isDeveloperModeEnabled() {
 }
 
 function setDeveloperMode(enabled) {
+  const wasEnabled = isDeveloperModeEnabled();
+
+  if (!enabled && wasEnabled) {
+    saveUserNamesFromSettings();
+  }
+
   reminderTestPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
-  if (!enabled) {
-    clearUserProfileMessage();
-  }
-  renderUserProfileSettings();
 
   try {
     localStorage.setItem(DEVELOPER_MODE_KEY, String(enabled));
   } catch (error) {
     // Developer mode is temporary and should not affect core app behavior.
   }
+
+  if (!enabled) {
+    clearUserProfileMessage();
+  }
+  renderUserProfileSettings();
 }
 
 function initializeDeveloperMode() {
@@ -3650,7 +3709,6 @@ reminderPopupManual.addEventListener("click", () => {
 });
 developerModeToggle.addEventListener("change", () => {
   setDeveloperMode(developerModeToggle.checked);
-  window.location.reload();
 });
 activeUserSelect.addEventListener("change", saveActiveUserFromSettings);
 userSettingsForm.addEventListener("input", saveUserNamesFromSettings);
