@@ -43,6 +43,12 @@ const categoryBars = document.querySelector("#categoryBars");
 const weekdayBars = document.querySelector("#weekdayBars");
 const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
+const calendarDayDetail = document.querySelector("#calendarDayDetail");
+const calendarDayDetailDate = document.querySelector("#calendarDayDetailDate");
+const calendarDayDetailTotal = document.querySelector("#calendarDayDetailTotal");
+const calendarDayDetailList = document.querySelector("#calendarDayDetailList");
+const calendarDayDetailClose = document.querySelector("#calendarDayDetailClose");
+const calendarDayDetailAdd = document.querySelector("#calendarDayDetailAdd");
 const calendarViewModeSelect = document.querySelector("#calendarViewMode");
 const calendarPrevButton = document.querySelector("#calendarPrevButton");
 const calendarTodayButton = document.querySelector("#calendarTodayButton");
@@ -165,6 +171,7 @@ const CALENDAR_VIEW_MODES = {
 };
 let calendarViewMode = "7days";
 let calendarSelectedDate = new Date();
+let calendarDetailDate = null;
 let supabaseClient = null;
 let timerStartedAt = null;
 let timerStartedDate = null;
@@ -2207,7 +2214,18 @@ function resetTimerScreen(options = {}) {
   setTimerState("neutral");
 }
 
+function setActiveNavigation(viewName) {
+  menuPanel.querySelectorAll("[data-view-link]").forEach((link) => {
+    if (link.dataset.viewLink === viewName) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
 function showTimerView() {
+  setActiveNavigation("timer");
   timerView.hidden = false;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -2218,6 +2236,7 @@ function showTimerView() {
 }
 
 function showHistoryView() {
+  setActiveNavigation("history");
   timerView.hidden = true;
   historyView.hidden = false;
   manualView.hidden = true;
@@ -2231,6 +2250,7 @@ function showHistoryView() {
 }
 
 function showManualView() {
+  setActiveNavigation("timer");
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = false;
@@ -2246,6 +2266,7 @@ function showManualView() {
 }
 
 function showAnalyticsView() {
+  setActiveNavigation("analytics");
   renderAnalytics();
   timerView.hidden = true;
   historyView.hidden = true;
@@ -2260,6 +2281,7 @@ function showAnalyticsView() {
 }
 
 function showExportView() {
+  setActiveNavigation("settings");
   renderExportSummary();
   timerView.hidden = true;
   historyView.hidden = true;
@@ -2275,6 +2297,7 @@ function showExportView() {
 }
 
 function showSettingsView() {
+  setActiveNavigation("settings");
   renderUserProfileSettings();
   renderCategorySettings();
   renderReminderSettingsForm();
@@ -2297,6 +2320,7 @@ function showSettingsView() {
 }
 
 function showWeekplanView() {
+  setActiveNavigation("weekplan");
   renderWeekplan();
   timerView.hidden = true;
   historyView.hidden = true;
@@ -2603,6 +2627,69 @@ function getEntriesForRange(start, end) {
   return getEntriesForActiveUser().filter((entry) => entry.startedAt >= start && entry.startedAt < end);
 }
 
+function getEntriesForDay(date, entries = getEntriesForActiveUser()) {
+  const dayKey = toDateInputValue(date);
+
+  return entries
+    .filter((entry) => toDateInputValue(entry.startedAt) === dayKey)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+}
+
+function getEntriesTotalMinutes(entries) {
+  return entries.reduce(
+    (total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000),
+    0,
+  );
+}
+
+function getDayCategoryMinutes(entries) {
+  const categoryMinutes = new Map();
+
+  entries.forEach((entry) => {
+    const minutes = Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
+    categoryMinutes.set(entry.category, (categoryMinutes.get(entry.category) || 0) + minutes);
+  });
+
+  return [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function formatCompactCalendarDuration(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes <= 0) {
+    return "";
+  }
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = roundedMinutes % 60;
+
+  if (!hours) {
+    return `${remainingMinutes}m`;
+  }
+
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function renderDayCategoryStrip(entries) {
+  const strip = document.createElement("span");
+  strip.className = "calendar-day-category-strip";
+  const totalMinutes = getEntriesTotalMinutes(entries);
+
+  if (!totalMinutes) {
+    return strip;
+  }
+
+  getDayCategoryMinutes(entries).forEach(([category, minutes]) => {
+    const segment = document.createElement("i");
+    segment.style.width = `${Math.max(8, (minutes / totalMinutes) * 100)}%`;
+    segment.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+    segment.title = `${category}: ${formatAnalyticsDuration(minutes)}`;
+    strip.append(segment);
+  });
+
+  return strip;
+}
+
 function formatCalendarPeriod(start, end) {
   if (calendarViewMode === "month") {
     return new Intl.DateTimeFormat("de-DE", {
@@ -2633,9 +2720,6 @@ function updateCalendarToolbar(start, end) {
 function renderWeekplan() {
   const { start, end } = getCalendarRange();
   const dayCount = calendarViewMode === "month" ? 0 : Math.round((end - start) / 86400000);
-  const visibleStart = 6 * 60;
-  const visibleEnd = 24 * 60;
-  const visibleMinutes = visibleEnd - visibleStart;
   const calendarEntries = getEntriesForRange(start, end);
   updateCalendarToolbar(start, end);
   weekplanDays.innerHTML = "";
@@ -2652,19 +2736,33 @@ function renderWeekplan() {
   for (let index = 0; index < dayCount; index += 1) {
     const day = addDays(start, index);
     const dayKey = toDateInputValue(day);
-    const dayEntries = calendarEntries
-      .filter((entry) => toDateInputValue(entry.startedAt) === dayKey)
-      .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+    const dayEntries = getEntriesForDay(day, calendarEntries);
+    const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayColumn = document.createElement("section");
     dayColumn.className = "weekplan-day";
+    dayColumn.dataset.calendarDate = dayKey;
+    dayColumn.tabIndex = 0;
+
+    if (dayKey === toDateInputValue(new Date())) {
+      dayColumn.classList.add("is-today");
+    }
+
+    if (calendarDetailDate && dayKey === toDateInputValue(calendarDetailDate)) {
+      dayColumn.classList.add("is-selected");
+    }
 
     const title = document.createElement("h3");
-    title.textContent = new Intl.DateTimeFormat("de-DE", {
+    const dayLabel = new Intl.DateTimeFormat("de-DE", {
       weekday: "short",
       day: "2-digit",
       month: "2-digit",
     }).format(day);
+    title.innerHTML = `
+      <span>${dayLabel}</span>
+      <strong>${formatCompactCalendarDuration(totalMinutes) || "0m"}</strong>
+    `;
     dayColumn.append(title);
+    dayColumn.append(renderDayCategoryStrip(dayEntries));
 
     const timeline = document.createElement("div");
     timeline.className = "weekplan-timeline";
@@ -2672,23 +2770,14 @@ function renderWeekplan() {
     if (!dayEntries.length) {
       const empty = document.createElement("p");
       empty.className = "weekplan-empty";
-      empty.textContent = "Keine Einträge";
+      empty.textContent = "";
       timeline.append(empty);
     }
 
     dayEntries.forEach((entry) => {
-      const startMinute = Math.max(visibleStart, getMinutesSinceDayStart(entry.startedAt));
-      const endMinute = Math.min(visibleEnd, getMinutesSinceDayStart(entry.endedAt));
-
-      if (endMinute <= visibleStart || startMinute >= visibleEnd || endMinute <= startMinute) {
-        return;
-      }
-
       const block = document.createElement("article");
       block.className = `weekplan-entry weekplan-entry-${calendarViewMode}`;
-      block.style.top = `${((startMinute - visibleStart) / visibleMinutes) * 100}%`;
-      block.style.height = `${((endMinute - startMinute) / visibleMinutes) * 100}%`;
-      block.style.background = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+      block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
       block.title = `${entry.activity} · ${entry.category} · ${formatTime(entry.startedAt)} bis ${formatTime(entry.endedAt)}`;
 
       const label = document.createElement("strong");
@@ -2707,6 +2796,8 @@ function renderWeekplan() {
     dayColumn.append(timeline);
     weekplanDays.append(dayColumn);
   }
+
+  renderCalendarDayDetail();
 }
 
 function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
@@ -2717,19 +2808,24 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
   for (let day = new Date(gridStart); day < gridEnd; day = addDays(day, 1)) {
     const currentDay = new Date(day);
     const dayKey = toDateInputValue(currentDay);
-    const dayEntries = monthEntries.filter((entry) => toDateInputValue(entry.startedAt) === dayKey);
-    const totalMinutes = dayEntries.reduce(
-      (total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000),
-      0,
-    );
-    const categorySet = [...new Set(dayEntries.map((entry) => entry.category))].slice(0, 4);
+    const dayEntries = getEntriesForDay(currentDay, monthEntries);
+    const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayButton = document.createElement("button");
     dayButton.type = "button";
     dayButton.className = "calendar-month-day";
-    dayButton.dataset.date = dayKey;
+    dayButton.dataset.calendarDate = dayKey;
+    dayButton.setAttribute("aria-label", `${formatDate(currentDay)}, ${formatAnalyticsDuration(totalMinutes)}, ${dayEntries.length} Einträge`);
 
     if (currentDay.getMonth() !== monthStart.getMonth()) {
       dayButton.classList.add("is-outside-month");
+    }
+
+    if (dayKey === toDateInputValue(new Date())) {
+      dayButton.classList.add("is-today");
+    }
+
+    if (calendarDetailDate && dayKey === toDateInputValue(calendarDetailDate)) {
+      dayButton.classList.add("is-selected");
     }
 
     const dayNumber = document.createElement("strong");
@@ -2737,20 +2833,69 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
     dayButton.append(dayNumber);
 
     const total = document.createElement("span");
-    total.textContent = totalMinutes ? formatAnalyticsDuration(totalMinutes) : "";
+    total.textContent = formatCompactCalendarDuration(totalMinutes);
     dayButton.append(total);
 
-    const indicators = document.createElement("span");
-    indicators.className = "calendar-category-indicators";
-    categorySet.forEach((category) => {
-      const indicator = document.createElement("i");
-      indicator.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
-      indicators.append(indicator);
-    });
-    dayButton.append(indicators);
+    if (dayEntries.length) {
+      const count = document.createElement("em");
+      count.textContent = `${dayEntries.length}`;
+      dayButton.append(count);
+    }
+
+    dayButton.append(renderDayCategoryStrip(dayEntries));
 
     weekplanDays.append(dayButton);
   }
+
+  renderCalendarDayDetail();
+}
+
+function renderCalendarDayDetail(entries = getEntriesForActiveUser()) {
+  if (!calendarDetailDate) {
+    calendarDayDetail.hidden = true;
+    return;
+  }
+
+  const dayEntries = getEntriesForDay(calendarDetailDate, entries);
+  const totalMinutes = getEntriesTotalMinutes(dayEntries);
+
+  calendarDayDetail.hidden = false;
+  calendarDayDetail.dataset.date = toDateInputValue(calendarDetailDate);
+  calendarDayDetailDate.textContent = new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(calendarDetailDate);
+  calendarDayDetailTotal.textContent = formatAnalyticsDuration(totalMinutes);
+  calendarDayDetailList.innerHTML = "";
+
+  if (!dayEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "calendar-day-detail-empty";
+    empty.textContent = "Für diesen Tag gibt es noch keine Einträge.";
+    calendarDayDetailList.append(empty);
+    return;
+  }
+
+  dayEntries.forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "calendar-day-detail-entry";
+    item.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+    item.innerHTML = `
+      <div>
+        <strong>${escapeHtml(entry.activity || "Zeiteintrag")}</strong>
+        <span>${escapeHtml(entry.category || "Ohne Kategorie")}</span>
+      </div>
+      <p>${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.</p>
+      ${entry.note ? `<p class="calendar-day-detail-note">${escapeHtml(entry.note)}</p>` : ""}
+      <div class="calendar-day-detail-actions">
+        <button class="settings-secondary-button" type="button" data-calendar-detail-action="edit" data-entry-id="${escapeHtml(entry.id)}">Bearbeiten</button>
+        <button class="settings-danger-button" type="button" data-calendar-detail-action="delete" data-entry-id="${escapeHtml(entry.id)}">Löschen</button>
+      </div>
+    `;
+    calendarDayDetailList.append(item);
+  });
 }
 
 function shiftCalendarPeriod(direction) {
@@ -2793,10 +2938,21 @@ function openCalendarDay(dateValue) {
     return;
   }
 
-  calendarViewMode = "day";
+  calendarDetailDate = selectedDate;
   calendarSelectedDate = selectedDate;
   saveCalendarState();
   renderWeekplan();
+}
+
+function closeCalendarDayDetail() {
+  calendarDetailDate = null;
+  renderWeekplan();
+}
+
+function addEntryForCalendarDetailDay() {
+  const selectedDate = calendarDetailDate ? toDateInputValue(calendarDetailDate) : toDateInputValue(calendarSelectedDate);
+  showManualView();
+  manualForm.elements.date.value = selectedDate;
 }
 
 function escapeCsvValue(value) {
@@ -3734,10 +3890,47 @@ calendarNextButton.addEventListener("click", () => {
   shiftCalendarPeriod(1);
 });
 weekplanDays.addEventListener("click", (event) => {
-  const monthDay = event.target.closest(".calendar-month-day");
+  const calendarDay = event.target.closest("[data-calendar-date]");
 
-  if (monthDay) {
-    openCalendarDay(monthDay.dataset.date);
+  if (calendarDay) {
+    openCalendarDay(calendarDay.dataset.calendarDate);
+  }
+});
+weekplanDays.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  const calendarDay = event.target.closest("[data-calendar-date]");
+
+  if (calendarDay) {
+    event.preventDefault();
+    openCalendarDay(calendarDay.dataset.calendarDate);
+  }
+});
+calendarDayDetailClose.addEventListener("click", closeCalendarDayDetail);
+calendarDayDetailAdd.addEventListener("click", addEntryForCalendarDetailDay);
+calendarDayDetail.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("[data-calendar-detail-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const entry = timeEntries.find((item) => item.id === actionButton.dataset.entryId);
+
+  if (!entry) {
+    return;
+  }
+
+  if (actionButton.dataset.calendarDetailAction === "edit") {
+    showHistoryView();
+    renderEditForm(entry);
+  }
+
+  if (actionButton.dataset.calendarDetailAction === "delete") {
+    deleteHistoryEntry(entry.id);
+    renderCalendarDayDetail();
   }
 });
 exportLink.addEventListener("click", (event) => {
@@ -3878,6 +4071,7 @@ initializeNotificationPermissionState();
 checkReminders();
 synchronizeWithSupabaseOnStartup();
 setInterval(checkReminders, 30000);
+setActiveNavigation("timer");
 
 if (window.location.hash === "#verlauf") {
   showHistoryView();
