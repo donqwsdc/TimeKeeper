@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#21675b" />
     <title>TimeKeeper</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=10" />
   </head>
   <body>
     <div class="app-shell">
@@ -213,127 +213,132 @@
           <h2>Einstellungen</h2>
         </div>
 
-        <details class="settings-panel" open>
-          <summary>Nutzerprofile</summary>
-          <p class="settings-help">Kontext für neue Einträge.</p>
-          <label class="settings-field" for="activeUserSelect">
-            Aktiver Nutzer
-            <select id="activeUserSelect"></select>
-          </label>
-          <form class="user-settings-form" id="userSettingsForm" hidden aria-hidden="true">
-            <label>
-              Nutzer 1
-              <input id="userName1" name="user_1" type="text" />
+        <div class="settings-layout">
+          <details class="settings-panel" open>
+            <summary>Nutzer</summary>
+            <p class="settings-help">Aktives Profil für neue Einträge.</p>
+            <label class="settings-field" for="activeUserSelect">
+              Aktiver Nutzer
+              <select id="activeUserSelect"></select>
             </label>
-            <label>
-              Nutzer 2
-              <input id="userName2" name="user_2" type="text" />
-            </label>
-            <label>
-              Nutzer 3
-              <input id="userName3" name="user_3" type="text" />
-            </label>
-          </form>
-          <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
-        </details>
-
-        <details class="settings-panel">
-          <summary>Kategorien verwalten</summary>
-          <p class="settings-help">Liste für den aktiven Nutzer.</p>
-          <form class="category-settings-form" id="categorySettingsForm">
-            <label>
-              Neue Kategorie
-              <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
-            </label>
-            <button class="settings-secondary-button" type="submit">Kategorie hinzufügen</button>
-          </form>
-          <ol class="category-settings-list" id="categorySettingsList"></ol>
-          <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
-        </details>
-
-        <details class="settings-panel" open>
-          <summary>Cloudspeicherung</summary>
-          <p class="settings-help">Manuell sichern oder laden.</p>
-          <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
-            Cloudspeicherung nicht verbunden
-          </p>
-          <p class="cloud-status-detail" id="cloudStorageDetail">
-            SUPABASE_URL und SUPABASE_ANON_KEY sind noch nicht konfiguriert.
-          </p>
-          <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
-          <button class="settings-primary-button" id="cloudBackupButton" type="button">
-            Lokale Daten in Cloud sichern
-          </button>
-          <button class="settings-secondary-button" id="cloudImportButton" type="button">
-            Cloud-Daten in App laden
-          </button>
-          <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
-        </details>
-
-        <details class="settings-panel">
-          <summary>Erinnerungen</summary>
-          <p class="settings-help">Reminder bei kurzer Tageszeit.</p>
-          <form class="reminder-settings-form" id="reminderSettingsForm">
-            <label class="settings-toggle" for="remindersEnabled">
-              <span>
-                <strong>Erinnerungen aktiv</strong>
-                <small>Schaltet Feierabend-Reminder ein oder aus.</small>
-              </span>
-              <input id="remindersEnabled" name="enabled" type="checkbox" />
-            </label>
-
-            <label>
-              Reminder-Text
-              <input id="reminderTextSetting" name="text" type="text" />
-            </label>
-
-            <div class="settings-time-grid">
+            <form class="user-settings-form" id="userSettingsForm" hidden aria-hidden="true">
               <label>
-                Erinnerung 1
-                <input id="reminderTime1" name="time1" type="time" />
+                Nutzer 1
+                <input id="userName1" name="user_1" type="text" />
               </label>
               <label>
-                Erinnerung 2
-                <input id="reminderTime2" name="time2" type="time" />
+                Nutzer 2
+                <input id="userName2" name="user_2" type="text" />
               </label>
               <label>
-                Erinnerung 3
-                <input id="reminderTime3" name="time3" type="time" />
+                Nutzer 3
+                <input id="userName3" name="user_3" type="text" />
               </label>
+            </form>
+            <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Kategorien</summary>
+            <p class="settings-help">Kategorien werden pro Nutzerprofil gespeichert.</p>
+            <form class="category-settings-form" id="categorySettingsForm">
+              <label>
+                Neue Kategorie
+                <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
+              </label>
+              <button class="settings-secondary-button" type="submit">Kategorie hinzufügen</button>
+            </form>
+            <ol class="category-settings-list" id="categorySettingsList"></ol>
+            <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Daten &amp; Export</summary>
+            <p class="settings-help">CSV-Import und lokale Datenverwaltung.</p>
+            <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
+              <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
             </div>
+            <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
+          </details>
 
-            <label>
-              Ziel-Arbeitszeit pro Tag
-              <input id="targetWorkHours" name="targetHours" type="number" min="0.5" max="24" step="0.25" inputmode="decimal" />
+          <details class="settings-panel" open>
+            <summary>Cloudspeicherung</summary>
+            <p class="settings-help">Automatischer Abgleich beim Start, manuelles Sichern und Laden.</p>
+            <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
+              Nur lokal gespeichert
+            </p>
+            <p class="cloud-status-detail" id="cloudStorageDetail">
+              Cloudspeicherung ist noch nicht eingerichtet.
+            </p>
+            <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <button class="settings-primary-button" id="cloudBackupButton" type="button">
+                Lokale Daten in Cloud sichern
+              </button>
+              <button class="settings-secondary-button" id="cloudImportButton" type="button">
+                Cloud-Daten in App laden
+              </button>
+            </div>
+            <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Erinnerungen</summary>
+            <p class="settings-help">Feierabend-Reminder und Tagesziel.</p>
+            <form class="reminder-settings-form" id="reminderSettingsForm">
+              <label class="settings-toggle" for="remindersEnabled">
+                <span>
+                  <strong>Erinnerungen aktiv</strong>
+                  <small>Schaltet Feierabend-Reminder ein oder aus.</small>
+                </span>
+                <input id="remindersEnabled" name="enabled" type="checkbox" />
+              </label>
+
+              <label>
+                Reminder-Text
+                <input id="reminderTextSetting" name="text" type="text" />
+              </label>
+
+              <div class="settings-time-grid">
+                <label>
+                  Erinnerung 1
+                  <input id="reminderTime1" name="time1" type="time" />
+                </label>
+                <label>
+                  Erinnerung 2
+                  <input id="reminderTime2" name="time2" type="time" />
+                </label>
+                <label>
+                  Erinnerung 3
+                  <input id="reminderTime3" name="time3" type="time" />
+                </label>
+              </div>
+
+              <label>
+                Ziel-Arbeitszeit pro Tag
+                <input id="targetWorkHours" name="targetHours" type="number" min="0.5" max="24" step="0.25" inputmode="decimal" />
+              </label>
+
+              <button class="settings-secondary-button" id="restoreReminderDefaultsButton" type="button">
+                Standard wiederherstellen
+              </button>
+            </form>
+          </details>
+
+          <details class="settings-panel settings-panel-developer" hidden>
+            <summary>Entwicklerbereich</summary>
+            <label class="settings-toggle" for="developerModeToggle">
+              <span>
+                <strong>Entwickler-Modus</strong>
+                <small>Zeigt temporäre Testfunktionen.</small>
+              </span>
+              <input id="developerModeToggle" type="checkbox" />
             </label>
-
-            <button class="settings-secondary-button" id="restoreReminderDefaultsButton" type="button">
-              Standard wiederherstellen
-            </button>
-          </form>
-        </details>
-
-        <details class="settings-panel">
-          <summary>Datenverwaltung</summary>
-          <p class="settings-help">Import und lokale Daten.</p>
-          <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
-          <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
-          <label class="settings-file-label" for="csvImportInput">CSV hochladen</label>
-          <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
-        </details>
-
-        <details class="settings-panel settings-panel-developer">
-          <summary>Entwicklerbereich</summary>
-          <label class="settings-toggle" for="developerModeToggle">
-            <span>
-              <strong>Entwickler-Modus</strong>
-              <small>Zeigt temporäre Testfunktionen.</small>
-            </span>
-            <input id="developerModeToggle" type="checkbox" />
-          </label>
-        </details>
+          </details>
+        </div>
       </section>
-
       <section class="weekplan-screen app-view" id="weekplanView" aria-label="Kalender" hidden>
         <div class="view-header">
           <button class="back-button" type="button" data-view-link="timer">Zurück</button>
@@ -385,8 +390,8 @@
       </div>
     </div>
 
-    <script src="supabase-config.js?v=1"></script>
+    <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=9"></script>
   </body>
 </html>

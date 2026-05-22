@@ -65,6 +65,7 @@ const reminderPopupMessage = document.querySelector("#reminderPopupMessage");
 const reminderPopupClose = document.querySelector("#reminderPopupClose");
 const reminderPopupManual = document.querySelector("#reminderPopupManual");
 const reminderTestPanel = document.querySelector(".reminder-test-panel");
+const developerSettingsPanel = document.querySelector(".settings-panel-developer");
 const developerModeToggle = document.querySelector("#developerModeToggle");
 const activeUserSelect = document.querySelector("#activeUserSelect");
 const userSettingsForm = document.querySelector("#userSettingsForm");
@@ -106,6 +107,7 @@ const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
 const ACTIVE_USER_KEY = "timekeeper.activeUser.v1";
 const USERS_KEY = "timekeeper.users.v1";
 const CATEGORIES_KEY = "timekeeper.categories.v1";
+const LAST_SYNC_KEY = "timekeeper.cloud.lastSync.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
@@ -789,14 +791,14 @@ function getSupabaseConfig() {
 
   return {
     url: String(config.SUPABASE_URL || "").trim(),
-    anonKey: String(config.SUPABASE_ANON_KEY || "").trim(),
+    key: String(config.SUPABASE_KEY || config.SUPABASE_ANON_KEY || "").trim(),
   };
 }
 
 function isSupabaseConfigured() {
   const config = getSupabaseConfig();
 
-  return Boolean(config.url && config.anonKey);
+  return Boolean(config.url && config.key);
 }
 
 function initializeSupabaseClient() {
@@ -813,7 +815,7 @@ function initializeSupabaseClient() {
   const config = getSupabaseConfig();
 
   try {
-    supabaseClient = globalThis.supabase.createClient(config.url, config.anonKey, {
+    supabaseClient = globalThis.supabase.createClient(config.url, config.key, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -826,34 +828,61 @@ function initializeSupabaseClient() {
   }
 }
 
+function getLastSyncDate() {
+  try {
+    const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+    const date = lastSync ? new Date(lastSync) : null;
+
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function markCloudSyncCompleted() {
+  try {
+    localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  } catch (error) {
+    // Cloud status is helpful UI state, not core user data.
+  }
+}
+
+function formatLastSyncTime(date) {
+  return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
 function getSupabaseStatus() {
   if (!isSupabaseConfigured()) {
     return {
       connected: false,
-      message: "Cloudspeicherung nicht verbunden",
-      detail: "SUPABASE_URL und SUPABASE_ANON_KEY sind noch nicht konfiguriert.",
+      message: "Nur lokal gespeichert",
+      detail: "Cloudspeicherung ist noch nicht eingerichtet.",
     };
   }
 
   if (!supabaseClient) {
     return {
       connected: false,
-      message: "Cloudspeicherung nicht verbunden",
+      message: "Nur lokal gespeichert",
       detail: "Supabase ist konfiguriert, aber der Client konnte nicht erstellt werden.",
     };
   }
 
+  const lastSync = getLastSyncDate();
+
   return {
     connected: true,
-    message: "Cloudspeicherung verbunden",
-    detail: `Tabelle vorbereitet: ${SUPABASE_TABLE_NAME}`,
+    message: "Cloud verbunden",
+    detail: lastSync
+      ? `Zuletzt synchronisiert: ${formatLastSyncTime(lastSync)}`
+      : "Cloud verbunden. Noch nicht synchronisiert.",
   };
 }
 
 function renderSupabaseStatus() {
   const status = getSupabaseStatus();
   cloudStorageStatus.textContent = status.message;
-  cloudStorageStatus.dataset.status = status.connected ? "connected" : "disconnected";
+  cloudStorageStatus.dataset.status = status.connected ? "connected" : "local";
   cloudStorageDetail.textContent = status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
@@ -1063,9 +1092,8 @@ async function loadSupabaseUserProfiles() {
     const localName = String(localUser.name || defaultUser.name).trim() || defaultUser.name;
     const localIsCustom = localName !== defaultUser.name;
     const cloudIsDefault = !cloudName || cloudName === defaultUser.name;
-    const cloudIsNewer = getUserUpdatedAtTime(cloudUser) > getUserUpdatedAtTime(localUser);
 
-    if (cloudName && (cloudIsNewer || (!localIsCustom && !cloudIsDefault)) && !(localIsCustom && cloudIsDefault)) {
+    if (cloudName && !localIsCustom && !cloudIsDefault) {
       return {
         id: defaultUser.id,
         name: cloudName,
@@ -1117,7 +1145,7 @@ async function loadSupabaseCategories() {
   [...categories, ...cloudCategories].forEach((category) => {
     const existingCategory = categoryMap.get(category.id);
 
-    if (!existingCategory || getCategoryUpdatedAtTime(category) > getCategoryUpdatedAtTime(existingCategory)) {
+    if (!existingCategory) {
       categoryMap.set(category.id, category);
     }
   });
@@ -1135,9 +1163,6 @@ async function loadSupabaseCategories() {
       return;
     }
 
-    if (getCategoryUpdatedAtTime(category) > getCategoryUpdatedAtTime(mergedCategories[existingIndex])) {
-      mergedCategories[existingIndex] = category;
-    }
   });
 
   const nextCategories = ensureDefaultCategoriesForAllUsers(mergedCategories);
@@ -1177,18 +1202,13 @@ async function loadSupabaseTimeEntryRecords() {
 function mergeCloudEntriesIntoLocal(cloudEntries) {
   const nextEntries = [...timeEntries];
   let addedCount = 0;
-  let updatedCount = 0;
+  let skippedCount = 0;
 
   cloudEntries.forEach((cloudEntry) => {
     const sameIdIndex = nextEntries.findIndex((entry) => entry.id === cloudEntry.id);
 
     if (sameIdIndex >= 0) {
-      const localEntry = nextEntries[sameIdIndex];
-
-      if (areEntriesDifferent(localEntry, cloudEntry) && getEntryUpdatedAtTime(cloudEntry) > getEntryUpdatedAtTime(localEntry)) {
-        nextEntries[sameIdIndex] = cloudEntry;
-        updatedCount += 1;
-      }
+      skippedCount += 1;
       return;
     }
 
@@ -1197,20 +1217,23 @@ function mergeCloudEntriesIntoLocal(cloudEntries) {
     if (!duplicate) {
       nextEntries.push(cloudEntry);
       addedCount += 1;
+      return;
     }
+
+    skippedCount += 1;
   });
 
-  if (addedCount || updatedCount) {
+  if (addedCount) {
     const sortedEntries = nextEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
 
     if (!persistEntries(sortedEntries)) {
-      return { addedCount: 0, updatedCount: 0, error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." } };
+      return { addedCount: 0, skippedCount: 0, error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." } };
     }
 
     timeEntries.splice(0, timeEntries.length, ...sortedEntries);
   }
 
-  return { addedCount, updatedCount, error: null };
+  return { addedCount, skippedCount, error: null };
 }
 
 function showStartupSyncMessage(message, type = "info") {
@@ -1230,7 +1253,8 @@ async function synchronizeWithSupabaseOnStartup() {
   const status = getSupabaseStatus();
 
   if (!status.connected) {
-    showStartupSyncMessage("Keine Supabase-Verbindung - lokale Daten werden verwendet");
+    showStartupSyncMessage("Nur lokal gespeichert");
+    renderSupabaseStatus();
     return;
   }
 
@@ -1292,9 +1316,18 @@ async function synchronizeWithSupabaseOnStartup() {
     refreshEntryViews();
     renderUserProfileSettings();
     renderCategorySettings();
-    showStartupSyncMessage("Synchronisierung abgeschlossen", "success");
+    markCloudSyncCompleted();
+    renderSupabaseStatus();
+    showStartupSyncMessage(
+      mergeResult.addedCount
+        ? `Cloud verbunden - ${mergeResult.addedCount} neue Einträge geladen`
+        : "Cloud verbunden - lokale Daten bleiben erhalten",
+      "success",
+    );
   } catch (error) {
     showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
+  } finally {
+    renderSupabaseStatus();
   }
 }
 
@@ -1323,6 +1356,7 @@ async function backupLocalEntriesToCloud() {
     }
 
     if (!timeEntries.length) {
+      markCloudSyncCompleted();
       showCloudStorageMessage("Nutzerprofile und Kategorien in Cloud gesichert. Keine lokalen Einträge vorhanden", "success");
       return;
     }
@@ -1338,6 +1372,7 @@ async function backupLocalEntriesToCloud() {
       return;
     }
 
+    markCloudSyncCompleted();
     showCloudStorageMessage(`Nutzerprofile und Kategorien in Cloud gesichert. ${records.length} Zeiteinträge in Cloud gesichert`, "success");
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -1479,6 +1514,8 @@ function saveCloudImportEntries(nextEntries, successMessage) {
 
   timeEntries.splice(0, timeEntries.length, ...sortedEntries);
   refreshEntryViews();
+  markCloudSyncCompleted();
+  renderSupabaseStatus();
   showCloudStorageMessage(successMessage, "success");
   return true;
 }
@@ -2295,6 +2332,7 @@ function setDeveloperMode(enabled) {
   }
 
   reminderTestPanel.hidden = !enabled;
+  developerSettingsPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
 
   try {
@@ -2933,6 +2971,10 @@ function parseCsvRows(text) {
     rows.push(row);
   }
 
+  if (isQuoted) {
+    throw new Error("Die CSV-Datei enthält ein nicht geschlossenes Anführungszeichen.");
+  }
+
   return rows.filter((currentRow) => currentRow.some((value) => value.trim()));
 }
 
@@ -2949,6 +2991,12 @@ function getCsvValue(row, headerMap, headerName) {
   const columnIndex = headerMap.get(headerName);
 
   return columnIndex === undefined ? "" : (row[columnIndex] || "").trim();
+}
+
+function getCsvUserId(row, headerMap) {
+  const userId = getCsvValue(row, headerMap, "nutzer-id");
+
+  return userId && getValidUserId(userId) === userId ? userId : activeUserId;
 }
 
 function parseCsvBoolean(value) {
@@ -3022,11 +3070,19 @@ function entriesFromCsvText(text) {
   const rows = parseCsvRows(text);
 
   if (rows.length < 2) {
-    return [];
+    throw new Error("Die CSV-Datei enthält keine importierbaren Zeiteinträge.");
   }
 
   const headerMap = new Map(rows[0].map((header, index) => [normalizeCsvHeader(header), index]));
+  const requiredHeaders = ["datum", "tatigkeit", "kategorie", "arbeitsbeginn", "arbeitsende"];
+  const missingHeaders = requiredHeaders.filter((header) => !headerMap.has(header));
+
+  if (missingHeaders.length) {
+    throw new Error("Die CSV-Datei hat nicht das erwartete TimeKeeper-Format.");
+  }
+
   const importedEntries = [];
+  let invalidRowCount = 0;
 
   rows.slice(1).forEach((row, index) => {
     const activity = getCsvValue(row, headerMap, "tatigkeit");
@@ -3038,6 +3094,7 @@ function entriesFromCsvText(text) {
     const endedAt = createDateFromCsvParts(dateParts, endParts);
 
     if (!activity || !category || !startedAt || !endedAt || endedAt <= startedAt) {
+      invalidRowCount += 1;
       return;
     }
 
@@ -3051,11 +3108,19 @@ function entriesFromCsvText(text) {
       edited: parseCsvBoolean(getCsvValue(row, headerMap, "bearbeitet")),
       manual: parseCsvBoolean(getCsvValue(row, headerMap, "nachgetragen")),
       uploaded: true,
-      user_id: activeUserId,
+      user_id: getCsvUserId(row, headerMap),
       created_at: getNowIsoString(),
       updated_at: getNowIsoString(),
     });
   });
+
+  if (!importedEntries.length) {
+    throw new Error("Keine gültigen Zeiteinträge gefunden. Bitte Datum, Zeiten, Tätigkeit und Kategorie prüfen.");
+  }
+
+  if (invalidRowCount) {
+    throw new Error(`${invalidRowCount} CSV-Zeile(n) sind ungültig. Es wurde nichts importiert.`);
+  }
 
   return importedEntries;
 }
@@ -3064,6 +3129,15 @@ function deleteAllEntries() {
   const shouldDelete = window.confirm("Alle lokal gespeicherten Zeiteinträge wirklich löschen?");
 
   if (!shouldDelete) {
+    showSettingsMessage("Löschen abgebrochen.");
+    return;
+  }
+
+  const confirmedFinal = window.confirm(
+    `Endgültig löschen?\n\n${timeEntries.length} lokale Zeiteinträge werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.`,
+  );
+
+  if (!confirmedFinal) {
     showSettingsMessage("Löschen abgebrochen.");
     return;
   }
@@ -3088,10 +3162,12 @@ function importCsvEntries(event) {
   const reader = new FileReader();
 
   reader.addEventListener("load", () => {
-    const importedEntries = entriesFromCsvText(String(reader.result || ""));
+    let importedEntries = [];
 
-    if (!importedEntries.length) {
-      showSettingsMessage("Keine gültigen Zeiteinträge in der CSV gefunden.", "error");
+    try {
+      importedEntries = entriesFromCsvText(String(reader.result || ""));
+    } catch (error) {
+      showSettingsMessage(error.message || "CSV-Datei konnte nicht importiert werden.", "error");
       csvImportInput.value = "";
       return;
     }
@@ -3108,7 +3184,7 @@ function importCsvEntries(event) {
 
     timeEntries.splice(0, timeEntries.length, ...nextEntries);
     refreshEntryViews();
-    showSettingsMessage(`${importedEntries.length} Einträge wurden hochgeladen und markiert.`, "success");
+    showSettingsMessage(`${importedEntries.length} Einträge wurden importiert.`, "success");
     csvImportInput.value = "";
   });
 
@@ -3119,7 +3195,6 @@ function importCsvEntries(event) {
 
   reader.readAsText(file, "utf-8");
 }
-
 function getTodayTotalMinutes() {
   const today = toDateInputValue(new Date());
 

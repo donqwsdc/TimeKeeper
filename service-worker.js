@@ -1,9 +1,9 @@
-const CACHE_NAME = "timekeeper-pwa-v7";
+const CACHE_NAME = "timekeeper-pwa-v9";
 const APP_FILES = [
   "./index.html",
-  "./styles.css?v=7",
-  "./supabase-config.js?v=1",
-  "./app.js?v=7",
+  "./styles.css?v=10",
+  "./supabase-config.js?v=2",
+  "./app.js?v=9",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
