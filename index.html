@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#21675b" />
     <title>TimeKeeper</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=10" />
+    <link rel="stylesheet" href="styles.css?v=11" />
   </head>
   <body>
     <div class="app-shell">
@@ -20,12 +20,11 @@
       </header>
 
       <nav class="menu-panel" id="mainMenu" aria-label="Bereiche" hidden>
-        <a href="#auswertungen" data-view-link="analytics">Auswertungen</a>
-        <a href="#wochenplan" data-view-link="weekplan">Kalender</a>
-        <a href="#nachtragen" data-view-link="manual">Nachtragen</a>
+        <a href="#" data-view-link="timer">Start</a>
         <a href="#verlauf" data-view-link="history">Verlauf</a>
-        <a href="#exportieren" data-view-link="export">Exportieren</a>
-        <a href="#einstellungen" data-view-link="settings">Einstellungen</a>
+        <a href="#wochenplan" data-view-link="weekplan">Kalender</a>
+        <a href="#auswertungen" data-view-link="analytics">Statistik</a>
+        <a class="menu-panel-secondary" href="#einstellungen" data-view-link="settings">Einstellungen</a>
       </nav>
 
       <main class="timer-screen app-view" id="timerView" data-state="neutral">
@@ -92,6 +91,8 @@
             <option>Sonstiges</option>
           </select>
         </form>
+
+        <a class="timer-secondary-link" href="#nachtragen" data-view-link="manual">Zeit nachtragen</a>
 
         <section class="completion-panel" id="completionPanel" aria-label="Eintrag abschließen" hidden>
           <label for="note">Optionale Notiz</label>
@@ -161,28 +162,28 @@
       <section class="analytics-screen app-view" id="analyticsView" aria-label="Auswertungen" hidden>
         <div class="view-header">
           <button class="back-button" type="button" data-view-link="timer">Zurück</button>
-          <h2>Auswertungen</h2>
+          <h2>Statistik</h2>
         </div>
 
         <div class="analytics-summary" aria-label="Wochenwerte">
           <section class="analytics-card">
-            <p>Gesamtzeit diese Woche</p>
+            <p>Diese Woche</p>
             <strong id="weeklyTotal">0 Min.</strong>
           </section>
           <section class="analytics-card">
-            <p>Durchschnitt pro Arbeitstag</p>
-            <strong id="dailyAverage">0 Min.</strong>
+            <p>Hauptfokus</p>
+            <strong id="dailyAverage">Noch offen</strong>
           </section>
         </div>
 
         <section class="category-stats" aria-label="Zeit je Kategorie">
-          <h3>Zeit je Kategorie</h3>
-          <p class="analytics-empty" id="analyticsEmpty">Für diese Woche gibt es noch keine Einträge.</p>
+          <h3>Fokusfelder</h3>
+          <p class="analytics-empty" id="analyticsEmpty">Noch keine Einträge diese Woche.</p>
           <div class="category-bars" id="categoryBars"></div>
         </section>
 
         <section class="weekday-stats" aria-label="Arbeitszeit nach Wochentag">
-          <h3>Arbeitszeit nach Wochentag</h3>
+          <h3>Wochenrhythmus</h3>
           <div class="weekday-bars" id="weekdayBars"></div>
         </section>
       </section>
@@ -210,15 +211,34 @@
       <section class="settings-screen app-view" id="settingsView" aria-label="Einstellungen" hidden>
         <div class="view-header">
           <button class="back-button" type="button" data-view-link="timer">Zurück</button>
-          <h2>Einstellungen</h2>
+          <h2>Verwalten</h2>
         </div>
 
         <div class="settings-layout">
-          <details class="settings-panel" open>
+          <details class="settings-panel">
+            <summary>Cloud</summary>
+            <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
+              Offline
+            </p>
+            <p class="cloud-status-detail" id="cloudStorageDetail">
+              Cloudspeicherung ist noch nicht eingerichtet.
+            </p>
+            <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <button class="settings-primary-button" id="cloudBackupButton" type="button">
+                Sichern
+              </button>
+              <button class="settings-secondary-button" id="cloudImportButton" type="button">
+                Laden
+              </button>
+            </div>
+            <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
+          </details>
+
+          <details class="settings-panel">
             <summary>Nutzer</summary>
-            <p class="settings-help">Aktives Profil für neue Einträge.</p>
             <label class="settings-field" for="activeUserSelect">
-              Aktiver Nutzer
+              Kontext
               <select id="activeUserSelect"></select>
             </label>
             <form class="user-settings-form" id="userSettingsForm" hidden aria-hidden="true">
@@ -240,7 +260,6 @@
 
           <details class="settings-panel">
             <summary>Kategorien</summary>
-            <p class="settings-help">Kategorien werden pro Nutzerprofil gespeichert.</p>
             <form class="category-settings-form" id="categorySettingsForm">
               <label>
                 Neue Kategorie
@@ -253,40 +272,7 @@
           </details>
 
           <details class="settings-panel">
-            <summary>Daten &amp; Export</summary>
-            <p class="settings-help">CSV-Import und lokale Datenverwaltung.</p>
-            <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
-            <div class="settings-actions">
-              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alle Daten löschen</button>
-              <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
-            </div>
-            <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
-          </details>
-
-          <details class="settings-panel" open>
-            <summary>Cloudspeicherung</summary>
-            <p class="settings-help">Automatischer Abgleich beim Start, manuelles Sichern und Laden.</p>
-            <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
-              Nur lokal gespeichert
-            </p>
-            <p class="cloud-status-detail" id="cloudStorageDetail">
-              Cloudspeicherung ist noch nicht eingerichtet.
-            </p>
-            <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
-            <div class="settings-actions">
-              <button class="settings-primary-button" id="cloudBackupButton" type="button">
-                Lokale Daten in Cloud sichern
-              </button>
-              <button class="settings-secondary-button" id="cloudImportButton" type="button">
-                Cloud-Daten in App laden
-              </button>
-            </div>
-            <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
-          </details>
-
-          <details class="settings-panel">
             <summary>Erinnerungen</summary>
-            <p class="settings-help">Feierabend-Reminder und Tagesziel.</p>
             <form class="reminder-settings-form" id="reminderSettingsForm">
               <label class="settings-toggle" for="remindersEnabled">
                 <span>
@@ -327,8 +313,19 @@
             </form>
           </details>
 
+          <details class="settings-panel">
+            <summary>Datenverwaltung</summary>
+            <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <a class="settings-secondary-link" href="#exportieren" data-view-link="export">CSV exportieren</a>
+              <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
+              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alles löschen</button>
+            </div>
+            <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
+          </details>
+
           <details class="settings-panel settings-panel-developer" hidden>
-            <summary>Entwicklerbereich</summary>
+            <summary>Entwickleroptionen</summary>
             <label class="settings-toggle" for="developerModeToggle">
               <span>
                 <strong>Entwickler-Modus</strong>
@@ -392,6 +389,6 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=12"></script>
   </body>
 </html>

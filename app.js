@@ -552,10 +552,10 @@ function renderCategorySettings() {
     item.innerHTML = `
       <span>${escapeHtml(category.name)}</span>
       <div class="category-settings-actions">
-        <button class="settings-secondary-button" type="button" data-category-action="up" ${index === 0 ? "disabled" : ""}>Hoch</button>
-        <button class="settings-secondary-button" type="button" data-category-action="down" ${index === userCategories.length - 1 ? "disabled" : ""}>Runter</button>
-        <button class="settings-secondary-button" type="button" data-category-action="rename">Umbenennen</button>
-        <button class="settings-danger-button" type="button" data-category-action="delete">Löschen</button>
+        <button class="settings-secondary-button" type="button" data-category-action="up" aria-label="${escapeHtml(category.name)} nach oben" ${index === 0 ? "disabled" : ""}>↑</button>
+        <button class="settings-secondary-button" type="button" data-category-action="down" aria-label="${escapeHtml(category.name)} nach unten" ${index === userCategories.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="settings-secondary-button" type="button" data-category-action="rename">Ändern</button>
+        <button class="settings-danger-button" type="button" data-category-action="delete">Entfernen</button>
       </div>
     `;
     categorySettingsList.append(item);
@@ -855,7 +855,7 @@ function getSupabaseStatus() {
   if (!isSupabaseConfigured()) {
     return {
       connected: false,
-      message: "Nur lokal gespeichert",
+      message: "Offline",
       detail: "Cloudspeicherung ist noch nicht eingerichtet.",
     };
   }
@@ -863,7 +863,7 @@ function getSupabaseStatus() {
   if (!supabaseClient) {
     return {
       connected: false,
-      message: "Nur lokal gespeichert",
+      message: "Offline",
       detail: "Supabase ist konfiguriert, aber der Client konnte nicht erstellt werden.",
     };
   }
@@ -872,10 +872,8 @@ function getSupabaseStatus() {
 
   return {
     connected: true,
-    message: "Cloud verbunden",
-    detail: lastSync
-      ? `Zuletzt synchronisiert: ${formatLastSyncTime(lastSync)}`
-      : "Cloud verbunden. Noch nicht synchronisiert.",
+    message: lastSync ? "Synchronisiert" : "Cloud verbunden",
+    detail: "",
   };
 }
 
@@ -884,6 +882,7 @@ function renderSupabaseStatus() {
   cloudStorageStatus.textContent = status.message;
   cloudStorageStatus.dataset.status = status.connected ? "connected" : "local";
   cloudStorageDetail.textContent = status.detail;
+  cloudStorageDetail.hidden = !status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
 }
@@ -1253,7 +1252,7 @@ async function synchronizeWithSupabaseOnStartup() {
   const status = getSupabaseStatus();
 
   if (!status.connected) {
-    showStartupSyncMessage("Nur lokal gespeichert");
+    showStartupSyncMessage("Offline");
     renderSupabaseStatus();
     return;
   }
@@ -1318,12 +1317,7 @@ async function synchronizeWithSupabaseOnStartup() {
     renderCategorySettings();
     markCloudSyncCompleted();
     renderSupabaseStatus();
-    showStartupSyncMessage(
-      mergeResult.addedCount
-        ? `Cloud verbunden - ${mergeResult.addedCount} neue Einträge geladen`
-        : "Cloud verbunden - lokale Daten bleiben erhalten",
-      "success",
-    );
+    showStartupSyncMessage("Synchronisiert", "success");
   } catch (error) {
     showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
   } finally {
@@ -1336,7 +1330,7 @@ async function backupLocalEntriesToCloud() {
   renderSupabaseStatus();
 
   if (!status.connected) {
-    showCloudStorageMessage("Keine Cloud-Verbindung", "error");
+    showCloudStorageMessage("Offline", "error");
     return;
   }
 
@@ -1357,7 +1351,7 @@ async function backupLocalEntriesToCloud() {
 
     if (!timeEntries.length) {
       markCloudSyncCompleted();
-      showCloudStorageMessage("Nutzerprofile und Kategorien in Cloud gesichert. Keine lokalen Einträge vorhanden", "success");
+      showCloudStorageMessage("Gesichert", "success");
       return;
     }
 
@@ -1373,7 +1367,7 @@ async function backupLocalEntriesToCloud() {
     }
 
     markCloudSyncCompleted();
-    showCloudStorageMessage(`Nutzerprofile und Kategorien in Cloud gesichert. ${records.length} Zeiteinträge in Cloud gesichert`, "success");
+    showCloudStorageMessage("Gesichert", "success");
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
   } finally {
@@ -1572,7 +1566,7 @@ async function importCloudEntriesToApp() {
   clearCloudConflictPanel();
 
   if (!status.connected) {
-    showCloudStorageMessage("Keine Cloud-Verbindung", "error");
+    showCloudStorageMessage("Offline", "error");
     return;
   }
 
@@ -1601,7 +1595,7 @@ async function importCloudEntriesToApp() {
     const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
 
     if (!cloudEntries.length) {
-      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Cloud-Daten geladen" : "Keine Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Geladen" : "Nichts Neues");
       return;
     }
 
@@ -1634,7 +1628,7 @@ async function importCloudEntriesToApp() {
     });
 
     if (newEntries.length) {
-      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], `${newEntries.length} neue Einträge wurden geladen. Cloud-Daten geladen`);
+      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], "Geladen");
 
       if (!imported) {
         return;
@@ -1646,7 +1640,7 @@ async function importCloudEntriesToApp() {
       renderCloudConflictPanel();
       showCloudStorageMessage(
         newEntries.length
-          ? `${newEntries.length} neue Einträge wurden geladen. ${conflicts.length} Konflikte gefunden`
+          ? `${conflicts.length} Konflikte`
           : `${conflicts.length} Konflikte gefunden`,
         "info",
       );
@@ -1654,7 +1648,7 @@ async function importCloudEntriesToApp() {
     }
 
     if (!newEntries.length) {
-      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Cloud-Daten geladen" : "Keine neuen Cloud-Einträge gefunden");
+      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Geladen" : "Nichts Neues");
     }
   } catch (error) {
     showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
@@ -2453,14 +2447,12 @@ function renderAnalytics() {
   const categoryMinutes = new Map();
   const weekdayMinutes = new Map();
   const weekdayCategoryMinutes = new Map();
-  const workdays = new Set();
   let totalMinutes = 0;
 
   weekEntries.forEach((entry) => {
     const minutes = Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
     const weekdayKey = toDateInputValue(entry.startedAt);
     totalMinutes += minutes;
-    workdays.add(weekdayKey);
     categoryMinutes.set(entry.category, (categoryMinutes.get(entry.category) || 0) + minutes);
     weekdayMinutes.set(weekdayKey, (weekdayMinutes.get(weekdayKey) || 0) + minutes);
 
@@ -2472,14 +2464,16 @@ function renderAnalytics() {
     dayCategories.set(entry.category, (dayCategories.get(entry.category) || 0) + minutes);
   });
 
-  const averageMinutes = workdays.size ? totalMinutes / workdays.size : 0;
   weeklyTotalElement.textContent = formatAnalyticsDuration(totalMinutes);
-  dailyAverageElement.textContent = formatAnalyticsDuration(averageMinutes);
-  analyticsEmpty.hidden = categoryMinutes.size > 0;
+  const hasVisibleWork = totalMinutes >= 1;
+  analyticsEmpty.hidden = hasVisibleWork;
   categoryBars.innerHTML = "";
 
   const maxCategoryMinutes = Math.max(...categoryMinutes.values(), 0);
-  const sortedCategories = [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1]);
+  const sortedCategories = [...categoryMinutes.entries()]
+    .filter(([, minutes]) => minutes >= 1)
+    .sort((a, b) => b[1] - a[1]);
+  dailyAverageElement.textContent = hasVisibleWork ? sortedCategories[0]?.[0] || "Noch offen" : "Noch offen";
 
   sortedCategories.forEach(([category, minutes]) => {
     const row = document.createElement("div");
