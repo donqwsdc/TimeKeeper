@@ -396,17 +396,22 @@ function createCategoryId(userId, name) {
 }
 
 function createDefaultCategoriesForUser(userId) {
+  const now = getNowIsoString();
+
   return DEFAULT_CATEGORY_NAMES.map((name, index) => ({
     id: createCategoryId(userId, name),
     user_id: getValidUserId(userId),
     name,
     sort_order: index,
+    created_at: now,
+    updated_at: now,
   }));
 }
 
 function normalizeCategory(category, index = 0) {
   const userId = getValidUserId(category?.user_id);
   const name = String(category?.name || "").trim();
+  const now = getNowIsoString();
 
   if (!name) {
     return null;
@@ -417,6 +422,8 @@ function normalizeCategory(category, index = 0) {
     user_id: userId,
     name,
     sort_order: Number.isFinite(Number(category?.sort_order)) ? Number(category.sort_order) : index,
+    created_at: category?.created_at || category?.createdAt || now,
+    updated_at: category?.updated_at || category?.updatedAt || now,
   };
 }
 
@@ -479,6 +486,22 @@ function getCategoryNamesForActiveUserWithCurrent(currentCategory = "") {
   }
 
   return names;
+}
+
+function getCategoryUpdatedAtTime(category) {
+  const updatedAt = new Date(category?.updated_at || category?.updatedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
+function areCategoriesDifferent(firstCategory, secondCategory) {
+  return [
+    "id",
+    "user_id",
+    "name",
+    "sort_order",
+    "created_at",
+    "updated_at",
+  ].some((key) => String(firstCategory[key] ?? "") !== String(secondCategory[key] ?? ""));
 }
 
 function renderCategorySelect(select, selectedValue = "") {
@@ -560,11 +583,14 @@ function addCategory(event) {
   }
 
   const userCategories = getCategoriesForUser(activeUserId);
+  const now = getNowIsoString();
   categories.push({
     id: createCategoryId(activeUserId, name),
     user_id: activeUserId,
     name,
     sort_order: userCategories.length,
+    created_at: now,
+    updated_at: now,
   });
 
   if (!saveCategories()) {
@@ -611,16 +637,20 @@ function renameCategory(category) {
   }
 
   const oldName = category.name;
+  const oldUpdatedAt = category.updated_at;
   category.name = nextName;
+  category.updated_at = getNowIsoString();
 
   if (!updateEntriesForRenamedCategory(oldName, nextName)) {
     category.name = oldName;
+    category.updated_at = oldUpdatedAt;
     showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
     return;
   }
 
   if (!saveCategories()) {
     category.name = oldName;
+    category.updated_at = oldUpdatedAt;
     showCategorySettingsMessage("Kategorie konnte nicht gespeichert werden.", "error");
     return;
   }
@@ -690,8 +720,12 @@ function deleteCategory(category) {
 }
 
 function normalizeCategorySortOrders(userId = activeUserId) {
+  const now = getNowIsoString();
   getCategoriesForUser(userId).forEach((category, index) => {
-    category.sort_order = index;
+    if (category.sort_order !== index) {
+      category.sort_order = index;
+      category.updated_at = now;
+    }
   });
 }
 
@@ -705,8 +739,11 @@ function moveCategory(category, direction) {
   }
 
   const currentOrder = userCategories[index].sort_order;
+  const now = getNowIsoString();
   userCategories[index].sort_order = userCategories[swapIndex].sort_order;
   userCategories[swapIndex].sort_order = currentOrder;
+  userCategories[index].updated_at = now;
+  userCategories[swapIndex].updated_at = now;
   normalizeCategorySortOrders(activeUserId);
 
   if (!saveCategories()) {
@@ -872,8 +909,8 @@ function createSupabaseCategoryRecord(category) {
     user_id: getValidUserId(category.user_id),
     name: category.name,
     sort_order: Number(category.sort_order) || 0,
-    created_at: now,
-    updated_at: now,
+    created_at: category.created_at || category.createdAt || now,
+    updated_at: category.updated_at || category.updatedAt || now,
   };
 }
 
@@ -1075,20 +1112,51 @@ async function loadSupabaseCategories() {
     return { error: null, updated: false };
   }
 
-  const cloudUserIds = new Set(cloudCategories.map((category) => category.user_id));
-  categories = [
-    ...categories.filter((category) => !cloudUserIds.has(category.user_id)),
-    ...cloudCategories,
-  ];
-  categories = ensureDefaultCategoriesForAllUsers(categories);
+  const categoryMap = new Map();
+
+  [...categories, ...cloudCategories].forEach((category) => {
+    const existingCategory = categoryMap.get(category.id);
+
+    if (!existingCategory || getCategoryUpdatedAtTime(category) > getCategoryUpdatedAtTime(existingCategory)) {
+      categoryMap.set(category.id, category);
+    }
+  });
+
+  const mergedCategories = [];
+  const categoryNameMap = new Map();
+
+  categoryMap.forEach((category) => {
+    const nameKey = `${category.user_id}|${category.name.toLowerCase()}`;
+    const existingIndex = categoryNameMap.get(nameKey);
+
+    if (existingIndex === undefined) {
+      categoryNameMap.set(nameKey, mergedCategories.length);
+      mergedCategories.push(category);
+      return;
+    }
+
+    if (getCategoryUpdatedAtTime(category) > getCategoryUpdatedAtTime(mergedCategories[existingIndex])) {
+      mergedCategories[existingIndex] = category;
+    }
+  });
+
+  const nextCategories = ensureDefaultCategoriesForAllUsers(mergedCategories);
+  const changed =
+    nextCategories.length !== categories.length ||
+    nextCategories.some((category, index) => areCategoriesDifferent(category, categories[index] || {}));
+
+  categories = nextCategories;
 
   if (!saveCategories()) {
     return { error: { message: "Kategorien konnten nicht lokal gespeichert werden." }, updated: false };
   }
 
-  renderCategorySettings();
-  refreshEntryViews();
-  return { error: null, updated: true };
+  if (changed) {
+    renderCategorySettings();
+    refreshEntryViews();
+  }
+
+  return { error: null, updated: changed };
 }
 
 async function loadSupabaseTimeEntryRecords() {
@@ -1303,15 +1371,6 @@ function createLocalEntryFromSupabaseRecord(record) {
   };
 }
 
-function getEntryDuplicateKey(entry) {
-  return [
-    String(entry.activity || "").trim(),
-    String(entry.category || "").trim(),
-    entry.startedAt.toISOString(),
-    entry.endedAt.toISOString(),
-  ].join("|");
-}
-
 function getCloudEntryDuplicateKey(entry) {
   return [
     getValidUserId(entry.user_id),
@@ -1324,13 +1383,11 @@ function getCloudEntryDuplicateKey(entry) {
 }
 
 function findDuplicateLocalEntries(cloudEntry, localEntries = timeEntries) {
-  const cloudDuplicateKey = getEntryDuplicateKey(cloudEntry);
   const cloudDetailedDuplicateKey = getCloudEntryDuplicateKey(cloudEntry);
 
   return localEntries.filter(
     (localEntry) =>
       localEntry.id === cloudEntry.id ||
-      getEntryDuplicateKey(localEntry) === cloudDuplicateKey ||
       getCloudEntryDuplicateKey(localEntry) === cloudDetailedDuplicateKey,
   );
 }
@@ -1519,6 +1576,14 @@ async function importCloudEntriesToApp() {
       const duplicates = findDuplicateLocalEntries(cloudEntry, comparisonEntries);
 
       if (duplicates.length) {
+        const hasConflict = duplicates.some(
+          (duplicate) => duplicate.id !== cloudEntry.id || areEntriesDifferent(duplicate, cloudEntry),
+        );
+
+        if (!hasConflict) {
+          return;
+        }
+
         conflicts.push({
           localEntry: duplicates[0],
           cloudEntry,
