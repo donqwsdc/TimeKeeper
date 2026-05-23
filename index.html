@@ -1,33 +1,30 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F5F4EF" />
     <title>TimeKeeper</title>
-    <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="assets/brand/png/app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="assets/brand/brand_tokens.css" />
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=20" />
   </head>
   <body>
     <div class="app-shell">
       <header class="app-header" aria-label="App-Navigation">
-        <button class="menu-button" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mainMenu">
+        <button class="menu-button" type="button" aria-label="MenÃ¼ Ã¶ffnen" aria-expanded="false" aria-controls="mainMenu">
           <span></span>
           <span></span>
           <span></span>
         </button>
         <div class="app-brand" aria-label="TimeKeeper">
-          <picture class="brand-logo brand-logo-symbol">
-            <source srcset="assets/brand/logos/symbol_app_icon_dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="assets/brand/logos/symbol_app_icon_light.svg" alt="" />
-          </picture>
-          <picture class="brand-logo brand-logo-wordmark">
-            <source srcset="assets/brand/logos/horizontal_dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="assets/brand/logos/horizontal_light.svg" alt="" />
-          </picture>
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+            <circle class="brand-mark-ring" cx="32" cy="32" r="20" pathLength="100"></circle>
+            <path class="brand-mark-monogram" d="M23 22h18M32 22v22M36 33l10-10M36 33l11 11"></path>
+            <circle class="brand-mark-dot" cx="46" cy="18" r="3"></circle>
+          </svg>
           <span class="brand-name">TimeKeeper</span>
           <span class="brand-claim">Focus · Plan · Track · Achieve</span>
         </div>
@@ -76,9 +73,9 @@
           </button>
         </section>
 
-        <section class="reminder-test-panel" aria-label="Temporärer Reminder-Testmodus" hidden>
-          <h2>Temporärer Reminder-Testmodus</h2>
-          <p>Nur für Entwicklung. Später leicht entfernbar.</p>
+        <section class="reminder-test-panel" aria-label="TemporÃ¤rer Reminder-Testmodus" hidden>
+          <h2>TemporÃ¤rer Reminder-Testmodus</h2>
+          <p>Nur fÃ¼r Entwicklung. SpÃ¤ter leicht entfernbar.</p>
           <div class="reminder-test-actions">
             <button id="testReminderNowButton" type="button">Jetzt testen</button>
             <button id="testReminderUnderButton" type="button">Test &lt; 8h</button>
@@ -86,25 +83,25 @@
             <button id="scheduleReminderTestButton" type="button">In 1 Min. testen</button>
           </div>
           <p class="reminder-test-output" id="reminderTestOutput" role="status" aria-live="polite">
-            Noch kein Reminder-Test ausgeführt.
+            Noch kein Reminder-Test ausgefÃ¼hrt.
           </p>
         </section>
 
-        <form class="entry-form" aria-label="Tätigkeit vorbereiten">
-          <label for="activity">Tätigkeit</label>
+        <form class="entry-form" aria-label="TÃ¤tigkeit vorbereiten">
+          <label for="activity">TÃ¤tigkeit</label>
           <input
             id="activity"
             name="activity"
             type="text"
             list="activitySuggestions"
-            placeholder="Tätigkeit eingeben"
+            placeholder="TÃ¤tigkeit eingeben"
             autocomplete="off"
             aria-describedby="timerMessage"
           />
 
           <label for="category">Kategorie</label>
           <select id="category" name="category" aria-describedby="timerMessage">
-            <option value="">Kategorie auswählen</option>
+            <option value="">Kategorie auswÃ¤hlen</option>
             <option>Organisation</option>
             <option>Meetings</option>
             <option>Marketing Zentral</option>
@@ -112,16 +109,16 @@
             <option>Eventplanung</option>
             <option>Administration</option>
             <option>Netzwerk</option>
-            <option>Fläche</option>
+            <option>FlÃ¤che</option>
             <option>Sonstiges</option>
           </select>
         </form>
 
         <a class="timer-secondary-link" href="#nachtragen" data-view-link="manual">Zeit nachtragen</a>
 
-        <section class="completion-panel" id="completionPanel" aria-label="Eintrag abschließen" hidden>
+        <section class="completion-panel" id="completionPanel" aria-label="Eintrag abschlieÃŸen" hidden>
           <label for="note">Optionale Notiz</label>
-          <textarea id="note" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+          <textarea id="note" name="note" rows="3" placeholder="Notiz ergÃ¤nzen"></textarea>
 
           <div class="completion-actions">
             <button class="save-button" type="button">Speichern</button>
@@ -133,28 +130,28 @@
 
       <section class="history-screen app-view" id="historyView" aria-label="Verlauf" hidden>
         <div class="view-header">
-          <button class="back-button" type="button">Zurück</button>
+          <button class="back-button" type="button">ZurÃ¼ck</button>
           <h2>Verlauf</h2>
         </div>
-        <p class="history-empty" id="historyEmpty">Noch keine gespeicherten Einträge.</p>
+        <p class="history-empty" id="historyEmpty">Noch keine gespeicherten EintrÃ¤ge.</p>
         <p class="storage-message" id="storageMessage" role="status" aria-live="polite" hidden></p>
         <ol class="history-list" id="historyList"></ol>
       </section>
 
       <section class="manual-screen app-view" id="manualView" aria-label="Zeit nachtragen" hidden>
         <div class="view-header">
-          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <button class="back-button" type="button" data-view-link="timer">ZurÃ¼ck</button>
           <h2>Nachtragen</h2>
         </div>
 
         <form class="manual-form" id="manualForm" aria-describedby="manualMessage">
-          <label for="manualActivity">Tätigkeit</label>
-          <input id="manualActivity" name="activity" type="text" list="activitySuggestions" placeholder="Tätigkeit eingeben" autocomplete="off" />
+          <label for="manualActivity">TÃ¤tigkeit</label>
+          <input id="manualActivity" name="activity" type="text" list="activitySuggestions" placeholder="TÃ¤tigkeit eingeben" autocomplete="off" />
           <datalist id="activitySuggestions"></datalist>
 
           <label for="manualCategory">Kategorie</label>
           <select id="manualCategory" name="category">
-            <option value="">Kategorie auswählen</option>
+            <option value="">Kategorie auswÃ¤hlen</option>
             <option>Organisation</option>
             <option>Meetings</option>
             <option>Marketing Zentral</option>
@@ -162,7 +159,7 @@
             <option>Eventplanung</option>
             <option>Administration</option>
             <option>Netzwerk</option>
-            <option>Fläche</option>
+            <option>FlÃ¤che</option>
             <option>Sonstiges</option>
           </select>
 
@@ -176,7 +173,7 @@
           <input id="manualEnd" name="end" type="time" />
 
           <label for="manualNote">Notiz</label>
-          <textarea id="manualNote" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+          <textarea id="manualNote" name="note" rows="3" placeholder="Notiz ergÃ¤nzen"></textarea>
 
           <p class="manual-message" id="manualMessage" role="status" aria-live="polite" hidden></p>
 
@@ -186,7 +183,7 @@
 
       <section class="analytics-screen app-view" id="analyticsView" aria-label="Auswertungen" hidden>
         <div class="view-header">
-          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <button class="back-button" type="button" data-view-link="timer">ZurÃ¼ck</button>
           <h2>Statistik</h2>
         </div>
 
@@ -203,7 +200,7 @@
 
         <section class="category-stats" aria-label="Zeit je Kategorie">
           <h3>Fokusfelder</h3>
-          <p class="analytics-empty" id="analyticsEmpty">Noch keine Einträge diese Woche.</p>
+          <p class="analytics-empty" id="analyticsEmpty">Noch keine EintrÃ¤ge diese Woche.</p>
           <div class="category-bars" id="categoryBars"></div>
         </section>
 
@@ -215,12 +212,12 @@
 
       <section class="export-screen app-view" id="exportView" aria-label="Exportieren" hidden>
         <div class="view-header">
-          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <button class="back-button" type="button" data-view-link="timer">ZurÃ¼ck</button>
           <h2>Exportieren</h2>
         </div>
 
         <section class="export-panel">
-          <p id="exportSummary">Alle gespeicherten Zeiteinträge werden als CSV exportiert.</p>
+          <p id="exportSummary">Alle gespeicherten ZeiteintrÃ¤ge werden als CSV exportiert.</p>
           <label class="export-scope" for="exportScopeSelect">
             Exportumfang
             <select id="exportScopeSelect">
@@ -235,7 +232,7 @@
 
       <section class="settings-screen app-view" id="settingsView" aria-label="Einstellungen" hidden>
         <div class="view-header">
-          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <button class="back-button" type="button" data-view-link="timer">ZurÃ¼ck</button>
           <h2>Verwalten</h2>
         </div>
 
@@ -290,7 +287,7 @@
                 Neue Kategorie
                 <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
               </label>
-              <button class="settings-secondary-button" type="submit">Kategorie hinzufügen</button>
+              <button class="settings-secondary-button" type="submit">Kategorie hinzufÃ¼gen</button>
             </form>
             <ol class="category-settings-list" id="categorySettingsList"></ol>
             <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
@@ -344,7 +341,7 @@
             <div class="settings-actions">
               <a class="settings-secondary-link" href="#exportieren" data-view-link="export">CSV exportieren</a>
               <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
-              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alles löschen</button>
+              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alles lÃ¶schen</button>
             </div>
             <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
           </details>
@@ -354,7 +351,7 @@
             <label class="settings-toggle" for="developerModeToggle">
               <span>
                 <strong>Entwickler-Modus</strong>
-                <small>Zeigt temporäre Testfunktionen.</small>
+                <small>Zeigt temporÃ¤re Testfunktionen.</small>
               </span>
               <input id="developerModeToggle" type="checkbox" />
             </label>
@@ -363,7 +360,7 @@
       </section>
       <section class="weekplan-screen app-view" id="weekplanView" aria-label="Kalender" hidden>
         <div class="view-header">
-          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <button class="back-button" type="button" data-view-link="timer">ZurÃ¼ck</button>
           <h2>Kalender</h2>
         </div>
 
@@ -379,7 +376,7 @@
             </select>
           </label>
           <div class="calendar-navigation">
-            <button id="calendarPrevButton" type="button">Zurück</button>
+            <button id="calendarPrevButton" type="button">ZurÃ¼ck</button>
             <button id="calendarTodayButton" type="button">Heute</button>
             <button id="calendarNextButton" type="button">Vor</button>
           </div>
@@ -405,12 +402,12 @@
               <p class="calendar-day-detail-date" id="calendarDayDetailDate"></p>
               <strong class="calendar-day-detail-total" id="calendarDayDetailTotal"></strong>
             </div>
-            <button class="calendar-day-detail-close" id="calendarDayDetailClose" type="button" aria-label="Tagesdetails schließen">
-              Schließen
+            <button class="calendar-day-detail-close" id="calendarDayDetailClose" type="button" aria-label="Tagesdetails schlieÃŸen">
+              SchlieÃŸen
             </button>
           </div>
           <div class="calendar-day-detail-list" id="calendarDayDetailList"></div>
-          <button class="calendar-day-detail-add" id="calendarDayDetailAdd" type="button">Eintrag hinzufügen</button>
+          <button class="calendar-day-detail-add" id="calendarDayDetailAdd" type="button">Eintrag hinzufÃ¼gen</button>
         </aside>
       </section>
     </div>
@@ -421,7 +418,7 @@
         <p id="reminderPopupMessage">Was hast du mit deiner Zeit gemacht?</p>
         <div class="reminder-popup-actions">
           <button class="reminder-popup-manual" id="reminderPopupManual" type="button">Nachtragen</button>
-          <button class="reminder-popup-close" id="reminderPopupClose" type="button">Schließen</button>
+          <button class="reminder-popup-close" id="reminderPopupClose" type="button">SchlieÃŸen</button>
         </div>
       </div>
     </div>
@@ -431,3 +428,4 @@
     <script src="app.js?v=19"></script>
   </body>
 </html>
+

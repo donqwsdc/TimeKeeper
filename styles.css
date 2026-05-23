@@ -3404,6 +3404,238 @@ body {
   }
 }
 
+/* GitHub Pages mobile asset and layout hardening */
+:root {
+  --mobile-bottom-nav-height: 80px;
+  --mobile-bottom-clearance: calc(var(--mobile-bottom-nav-height) + 36px + env(safe-area-inset-bottom));
+}
+
+.brand-mark {
+  display: block;
+  width: 38px;
+  height: 38px;
+  color: var(--text);
+}
+
+.brand-mark-ring,
+.brand-mark-monogram {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.brand-mark-ring {
+  stroke-width: 3.4;
+  stroke-dasharray: 61 14 8 17;
+  transform: rotate(-38deg);
+  transform-origin: 32px 32px;
+}
+
+.brand-mark-monogram {
+  stroke-width: 2.8;
+}
+
+.brand-mark-dot {
+  fill: var(--color-highlight);
+}
+
+.brand-logo,
+.brand-logo-symbol,
+.brand-logo-wordmark {
+  display: none !important;
+}
+
+.menu-panel a::before {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  color: currentColor;
+  background: none;
+  border: 0;
+  mask: none;
+  -webkit-mask: none;
+}
+
+.menu-panel a {
+  position: relative;
+}
+
+.menu-panel a[data-brand-icon="timer"]::before {
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  box-shadow: inset 6px 0 0 -4px currentColor;
+}
+
+.menu-panel a[data-brand-icon="timer"]::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 7px;
+  margin-top: -17px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.menu-panel a[data-brand-icon="verlauf"]::before {
+  border-radius: 6px;
+  background:
+    linear-gradient(currentColor 0 0) 3px 5px / 16px 2px no-repeat,
+    linear-gradient(currentColor 0 0) 3px 10px / 12px 2px no-repeat,
+    linear-gradient(currentColor 0 0) 3px 15px / 15px 2px no-repeat;
+  box-shadow: inset 0 0 0 1.7px currentColor;
+}
+
+.menu-panel a[data-brand-icon="analyse"]::before {
+  border-radius: 6px;
+  background:
+    linear-gradient(currentColor 0 0) 4px 12px / 3px 7px no-repeat,
+    linear-gradient(currentColor 0 0) 10px 7px / 3px 12px no-repeat,
+    linear-gradient(currentColor 0 0) 16px 4px / 3px 15px no-repeat;
+  box-shadow: inset 0 0 0 1.7px color-mix(in srgb, currentColor 70%, transparent);
+}
+
+.menu-panel a[data-brand-icon="kalender"]::before {
+  border: 1.8px solid currentColor;
+  border-radius: 6px;
+  background:
+    linear-gradient(currentColor 0 0) 0 6px / 100% 1.8px no-repeat,
+    radial-gradient(circle, currentColor 1.3px, transparent 1.5px) 5px 11px / 6px 6px no-repeat,
+    radial-gradient(circle, currentColor 1.3px, transparent 1.5px) 12px 11px / 6px 6px no-repeat;
+}
+
+.menu-panel a[data-brand-icon="einstellungen"]::before {
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: radial-gradient(circle, currentColor 2.4px, transparent 2.8px);
+  box-shadow:
+    0 -4px 0 -2px currentColor,
+    0 4px 0 -2px currentColor,
+    4px 0 0 -2px currentColor,
+    -4px 0 0 -2px currentColor;
+}
+
+@media (max-width: 719px) {
+  .app-shell {
+    padding-bottom: var(--mobile-bottom-clearance);
+  }
+
+  .app-view,
+  .history-screen,
+  .manual-screen,
+  .analytics-screen,
+  .export-screen,
+  .settings-screen,
+  .weekplan-screen,
+  .timer-screen {
+    padding-bottom: var(--mobile-bottom-clearance);
+    scroll-margin-bottom: var(--mobile-bottom-clearance);
+  }
+
+  .menu-panel {
+    min-height: var(--mobile-bottom-nav-height);
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .menu-panel a {
+    min-height: 58px;
+  }
+
+  .weekplan-panel,
+  .weekplan-panel:has(.weekplan-hours[hidden]) {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .weekplan-days,
+  .weekplan-days[data-view-mode="day"],
+  .weekplan-days[data-view-mode="3days"],
+  .weekplan-days[data-view-mode="5days"],
+  .weekplan-days[data-view-mode="7days"],
+  .weekplan-days-day,
+  .weekplan-days-3days,
+  .weekplan-days-5days,
+  .weekplan-days-7days {
+    grid-auto-rows: auto;
+    overflow: visible;
+    padding-bottom: var(--mobile-bottom-clearance);
+    scroll-snap-type: none;
+  }
+
+  .calendar-month-grid {
+    padding-bottom: var(--mobile-bottom-clearance);
+  }
+
+  .weekplan-day {
+    min-height: 0;
+    align-content: start;
+  }
+
+  .weekplan-timeline,
+  .weekplan-entry {
+    overflow: visible;
+  }
+
+  .weekplan-entry {
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-day-detail {
+    bottom: calc(var(--mobile-bottom-nav-height) + 24px + env(safe-area-inset-bottom));
+    max-height: calc(100svh - var(--mobile-bottom-clearance) - 48px);
+    padding-bottom: 18px;
+  }
+
+  .calendar-day-detail-list {
+    padding-bottom: 8px;
+  }
+
+  .calendar-day-detail-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .calendar-day-detail-actions button {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 720px) {
+  .app-brand {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    column-gap: 10px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    grid-row: 1 / span 2;
+  }
+
+  .brand-name {
+    display: block;
+    color: var(--text);
+    font-size: 1.18rem;
+    font-weight: 600;
+    line-height: 1;
+    text-align: left;
+  }
+
+  .brand-claim {
+    display: block;
+    color: var(--color-highlight);
+    font-size: 0.58rem;
+    line-height: 1.2;
+    text-align: left;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
