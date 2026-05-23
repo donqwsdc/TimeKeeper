@@ -2394,22 +2394,21 @@ textarea {
 
 /* Quiet Precision Identity v2 */
 :root {
-  --tk-asset-root: "TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3";
-  --icon-timer: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/timer.svg");
-  --icon-verlauf: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/verlauf.svg");
-  --icon-kalender: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/kalender.svg");
-  --icon-analyse: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/analyse.svg");
-  --icon-einstellungen: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/einstellungen.svg");
-  --icon-cloud: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/cloud.svg");
-  --icon-nutzer: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/nutzer.svg");
-  --icon-kategorien: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/kategorien.svg");
-  --icon-sync: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/sync.svg");
-  --icon-export: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/export.svg");
-  --icon-import: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/import.svg");
-  --icon-start: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/start.svg");
-  --icon-stopp: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/stopp.svg");
-  --icon-warnung: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/warnung.svg");
-  --icon-loeschen: url("TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/loeschen.svg");
+  --icon-timer: url("assets/brand/icons/timer.svg");
+  --icon-verlauf: url("assets/brand/icons/verlauf.svg");
+  --icon-kalender: url("assets/brand/icons/kalender.svg");
+  --icon-analyse: url("assets/brand/icons/analyse.svg");
+  --icon-einstellungen: url("assets/brand/icons/einstellungen.svg");
+  --icon-cloud: url("assets/brand/icons/cloud.svg");
+  --icon-nutzer: url("assets/brand/icons/nutzer.svg");
+  --icon-kategorien: url("assets/brand/icons/kategorien.svg");
+  --icon-sync: url("assets/brand/icons/sync.svg");
+  --icon-export: url("assets/brand/icons/export.svg");
+  --icon-import: url("assets/brand/icons/import.svg");
+  --icon-start: url("assets/brand/icons/start.svg");
+  --icon-stopp: url("assets/brand/icons/stopp.svg");
+  --icon-warnung: url("assets/brand/icons/warnung.svg");
+  --icon-loeschen: url("assets/brand/icons/loeschen.svg");
 }
 
 body {
