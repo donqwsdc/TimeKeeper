@@ -2224,6 +2224,20 @@ function setActiveNavigation(viewName) {
   });
 }
 
+const persistentNavigationQuery = window.matchMedia("(max-width: 719px)");
+
+function usesPersistentNavigation() {
+  return true;
+}
+
+function closeNavigationMenu() {
+  const keepNavigationVisible = usesPersistentNavigation();
+
+  menuButton.hidden = keepNavigationVisible;
+  menuButton.setAttribute("aria-expanded", String(keepNavigationVisible));
+  menuPanel.hidden = !keepNavigationVisible;
+}
+
 function showTimerView() {
   setActiveNavigation("timer");
   timerView.hidden = false;
@@ -2233,6 +2247,7 @@ function showTimerView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
+  closeNavigationMenu();
 }
 
 function showHistoryView() {
@@ -2244,8 +2259,7 @@ function showHistoryView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "verlauf";
 }
 
@@ -2260,8 +2274,7 @@ function showManualView() {
   weekplanView.hidden = true;
   manualMessage.hidden = true;
   manualForm.elements.date.value ||= toDateInputValue(new Date());
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "nachtragen";
 }
 
@@ -2275,8 +2288,7 @@ function showAnalyticsView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "auswertungen";
 }
 
@@ -2291,8 +2303,7 @@ function showExportView() {
   settingsView.hidden = true;
   weekplanView.hidden = true;
   exportMessage.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "exportieren";
 }
 
@@ -2314,8 +2325,7 @@ function showSettingsView() {
   clearCloudConflictPanel();
   clearUserProfileMessage();
   clearCategorySettingsMessage();
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "einstellungen";
 }
 
@@ -2329,8 +2339,7 @@ function showWeekplanView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = false;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "wochenplan";
 }
 
@@ -3837,11 +3846,18 @@ updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
 
 menuButton.addEventListener("click", () => {
+  if (usesPersistentNavigation()) {
+    closeNavigationMenu();
+    return;
+  }
+
   const isOpen = menuButton.getAttribute("aria-expanded") === "true";
 
   menuButton.setAttribute("aria-expanded", String(!isOpen));
   menuPanel.hidden = isOpen;
 });
+
+persistentNavigationQuery.addEventListener("change", closeNavigationMenu);
 
 startButton.addEventListener("click", () => {
   if (isTimerRunning()) {
@@ -4072,6 +4088,7 @@ checkReminders();
 synchronizeWithSupabaseOnStartup();
 setInterval(checkReminders, 30000);
 setActiveNavigation("timer");
+closeNavigationMenu();
 
 if (window.location.hash === "#verlauf") {
   showHistoryView();

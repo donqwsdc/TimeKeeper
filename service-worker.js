@@ -1,12 +1,33 @@
-const CACHE_NAME = "timekeeper-pwa-v18";
+const CACHE_NAME = "timekeeper-pwa-v19";
 const APP_FILES = [
   "./index.html",
-  "./styles.css?v=15",
+  "./styles.css?v=16",
   "./supabase-config.js?v=2",
-  "./app.js?v=16",
+  "./app.js?v=17",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/brand_tokens.css",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/favicon.ico",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/logos_svg/02_logo_symbol_app_icon_light.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/logos_svg/03_logo_symbol_app_icon_dark.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/logos_svg/04_logo_horizontal_light.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/logos_svg/05_logo_horizontal_dark.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/analyse.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/cloud.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/einstellungen.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/export.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/import.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/kalender.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/kategorien.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/loeschen.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/nutzer.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/start.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/stopp.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/sync.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/timer.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/verlauf.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/icons_svg/warnung.svg",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/png_exports/app_icon_light_192.png",
+  "./TimeKeeper_CI_Assets/TimeKeeper_CI_Assets_Integrated_v3/png_exports/app_icon_light_512.png",
 ];
 
 function isAppFile(request) {
