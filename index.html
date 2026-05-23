@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=24" />
+    <link rel="stylesheet" href="styles.css?v=25" />
   </head>
   <body>
     <div class="app-shell">
@@ -188,6 +188,32 @@
             <strong id="dailyAverage">Noch offen</strong>
           </section>
         </div>
+
+        <section class="capacity-stats" aria-label="Kapazitätsübersicht">
+          <div class="analytics-section-header">
+            <h3>Kapazität</h3>
+            <span class="analytics-status-badge" id="capacityStatus">Noch offen</span>
+          </div>
+          <div class="capacity-layout">
+            <div class="capacity-progress" aria-label="Wochenziel-Fortschritt">
+              <div class="capacity-progress-track">
+                <div class="capacity-progress-fill" id="capacityProgressFill"></div>
+              </div>
+              <strong id="capacityProgressPercent">0 %</strong>
+            </div>
+            <div class="capacity-grid" id="capacityStats"></div>
+          </div>
+        </section>
+
+        <section class="focus-stats" aria-label="Fokuszeit">
+          <h3>Fokuszeit</h3>
+          <div class="analytics-kpi-grid" id="focusStats"></div>
+        </section>
+
+        <section class="week-comparison-stats" aria-label="Vergleich zur Vorwoche">
+          <h3>Vergleich zur Vorwoche</h3>
+          <div class="analytics-kpi-grid" id="weekComparisonStats"></div>
+        </section>
 
         <section class="category-stats" aria-label="Zeit je Kategorie">
           <h3>Fokusfelder</h3>
@@ -416,7 +442,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
   </body>
 </html>
 

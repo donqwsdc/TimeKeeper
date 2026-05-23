@@ -44,6 +44,12 @@ const dailyAverageElement = document.querySelector("#dailyAverage");
 const analyticsEmpty = document.querySelector("#analyticsEmpty");
 const categoryBars = document.querySelector("#categoryBars");
 const weekdayBars = document.querySelector("#weekdayBars");
+const capacityStatus = document.querySelector("#capacityStatus");
+const capacityProgressFill = document.querySelector("#capacityProgressFill");
+const capacityProgressPercent = document.querySelector("#capacityProgressPercent");
+const capacityStats = document.querySelector("#capacityStats");
+const focusStats = document.querySelector("#focusStats");
+const weekComparisonStats = document.querySelector("#weekComparisonStats");
 const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
 const calendarDayDetail = document.querySelector("#calendarDayDetail");
@@ -2551,48 +2557,316 @@ function renderHistory() {
   });
 }
 
-function getCurrentWeekEntries() {
-  const now = new Date();
-  const weekStart = getWeekStart(now);
-  const weekEnd = getWeekEnd(now);
+function getEntriesForWeek(date, entries = getEntriesForActiveUser()) {
+  const weekStart = getWeekStart(date);
+  const weekEnd = getWeekEnd(date);
 
-  return getEntriesForActiveUser().filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
+  return entries.filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
 }
 
-function renderAnalytics() {
-  const weekEntries = getCurrentWeekEntries();
+function getPreviousWeekEntries(date = new Date(), entries = getEntriesForActiveUser()) {
+  return getEntriesForWeek(addDays(getWeekStart(date), -1), entries);
+}
+
+function getEntryMinutes(entry) {
+  return Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
+}
+
+function getTotalMinutes(entries) {
+  return entries.reduce((total, entry) => total + getEntryMinutes(entry), 0);
+}
+
+function getCategoryMinutes(entries) {
   const categoryMinutes = new Map();
-  const weekdayMinutes = new Map();
-  const weekdayCategoryMinutes = new Map();
-  let totalMinutes = 0;
 
-  weekEntries.forEach((entry) => {
-    const minutes = Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
-    const weekdayKey = toDateInputValue(entry.startedAt);
-    totalMinutes += minutes;
-    categoryMinutes.set(entry.category, (categoryMinutes.get(entry.category) || 0) + minutes);
-    weekdayMinutes.set(weekdayKey, (weekdayMinutes.get(weekdayKey) || 0) + minutes);
-
-    if (!weekdayCategoryMinutes.has(weekdayKey)) {
-      weekdayCategoryMinutes.set(weekdayKey, new Map());
-    }
-
-    const dayCategories = weekdayCategoryMinutes.get(weekdayKey);
-    dayCategories.set(entry.category, (dayCategories.get(entry.category) || 0) + minutes);
+  entries.forEach((entry) => {
+    const category = entry.category || "Ohne Kategorie";
+    categoryMinutes.set(category, (categoryMinutes.get(category) || 0) + getEntryMinutes(entry));
   });
 
-  weeklyTotalElement.textContent = formatAnalyticsDuration(totalMinutes);
-  const hasVisibleWork = totalMinutes >= 1;
-  analyticsEmpty.hidden = hasVisibleWork;
-  categoryBars.innerHTML = "";
+  return categoryMinutes;
+}
 
+function getFocusEntries(entries) {
+  return entries.filter((entry) => getEntryMinutes(entry) >= 45);
+}
+
+function getFocusStats(entries) {
+  const focusEntries = getFocusEntries(entries);
+  const focusMinutes = getTotalMinutes(focusEntries);
+  const totalMinutes = getTotalMinutes(entries);
+  const longestSession = focusEntries.reduce((longest, entry) => Math.max(longest, getEntryMinutes(entry)), 0);
+  const dayMinutes = new Map();
+
+  focusEntries.forEach((entry) => {
+    const dayKey = toDateInputValue(entry.startedAt);
+    dayMinutes.set(dayKey, (dayMinutes.get(dayKey) || 0) + getEntryMinutes(entry));
+  });
+
+  const strongestDay = [...dayMinutes.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    focusEntries,
+    focusMinutes,
+    focusShare: totalMinutes ? (focusMinutes / totalMinutes) * 100 : 0,
+    longestSession,
+    sessionCount: focusEntries.length,
+    strongestDay: strongestDay ? new Date(`${strongestDay[0]}T00:00`) : null,
+  };
+}
+
+function getRemainingWorkdays(date = new Date()) {
+  const dayNumber = date.getDay() || 7;
+
+  if (dayNumber > 5) {
+    return 0;
+  }
+
+  return 6 - dayNumber;
+}
+
+function getCapacityStats(entries) {
+  const dailyTargetMinutes = getTargetWorkMinutes() || DEFAULT_REMINDER_SETTINGS.targetWorkHours * 60;
+  const weeklyTargetMinutes = dailyTargetMinutes * 5;
+  const trackedMinutes = getTotalMinutes(entries);
+  const remainingMinutes = Math.max(0, weeklyTargetMinutes - trackedMinutes);
+  const remainingWorkdays = getRemainingWorkdays();
+  const remainingPerWorkday = remainingMinutes && remainingWorkdays ? remainingMinutes / remainingWorkdays : remainingMinutes;
+  const progressPercent = weeklyTargetMinutes ? Math.min(100, (trackedMinutes / weeklyTargetMinutes) * 100) : 0;
+  const isReached = trackedMinutes >= weeklyTargetMinutes;
+  let statusKey = "plan";
+  let statusLabel = "Im Plan";
+
+  if (isReached) {
+    statusKey = "reached";
+    statusLabel = "Ziel erreicht";
+  } else if (!remainingWorkdays && remainingMinutes > 0) {
+    statusKey = "critical";
+    statusLabel = "Kritisch";
+  } else if (remainingPerWorkday > dailyTargetMinutes * 1.25) {
+    statusKey = "critical";
+    statusLabel = "Kritisch";
+  } else if (remainingPerWorkday > dailyTargetMinutes) {
+    statusKey = "tight";
+    statusLabel = "Knapp";
+  }
+
+  return {
+    dailyTargetMinutes,
+    weeklyTargetMinutes,
+    trackedMinutes,
+    remainingMinutes,
+    remainingWorkdays,
+    remainingPerWorkday: isReached ? 0 : remainingPerWorkday,
+    progressPercent,
+    statusKey,
+    statusLabel,
+  };
+}
+
+function getDominantCategory(categoryMinutes, totalMinutes) {
+  if (!totalMinutes) {
+    return null;
+  }
+
+  const entries = categoryMinutes instanceof Map ? [...categoryMinutes.entries()] : categoryMinutes;
+
+  return entries.find(([, minutes]) => minutes / totalMinutes > 0.4)?.[0] || null;
+}
+
+function formatSignedDurationDifference(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes === 0) {
+    return "stabil";
+  }
+
+  const sign = roundedMinutes > 0 ? "+" : "-";
+  return `${sign}${formatAnalyticsDuration(Math.abs(roundedMinutes))}`;
+}
+
+function formatPercent(value) {
+  return `${new Intl.NumberFormat("de-DE", {
+    maximumFractionDigits: value < 10 && value > 0 ? 1 : 0,
+  }).format(value)} %`;
+}
+
+function getWeekSummary(entries) {
+  const categoryMinutes = getCategoryMinutes(entries);
+  const sortedCategories = [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1]);
+
+  return {
+    totalMinutes: getTotalMinutes(entries),
+    focusMinutes: getFocusStats(entries).focusMinutes,
+    sessionCount: entries.length,
+    mainCategory: sortedCategories[0]?.[0] || "Noch offen",
+    meetingMinutes: categoryMinutes.get("Meetings") || 0,
+    hasMeetings: categoryMinutes.has("Meetings") || getCategoriesForUser().some((category) => category.name === "Meetings"),
+  };
+}
+
+function getWeekComparisonStats(currentEntries, previousEntries) {
+  const current = getWeekSummary(currentEntries);
+  const previous = getWeekSummary(previousEntries);
+
+  return {
+    current,
+    previous,
+    hasPreviousData: previousEntries.length > 0,
+  };
+}
+
+function getCurrentWeekEntries() {
+  return getEntriesForWeek(new Date());
+}
+
+function createAnalyticsKpiCard(label, value, detail = "", className = "") {
+  const card = document.createElement("article");
+  card.className = ["analytics-kpi-card", className].filter(Boolean).join(" ");
+
+  const labelElement = document.createElement("p");
+  labelElement.textContent = label;
+  card.append(labelElement);
+
+  const valueElement = document.createElement("strong");
+  valueElement.textContent = value;
+  card.append(valueElement);
+
+  if (detail) {
+    const detailElement = document.createElement("span");
+    detailElement.textContent = detail;
+    card.append(detailElement);
+  }
+
+  return card;
+}
+
+function renderCapacityStats(stats) {
+  capacityStatus.textContent = stats.statusLabel;
+  capacityStatus.className = `analytics-status-badge is-${stats.statusKey}`;
+  capacityProgressFill.style.width = `${stats.progressPercent}%`;
+  capacityProgressPercent.textContent = formatPercent(stats.progressPercent);
+  capacityStats.innerHTML = "";
+
+  [
+    ["Wochenziel", formatAnalyticsDuration(stats.weeklyTargetMinutes), `${formatAnalyticsDuration(stats.dailyTargetMinutes)} pro Tag`],
+    ["Bisher erfasst", formatAnalyticsDuration(stats.trackedMinutes)],
+    ["Verbleibend", formatAnalyticsDuration(stats.remainingMinutes)],
+    [
+      "Rest pro Arbeitstag",
+      formatAnalyticsDuration(stats.remainingPerWorkday),
+      stats.remainingWorkdays ? `${stats.remainingWorkdays} Arbeitstage übrig` : "Keine Arbeitstage übrig",
+    ],
+    ["Status", stats.statusLabel],
+  ].forEach(([label, value, detail]) => {
+    capacityStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderFocusStats(stats, totalMinutes) {
+  focusStats.innerHTML = "";
+
+  if (!stats.sessionCount) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch keine Fokus-Session ab 45 Minuten in dieser Woche.";
+    focusStats.append(empty);
+    return;
+  }
+
+  const strongestDay = stats.strongestDay
+    ? new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(stats.strongestDay)
+    : "Noch offen";
+
+  [
+    ["Fokuszeit gesamt", formatAnalyticsDuration(stats.focusMinutes), `${formatPercent(stats.focusShare)} deiner erfassten Zeit`],
+    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["Fokus-Sessions", String(stats.sessionCount), "ab 45 Minuten"],
+    ["Stärkster Fokustag", strongestDay, totalMinutes ? "" : "Noch keine Wochenzeit"],
+  ].forEach(([label, value, detail]) => {
+    focusStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function getDurationTrendText(label, difference) {
+  if (Math.abs(difference) < 1) {
+    return `${label} stabil`;
+  }
+
+  return `${formatSignedDurationDifference(difference)} zur Vorwoche`;
+}
+
+function renderWeekComparisonStats(stats) {
+  weekComparisonStats.innerHTML = "";
+
+  if (!stats.hasPreviousData) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch keine Vergleichsdaten aus der Vorwoche.";
+    weekComparisonStats.append(empty);
+    return;
+  }
+
+  const totalDifference = stats.current.totalMinutes - stats.previous.totalMinutes;
+  const focusDifference = stats.current.focusMinutes - stats.previous.focusMinutes;
+  const sessionDifference = stats.current.sessionCount - stats.previous.sessionCount;
+  const sessionTrend = sessionDifference === 0 ? "Sessions stabil" : `${sessionDifference > 0 ? "+" : ""}${sessionDifference} Sessions`;
+  const categoryTrend =
+    stats.current.mainCategory === stats.previous.mainCategory
+      ? "Hauptkategorie stabil"
+      : `Vorwoche: ${stats.previous.mainCategory}`;
+
+  const cards = [
+    [
+      "Gesamtzeit",
+      formatAnalyticsDuration(stats.current.totalMinutes),
+      getDurationTrendText("Gesamtzeit", totalDifference),
+    ],
+    [
+      "Fokuszeit",
+      formatAnalyticsDuration(stats.current.focusMinutes),
+      getDurationTrendText("Fokuszeit", focusDifference),
+    ],
+    [
+      "Sessions",
+      String(stats.current.sessionCount),
+      sessionTrend,
+    ],
+    [
+      "Hauptkategorie",
+      stats.current.mainCategory,
+      categoryTrend,
+    ],
+  ];
+
+  if (stats.current.hasMeetings || stats.previous.hasMeetings) {
+    const meetingDifference = stats.current.meetingMinutes - stats.previous.meetingMinutes;
+    cards.push([
+      "Meetings",
+      formatAnalyticsDuration(stats.current.meetingMinutes),
+      getDurationTrendText("Meetings", meetingDifference),
+    ]);
+  }
+
+  cards.forEach(([label, value, detail]) => {
+    weekComparisonStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCategoryMinutes) {
   const maxCategoryMinutes = Math.max(...categoryMinutes.values(), 0);
   const sortedCategories = [...categoryMinutes.entries()]
     .filter(([, minutes]) => minutes >= 1)
     .sort((a, b) => b[1] - a[1]);
-  dailyAverageElement.textContent = hasVisibleWork ? sortedCategories[0]?.[0] || "Noch offen" : "Noch offen";
+  const dominantCategory = getDominantCategory(sortedCategories, totalMinutes);
+
+  analyticsEmpty.hidden = totalMinutes >= 1;
+  categoryBars.innerHTML = "";
 
   sortedCategories.forEach(([category, minutes]) => {
+    const percent = totalMinutes ? (minutes / totalMinutes) * 100 : 0;
+    const previousMinutes = previousCategoryMinutes.get(category) || 0;
+    const difference = minutes - previousMinutes;
     const row = document.createElement("div");
     row.className = "category-bar-row";
 
@@ -2604,7 +2878,7 @@ function renderAnalytics() {
     header.append(label);
 
     const value = document.createElement("span");
-    value.textContent = formatAnalyticsDuration(minutes);
+    value.textContent = `${formatAnalyticsDuration(minutes)} · ${formatPercent(percent)} · ${formatSignedDurationDifference(difference)} zur Vorwoche`;
     header.append(value);
     row.append(header);
 
@@ -2615,11 +2889,55 @@ function renderAnalytics() {
     fill.className = "category-bar-fill";
     fill.style.width = `${maxCategoryMinutes ? (minutes / maxCategoryMinutes) * 100 : 0}%`;
     fill.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+    fill.title = `${category}: ${formatAnalyticsDuration(minutes)}, ${formatPercent(percent)}`;
     track.append(fill);
     row.append(track);
 
+    if (category === dominantCategory) {
+      const hint = document.createElement("p");
+      hint.className = "category-dominance-hint";
+      hint.textContent = "Diese Kategorie prägt deine Woche.";
+      row.append(hint);
+    }
+
     categoryBars.append(row);
   });
+}
+
+function renderAnalytics() {
+  const weekEntries = getCurrentWeekEntries();
+  const previousWeekEntries = getPreviousWeekEntries(new Date());
+  const categoryMinutes = getCategoryMinutes(weekEntries);
+  const previousCategoryMinutes = getCategoryMinutes(previousWeekEntries);
+  const weekdayMinutes = new Map();
+  const weekdayCategoryMinutes = new Map();
+  const totalMinutes = getTotalMinutes(weekEntries);
+
+  weekEntries.forEach((entry) => {
+    const minutes = getEntryMinutes(entry);
+    const weekdayKey = toDateInputValue(entry.startedAt);
+    const category = entry.category || "Ohne Kategorie";
+    weekdayMinutes.set(weekdayKey, (weekdayMinutes.get(weekdayKey) || 0) + minutes);
+
+    if (!weekdayCategoryMinutes.has(weekdayKey)) {
+      weekdayCategoryMinutes.set(weekdayKey, new Map());
+    }
+
+    const dayCategories = weekdayCategoryMinutes.get(weekdayKey);
+    dayCategories.set(category, (dayCategories.get(category) || 0) + minutes);
+  });
+
+  weeklyTotalElement.textContent = formatAnalyticsDuration(totalMinutes);
+  const hasVisibleWork = totalMinutes >= 1;
+  const sortedCategories = [...categoryMinutes.entries()]
+    .filter(([, minutes]) => minutes >= 1)
+    .sort((a, b) => b[1] - a[1]);
+  dailyAverageElement.textContent = hasVisibleWork ? sortedCategories[0]?.[0] || "Noch offen" : "Noch offen";
+
+  renderCapacityStats(getCapacityStats(weekEntries));
+  renderFocusStats(getFocusStats(weekEntries), totalMinutes);
+  renderWeekComparisonStats(getWeekComparisonStats(weekEntries, previousWeekEntries));
+  renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCategoryMinutes);
 
   weekdayBars.innerHTML = "";
   const weekStart = getWeekStart(new Date());
