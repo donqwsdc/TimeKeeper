@@ -8,6 +8,9 @@ const elapsedTimeElement = document.querySelector("#elapsedTime");
 const startButton = document.querySelector(".start-button");
 const timerScreen = document.querySelector(".timer-screen");
 const timerStateElement = document.querySelector("#timerState");
+const timerUserSelect = document.querySelector("#timerUserSelect");
+const timerSyncStatus = document.querySelector("#timerSyncStatus");
+const timerReminderStatus = document.querySelector("#timerReminderStatus");
 const completionPanel = document.querySelector("#completionPanel");
 const noteInput = document.querySelector("#note");
 const activityInput = document.querySelector("#activity");
@@ -326,6 +329,27 @@ function clearUserProfileMessage() {
   userProfileMessage.hidden = true;
 }
 
+function renderTimerContext() {
+  timerUserSelect.innerHTML = "";
+
+  users.forEach((user) => {
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = user.name;
+    timerUserSelect.append(option);
+  });
+
+  timerUserSelect.value = activeUserId;
+
+  const cloudStatus = getSupabaseStatus();
+  timerSyncStatus.textContent = cloudStatus.connected ? cloudStatus.message : "Nur lokal";
+  timerSyncStatus.dataset.status = cloudStatus.connected ? "connected" : "local";
+
+  const reminderSettings = getReminderSettings();
+  timerReminderStatus.textContent = reminderSettings.enabled ? "Reminder aktiv" : "Reminder aus";
+  timerReminderStatus.dataset.status = reminderSettings.enabled ? "active" : "inactive";
+}
+
 function renderUserProfileSettings() {
   const canEditUserNames = isDeveloperModeEnabled();
   activeUserSelect.innerHTML = "";
@@ -338,6 +362,7 @@ function renderUserProfileSettings() {
   });
 
   activeUserSelect.value = activeUserId;
+  renderTimerContext();
   userSettingsForm.hidden = !canEditUserNames;
   userSettingsForm.setAttribute("aria-hidden", String(!canEditUserNames));
   userNameInputs.forEach((input, index) => {
@@ -347,7 +372,29 @@ function renderUserProfileSettings() {
   });
 }
 
+function setActiveUserProfile(userId, { showMessage = false } = {}) {
+  activeUserId = getValidUserId(userId);
+
+  if (!saveUserProfiles()) {
+    if (showMessage) {
+      showUserProfileMessage("Nutzerprofil konnte nicht gespeichert werden.", "error");
+    }
+    return;
+  }
+
+  renderTimerContext();
+  renderUserProfileSettings();
+  renderCategorySettings();
+  if (showMessage) {
+    showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
+  }
+  refreshEntryViews();
+}
+
 function saveActiveUserFromSettings() {
+  setActiveUserProfile(activeUserSelect.value, { showMessage: true });
+  return;
+
   activeUserId = getValidUserId(activeUserSelect.value);
 
   if (!saveUserProfiles()) {
@@ -359,6 +406,10 @@ function saveActiveUserFromSettings() {
   renderCategorySettings();
   showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
   refreshEntryViews();
+}
+
+function saveActiveUserFromStartscreen() {
+  setActiveUserProfile(timerUserSelect.value);
 }
 
 function saveUserNamesFromSettings() {
@@ -388,6 +439,7 @@ function saveUserNamesFromSettings() {
     option.textContent = getUserName(option.value);
   });
   activeUserSelect.value = activeUserId;
+  renderTimerContext();
   refreshEntryViews();
   showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
 }
@@ -892,6 +944,7 @@ function renderSupabaseStatus() {
   cloudStorageDetail.hidden = !status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
+  renderTimerContext();
 }
 
 function toSupabaseTimeValue(date) {
@@ -2126,7 +2179,7 @@ function setTimerState(state) {
     timerStateElement.textContent = activeActivity;
     elapsedTimeElement.hidden = false;
     completionPanel.hidden = true;
-    startButton.textContent = "Stop";
+    startButton.textContent = "Stoppen";
     startButton.classList.add("is-running");
     startButton.setAttribute("aria-pressed", "true");
     return;
@@ -2679,6 +2732,43 @@ function formatCompactCalendarDuration(minutes) {
   return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
+function formatHeatmapDuration(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes <= 0) {
+    return "";
+  }
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = roundedMinutes % 60;
+
+  if (!hours) {
+    return `${remainingMinutes} m`;
+  }
+
+  return `${hours}:${String(remainingMinutes).padStart(2, "0")} h`;
+}
+
+function getHeatmapIntensityClass(minutes) {
+  if (minutes <= 0) {
+    return "heatmap-day-empty";
+  }
+
+  if (minutes < 240) {
+    return "heatmap-day-low";
+  }
+
+  if (minutes < 360) {
+    return "heatmap-day-medium";
+  }
+
+  if (minutes <= 480) {
+    return "heatmap-day-high";
+  }
+
+  return "heatmap-day-over";
+}
+
 function renderDayCategoryStrip(entries) {
   const strip = document.createElement("span");
   strip.className = "calendar-day-category-strip";
@@ -2821,7 +2911,7 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
     const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayButton = document.createElement("button");
     dayButton.type = "button";
-    dayButton.className = "calendar-month-day";
+    dayButton.className = `calendar-month-day heatmap-day ${getHeatmapIntensityClass(totalMinutes)}`;
     dayButton.dataset.calendarDate = dayKey;
     dayButton.setAttribute("aria-label", `${formatDate(currentDay)}, ${formatAnalyticsDuration(totalMinutes)}, ${dayEntries.length} Einträge`);
 
@@ -2829,12 +2919,18 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
       dayButton.classList.add("is-outside-month");
     }
 
+    if (currentDay.getDay() === 0 || currentDay.getDay() === 6) {
+      dayButton.classList.add("heatmap-day-weekend");
+    }
+
     if (dayKey === toDateInputValue(new Date())) {
       dayButton.classList.add("is-today");
+      dayButton.classList.add("heatmap-day-today");
     }
 
     if (calendarDetailDate && dayKey === toDateInputValue(calendarDetailDate)) {
       dayButton.classList.add("is-selected");
+      dayButton.classList.add("heatmap-day-selected");
     }
 
     const dayNumber = document.createElement("strong");
@@ -2842,7 +2938,7 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
     dayButton.append(dayNumber);
 
     const total = document.createElement("span");
-    total.textContent = formatCompactCalendarDuration(totalMinutes);
+    total.textContent = formatHeatmapDuration(totalMinutes);
     dayButton.append(total);
 
     if (dayEntries.length) {
@@ -2850,8 +2946,6 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
       count.textContent = `${dayEntries.length}`;
       dayButton.append(count);
     }
-
-    dayButton.append(renderDayCategoryStrip(dayEntries));
 
     weekplanDays.append(dayButton);
   }
@@ -3071,6 +3165,7 @@ function collectReminderSettingsFromForm() {
 
 function saveReminderSettingsFromForm() {
   saveReminderSettings(collectReminderSettingsFromForm());
+  renderTimerContext();
 
   if (!getReminderSettings().enabled || getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
@@ -3080,6 +3175,7 @@ function saveReminderSettingsFromForm() {
 function restoreDefaultReminderSettings() {
   saveReminderSettings(DEFAULT_REMINDER_SETTINGS);
   renderReminderSettingsForm();
+  renderTimerContext();
   hideInAppReminder();
   showSettingsMessage("Erinnerungen wurden auf Standardwerte zurückgesetzt.", "success");
 }
@@ -4054,6 +4150,7 @@ developerModeToggle.addEventListener("change", () => {
   setDeveloperMode(developerModeToggle.checked);
 });
 activeUserSelect.addEventListener("change", saveActiveUserFromSettings);
+timerUserSelect.addEventListener("change", saveActiveUserFromStartscreen);
 userSettingsForm.addEventListener("input", saveUserNamesFromSettings);
 userSettingsForm.addEventListener("change", saveUserNamesFromSettings);
 testReminderNowButton.addEventListener("click", () => runReminderTest());

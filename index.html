@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="assets/brand/png/app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="assets/brand/brand_tokens.css" />
-    <link rel="stylesheet" href="styles.css?v=17" />
+    <link rel="stylesheet" href="styles.css?v=18" />
   </head>
   <body>
     <div class="app-shell">
@@ -36,8 +36,8 @@
       <nav class="menu-panel" id="mainMenu" aria-label="Bereiche" hidden>
         <a href="#" data-view-link="timer" data-brand-icon="timer">Timer</a>
         <a href="#verlauf" data-view-link="history" data-brand-icon="verlauf">Verlauf</a>
-        <a href="#wochenplan" data-view-link="weekplan" data-brand-icon="kalender">Kalender</a>
         <a href="#auswertungen" data-view-link="analytics" data-brand-icon="analyse">Statistik</a>
+        <a href="#wochenplan" data-view-link="weekplan" data-brand-icon="kalender">Kalender</a>
         <a class="menu-panel-secondary" href="#einstellungen" data-view-link="settings" data-brand-icon="einstellungen">Einstellungen</a>
       </nav>
 
@@ -47,6 +47,17 @@
           <p class="date-line" id="dateLine">--</p>
           <p class="clock" id="clock">--:--</p>
           <p class="calendar-week" id="calendarWeek">KW --</p>
+        </section>
+
+        <section class="timer-context" aria-label="Aktueller Kontext">
+          <label class="timer-user-field" for="timerUserSelect">
+            <span>Nutzer</span>
+            <select id="timerUserSelect"></select>
+          </label>
+          <div class="timer-status-stack" aria-live="polite">
+            <span class="timer-context-status" id="timerSyncStatus">Nur lokal</span>
+            <span class="timer-context-status timer-context-status-muted" id="timerReminderStatus">Reminder aus</span>
+          </div>
         </section>
 
         <section class="timer-action" aria-label="Timer steuern">
@@ -417,6 +428,6 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=17"></script>
+    <script src="app.js?v=19"></script>
   </body>
 </html>
