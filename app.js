@@ -2068,8 +2068,6 @@ function getPersistedActiveTimer() {
 
     if (
       activeTimer.status !== "running" ||
-      !activeTimer.activity ||
-      !activeTimer.category ||
       Number.isNaN(startedAt.getTime())
     ) {
       clearActiveTimer();
@@ -2077,8 +2075,8 @@ function getPersistedActiveTimer() {
     }
 
     return {
-      activity: activeTimer.activity,
-      category: activeTimer.category,
+      activity: typeof activeTimer.activity === "string" ? activeTimer.activity : "",
+      category: typeof activeTimer.category === "string" ? activeTimer.category : "",
       startedAt,
     };
   } catch (error) {
@@ -2181,7 +2179,7 @@ function setTimerState(state) {
   }
 
   if (state === "running") {
-    timerStateElement.textContent = activeActivity;
+    timerStateElement.textContent = activeActivity || "Timer läuft";
     elapsedTimeElement.hidden = false;
     completionPanel.hidden = true;
     startButton.textContent = "Stoppen";
@@ -2204,13 +2202,6 @@ function startTimer() {
       "Es läuft bereits eine Tätigkeit. Möchtest du diese beenden und eine neue starten?",
       "warning",
     );
-    return;
-  }
-
-  const validationMessage = getEntryValidationMessage();
-
-  if (validationMessage) {
-    showTimerMessage(validationMessage, "error");
     return;
   }
 
@@ -3925,11 +3916,21 @@ function saveCurrentEntry() {
     return;
   }
 
+  const activity = activityInput.value.trim();
+  const category = categorySelect.value;
+  const validationMessage = getEntryValidationMessage();
+
+  if (validationMessage) {
+    showTimerMessage("Bitte Tätigkeit und Kategorie vor dem Speichern ergänzen.", "error");
+    completionPanel.hidden = false;
+    return;
+  }
+
   const nextEntries = [
     {
       id: createEntryId(),
-      activity: activeActivity,
-      category: activeCategory,
+      activity,
+      category,
       startedAt: timerStartedDate,
       endedAt: timerStoppedDate,
       note: noteInput.value.trim(),
@@ -4037,24 +4038,15 @@ function saveManualEntry(event) {
   showHistoryView();
 }
 
-function warnIfRunningEntryChanges() {
+function syncActiveTimerDraft() {
   if (!isTimerRunning()) {
-    clearTimerMessage();
     return;
   }
 
-  const activityChanged = activityInput.value.trim() !== activeActivity;
-  const categoryChanged = categorySelect.value !== activeCategory;
-
-  if (activityChanged || categoryChanged) {
-    showTimerMessage(
-      "Es läuft bereits eine Tätigkeit. Möchtest du diese beenden und eine neue starten?",
-      "warning",
-    );
-    return;
-  }
-
-  clearTimerMessage();
+  activeActivity = activityInput.value.trim();
+  activeCategory = categorySelect.value;
+  timerStateElement.textContent = activeActivity || "Timer läuft";
+  persistActiveTimer();
 }
 
 updateCurrentDateTime();
@@ -4075,8 +4067,8 @@ startButton.addEventListener("click", () => {
   startTimer();
 });
 
-activityInput.addEventListener("input", warnIfRunningEntryChanges);
-categorySelect.addEventListener("change", warnIfRunningEntryChanges);
+activityInput.addEventListener("input", syncActiveTimerDraft);
+categorySelect.addEventListener("change", syncActiveTimerDraft);
 saveButton.addEventListener("click", saveCurrentEntry);
 discardButton.addEventListener("click", resetTimerScreen);
 historyLink.addEventListener("click", (event) => {
