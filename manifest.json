@@ -9,13 +9,13 @@
   "description": "Ruhige Zeiterfassung für Fokus, Planung und persönliche Arbeitsklarheit.",
   "icons": [
     {
-      "src": "assets/brand/png/app_icon_light_192.png",
+      "src": "app_icon_light_192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "assets/brand/png/app_icon_light_512.png",
+      "src": "app_icon_light_512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

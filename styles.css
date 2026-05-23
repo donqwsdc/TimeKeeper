@@ -2394,21 +2394,21 @@ textarea {
 
 /* Quiet Precision Identity v2 */
 :root {
-  --icon-timer: url("assets/brand/icons/timer.svg");
-  --icon-verlauf: url("assets/brand/icons/verlauf.svg");
-  --icon-kalender: url("assets/brand/icons/kalender.svg");
-  --icon-analyse: url("assets/brand/icons/analyse.svg");
-  --icon-einstellungen: url("assets/brand/icons/einstellungen.svg");
-  --icon-cloud: url("assets/brand/icons/cloud.svg");
-  --icon-nutzer: url("assets/brand/icons/nutzer.svg");
-  --icon-kategorien: url("assets/brand/icons/kategorien.svg");
-  --icon-sync: url("assets/brand/icons/sync.svg");
-  --icon-export: url("assets/brand/icons/export.svg");
-  --icon-import: url("assets/brand/icons/import.svg");
-  --icon-start: url("assets/brand/icons/start.svg");
-  --icon-stopp: url("assets/brand/icons/stopp.svg");
-  --icon-warnung: url("assets/brand/icons/warnung.svg");
-  --icon-loeschen: url("assets/brand/icons/loeschen.svg");
+  --icon-timer: none;
+  --icon-verlauf: none;
+  --icon-kalender: none;
+  --icon-analyse: none;
+  --icon-einstellungen: none;
+  --icon-cloud: none;
+  --icon-nutzer: none;
+  --icon-kategorien: none;
+  --icon-sync: none;
+  --icon-export: none;
+  --icon-import: none;
+  --icon-start: none;
+  --icon-stopp: none;
+  --icon-warnung: none;
+  --icon-loeschen: none;
 }
 
 body {
@@ -3444,6 +3444,16 @@ body {
 .brand-logo-symbol,
 .brand-logo-wordmark {
   display: none !important;
+}
+
+.settings-panel summary::before,
+.settings-primary-button::before,
+.settings-secondary-button::before,
+.settings-secondary-link::before,
+.settings-file-label::before,
+.settings-danger-button::before,
+.start-button::before {
+  display: none;
 }
 
 .menu-panel a::before {

@@ -1,34 +1,13 @@
-const CACHE_NAME = "timekeeper-pwa-v25";
+const CACHE_NAME = "timekeeper-pwa-v27";
 const APP_FILES = [
   "./index.html",
-  "./styles.css?v=20",
+  "./styles.css?v=21",
   "./supabase-config.js?v=2",
   "./app.js?v=19",
   "./manifest.json",
   "./favicon.ico",
-  "./assets/brand/brand_tokens.css",
-  "./assets/brand/favicon.ico",
-  "./assets/brand/logos/symbol_app_icon_light.svg",
-  "./assets/brand/logos/symbol_app_icon_dark.svg",
-  "./assets/brand/logos/horizontal_light.svg",
-  "./assets/brand/logos/horizontal_dark.svg",
-  "./assets/brand/icons/analyse.svg",
-  "./assets/brand/icons/cloud.svg",
-  "./assets/brand/icons/einstellungen.svg",
-  "./assets/brand/icons/export.svg",
-  "./assets/brand/icons/import.svg",
-  "./assets/brand/icons/kalender.svg",
-  "./assets/brand/icons/kategorien.svg",
-  "./assets/brand/icons/loeschen.svg",
-  "./assets/brand/icons/nutzer.svg",
-  "./assets/brand/icons/start.svg",
-  "./assets/brand/icons/stopp.svg",
-  "./assets/brand/icons/sync.svg",
-  "./assets/brand/icons/timer.svg",
-  "./assets/brand/icons/verlauf.svg",
-  "./assets/brand/icons/warnung.svg",
-  "./assets/brand/png/app_icon_light_192.png",
-  "./assets/brand/png/app_icon_light_512.png",
+  "./app_icon_light_192.png",
+  "./app_icon_light_512.png",
 ];
 
 function isAppFile(request) {
