@@ -91,11 +91,7 @@ const developerModeToggle = document.querySelector("#developerModeToggle");
 const activeUserSelect = document.querySelector("#activeUserSelect");
 const userSettingsForm = document.querySelector("#userSettingsForm");
 const userProfileMessage = document.querySelector("#userProfileMessage");
-const userNameInputs = [
-  document.querySelector("#userName1"),
-  document.querySelector("#userName2"),
-  document.querySelector("#userName3"),
-];
+const userSettingsList = document.querySelector("#userSettingsList");
 const categorySettingsForm = document.querySelector("#categorySettingsForm");
 const categorySettingsList = document.querySelector("#categorySettingsList");
 const categorySettingsMessage = document.querySelector("#categorySettingsMessage");
@@ -162,11 +158,13 @@ const DEFAULT_REMINDER_SETTINGS = {
   times: ["17:30", "19:30", "23:00"],
   targetWorkHours: 8,
 };
-const DEFAULT_USERS = [
-  { id: "user_1", name: "Nutzer 1", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
-  { id: "user_2", name: "Nutzer 2", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
-  { id: "user_3", name: "Nutzer 3", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" },
-];
+const MAX_USER_COUNT = 25;
+const DEFAULT_USERS = Array.from({ length: MAX_USER_COUNT }, (_, index) => ({
+  id: `user_${index + 1}`,
+  name: `Person ${index + 1}`,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+}));
 const DEFAULT_CATEGORY_NAMES = [
   "Organisation",
   "Meetings",
@@ -369,25 +367,41 @@ function renderTimerContext() {
 }
 
 function renderUserProfileSettings() {
-  const canEditUserNames = isDeveloperModeEnabled();
   activeUserSelect.innerHTML = "";
+  userSettingsList.innerHTML = "";
 
   users.forEach((user) => {
     const option = document.createElement("option");
     option.value = user.id;
     option.textContent = user.name;
     activeUserSelect.append(option);
+
+    const defaultUser = DEFAULT_USERS.find((item) => item.id === user.id);
+    const label = document.createElement("label");
+    label.className = "user-settings-item";
+    label.htmlFor = `userName-${user.id}`;
+
+    const labelText = document.createElement("span");
+    labelText.textContent = defaultUser?.name || user.id;
+    label.append(labelText);
+
+    const input = document.createElement("input");
+    input.id = `userName-${user.id}`;
+    input.name = user.id;
+    input.type = "text";
+    input.value = user.name;
+    input.maxLength = 60;
+    input.placeholder = defaultUser?.name || user.id;
+    input.dataset.userNameInput = user.id;
+    label.append(input);
+
+    userSettingsList.append(label);
   });
 
   activeUserSelect.value = activeUserId;
   renderTimerContext();
-  userSettingsForm.hidden = !canEditUserNames;
-  userSettingsForm.setAttribute("aria-hidden", String(!canEditUserNames));
-  userNameInputs.forEach((input, index) => {
-    input.value = users[index]?.name || DEFAULT_USERS[index].name;
-    input.disabled = !canEditUserNames;
-    input.tabIndex = canEditUserNames ? 0 : -1;
-  });
+  userSettingsForm.hidden = false;
+  userSettingsForm.removeAttribute("aria-hidden");
 }
 
 function setActiveUserProfile(userId, { showMessage = false } = {}) {
@@ -412,42 +426,32 @@ function setActiveUserProfile(userId, { showMessage = false } = {}) {
 
 function saveActiveUserFromSettings() {
   setActiveUserProfile(activeUserSelect.value, { showMessage: true });
-  return;
-
-  activeUserId = getValidUserId(activeUserSelect.value);
-
-  if (!saveUserProfiles()) {
-    showUserProfileMessage("Nutzerprofil konnte nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
-    return;
-  }
-
-  renderUserProfileSettings();
-  renderCategorySettings();
-  showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
-  refreshEntryViews();
 }
 
 function saveActiveUserFromStartscreen() {
   setActiveUserProfile(timerUserSelect.value);
 }
 
-function saveUserNamesFromSettings() {
-  if (!isDeveloperModeEnabled()) {
-    renderUserProfileSettings();
-    clearUserProfileMessage();
-    return;
-  }
-
+function saveUserNamesFromSettings({ showMessage = false } = {}) {
   const now = getNowIsoString();
-  users = DEFAULT_USERS.map((defaultUser, index) => ({
-    id: defaultUser.id,
-    name: userNameInputs[index].value.trim() || defaultUser.name,
-    created_at: users[index]?.created_at || defaultUser.created_at,
-    updated_at:
-      (userNameInputs[index].value.trim() || defaultUser.name) !== (users[index]?.name || defaultUser.name)
-        ? now
-        : users[index]?.updated_at || defaultUser.updated_at,
-  }));
+  const inputMap = new Map(
+    Array.from(userSettingsList.querySelectorAll("[data-user-name-input]")).map((input) => [input.dataset.userNameInput, input]),
+  );
+  const previousUserMap = new Map(users.map((user) => [user.id, user]));
+
+  users = DEFAULT_USERS.map((defaultUser) => {
+    const previousUser = previousUserMap.get(defaultUser.id);
+    const input = inputMap.get(defaultUser.id);
+    const nextName = String(input?.value || "").trim() || defaultUser.name;
+    const previousName = previousUser?.name || defaultUser.name;
+
+    return {
+      id: defaultUser.id,
+      name: nextName,
+      created_at: previousUser?.created_at || defaultUser.created_at,
+      updated_at: nextName !== previousName ? now : previousUser?.updated_at || defaultUser.updated_at,
+    };
+  });
 
   if (!saveUserProfiles()) {
     showUserProfileMessage("Nutzernamen konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
@@ -460,7 +464,11 @@ function saveUserNamesFromSettings() {
   activeUserSelect.value = activeUserId;
   renderTimerContext();
   refreshEntryViews();
-  showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
+  if (showMessage) {
+    showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
+  } else {
+    clearUserProfileMessage();
+  }
 }
 
 function createCategoryId(userId, name) {
@@ -2450,12 +2458,6 @@ function isDeveloperModeEnabled() {
 }
 
 function setDeveloperMode(enabled) {
-  const wasEnabled = isDeveloperModeEnabled();
-
-  if (!enabled && wasEnabled) {
-    saveUserNamesFromSettings();
-  }
-
   reminderTestPanel.hidden = !enabled;
   developerSettingsPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
@@ -5058,8 +5060,8 @@ developerModeToggle.addEventListener("change", () => {
 });
 activeUserSelect.addEventListener("change", saveActiveUserFromSettings);
 timerUserSelect.addEventListener("change", saveActiveUserFromStartscreen);
-userSettingsForm.addEventListener("input", saveUserNamesFromSettings);
-userSettingsForm.addEventListener("change", saveUserNamesFromSettings);
+userSettingsForm.addEventListener("input", () => saveUserNamesFromSettings());
+userSettingsForm.addEventListener("change", () => saveUserNamesFromSettings({ showMessage: true }));
 testReminderNowButton.addEventListener("click", () => runReminderTest());
 testReminderUnderButton.addEventListener("click", () => runReminderTest(Math.max(0, getTargetWorkMinutes() - 1)));
 testReminderFullButton.addEventListener("click", () => runReminderTest(getTargetWorkMinutes()));

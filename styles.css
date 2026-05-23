@@ -1447,6 +1447,11 @@ textarea:focus {
     left: 5px;
     padding: 4px 6px;
   }
+
+  .user-settings-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 
 .export-panel {
@@ -1731,10 +1736,17 @@ textarea:focus {
   display: none;
 }
 
+.settings-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .settings-field:has(#activeUserSelect) {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  max-width: 230px;
+  max-width: 320px;
 }
 
 .settings-field,
@@ -1761,6 +1773,28 @@ textarea:focus {
   color: var(--text);
   background: var(--field);
   padding: 0 12px;
+}
+
+.user-settings-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(58svh, 620px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.user-settings-item {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.36fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.user-settings-item span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 720;
+  white-space: nowrap;
 }
 
 #activeUserSelect {

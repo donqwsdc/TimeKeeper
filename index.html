@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=26" />
+    <link rel="stylesheet" href="styles.css?v=27" />
   </head>
   <body>
     <div class="app-shell">
@@ -300,22 +300,14 @@
           <details class="settings-panel">
             <summary>Nutzer</summary>
             <label class="settings-field" for="activeUserSelect">
-              Kontext
+              Aktive Person
               <select id="activeUserSelect"></select>
             </label>
-            <form class="user-settings-form" id="userSettingsForm" hidden aria-hidden="true">
-              <label>
-                Nutzer 1
-                <input id="userName1" name="user_1" type="text" />
-              </label>
-              <label>
-                Nutzer 2
-                <input id="userName2" name="user_2" type="text" />
-              </label>
-              <label>
-                Nutzer 3
-                <input id="userName3" name="user_3" type="text" />
-              </label>
+            <p class="settings-helper">
+              Bis zu 25 Personen können lokal getrennt erfasst werden.
+            </p>
+            <form class="user-settings-form" id="userSettingsForm" aria-label="Nutzerkonten bearbeiten">
+              <div class="user-settings-list" id="userSettingsList"></div>
             </form>
             <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
           </details>
@@ -465,7 +457,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=25"></script>
   </body>
 </html>
 
