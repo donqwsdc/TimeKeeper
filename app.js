@@ -120,6 +120,7 @@ const LAST_SYNC_KEY = "timekeeper.cloud.lastSync.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
+const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
 const SUPABASE_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
@@ -172,6 +173,10 @@ const CALENDAR_VIEW_MODES = {
   "7days": 7,
   month: 0,
 };
+const CALENDAR_VISIBLE_START = 6 * 60;
+const CALENDAR_VISIBLE_END = 24 * 60;
+const CALENDAR_VISIBLE_MINUTES = CALENDAR_VISIBLE_END - CALENDAR_VISIBLE_START;
+const CALENDAR_HOUR_MARKERS = [6, 9, 12, 15, 18, 21, 24];
 let calendarViewMode = "7days";
 let calendarSelectedDate = new Date();
 let calendarDetailDate = null;
@@ -2277,18 +2282,53 @@ function setActiveNavigation(viewName) {
   });
 }
 
-const persistentNavigationQuery = window.matchMedia("(max-width: 719px)");
+const navigationLayoutQuery = window.matchMedia("(max-width: 719px)");
+let isNavigationVisible = getStoredNavigationVisibility();
+
+function getStoredNavigationVisibility() {
+  try {
+    const storedValue = localStorage.getItem(NAVIGATION_VISIBLE_KEY);
+    return storedValue === null ? true : storedValue === "true";
+  } catch (error) {
+    return true;
+  }
+}
+
+function persistNavigationVisibility() {
+  try {
+    localStorage.setItem(NAVIGATION_VISIBLE_KEY, String(isNavigationVisible));
+  } catch (error) {
+    // Navigation visibility is a UI preference; storage failures should not block the app.
+  }
+}
 
 function usesPersistentNavigation() {
-  return true;
+  return isNavigationVisible;
+}
+
+function applyNavigationVisibility() {
+  document.documentElement.dataset.navigation = isNavigationVisible ? "visible" : "hidden";
+  document.documentElement.dataset.navigationLayout = navigationLayoutQuery.matches ? "mobile" : "desktop";
+  menuButton.hidden = false;
+  menuButton.textContent = isNavigationVisible ? "Menü aus" : "Menü";
+  menuButton.setAttribute("aria-expanded", String(isNavigationVisible));
+  menuButton.setAttribute("aria-label", isNavigationVisible ? "Navigation ausblenden" : "Navigation einblenden");
+  menuPanel.hidden = !isNavigationVisible;
+}
+
+function setNavigationVisibility(nextVisible, options = {}) {
+  const { persist = true } = options;
+  isNavigationVisible = Boolean(nextVisible);
+
+  if (persist) {
+    persistNavigationVisibility();
+  }
+
+  applyNavigationVisibility();
 }
 
 function closeNavigationMenu() {
-  const keepNavigationVisible = usesPersistentNavigation();
-
-  menuButton.hidden = keepNavigationVisible;
-  menuButton.setAttribute("aria-expanded", String(keepNavigationVisible));
-  menuPanel.hidden = !keepNavigationVisible;
+  applyNavigationVisibility();
 }
 
 function showTimerView() {
@@ -2816,6 +2856,70 @@ function updateCalendarToolbar(start, end) {
   calendarPeriodLabel.textContent = formatCalendarPeriod(start, end);
 }
 
+function getMinuteOfDay(date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function getVisibleEntryRange(entry, day) {
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = addDays(dayStart, 1);
+  const rawStart = entry.startedAt < dayStart ? 0 : getMinuteOfDay(entry.startedAt);
+  const rawEnd = entry.endedAt >= dayEnd ? 24 * 60 : getMinuteOfDay(entry.endedAt);
+  const endMinute = Math.max(rawEnd, rawStart + 1);
+  const startMinute = Math.max(rawStart, CALENDAR_VISIBLE_START);
+  const visibleEndMinute = Math.min(endMinute, CALENDAR_VISIBLE_END);
+
+  if (visibleEndMinute <= CALENDAR_VISIBLE_START || startMinute >= CALENDAR_VISIBLE_END) {
+    return null;
+  }
+
+  return {
+    start: startMinute,
+    end: Math.max(visibleEndMinute, startMinute + 1),
+    clippedStart: rawStart < CALENDAR_VISIBLE_START,
+    clippedEnd: endMinute > CALENDAR_VISIBLE_END,
+  };
+}
+
+function getPositionedDayEntries(dayEntries, day) {
+  const lanes = [];
+
+  return dayEntries
+    .map((entry) => {
+      const range = getVisibleEntryRange(entry, day);
+      return range ? { entry, range } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.range.start - b.range.start || b.range.end - a.range.end)
+    .map((positionedEntry) => {
+      const laneIndex = lanes.findIndex((laneEnd) => laneEnd <= positionedEntry.range.start);
+      const nextLane = laneIndex === -1 ? lanes.length : laneIndex;
+      lanes[nextLane] = positionedEntry.range.end;
+
+      return {
+        ...positionedEntry,
+        lane: nextLane,
+        lanes,
+      };
+    })
+    .map((positionedEntry) => ({
+      ...positionedEntry,
+      laneCount: Math.max(1, positionedEntry.lanes.length),
+    }));
+}
+
+function renderWeekplanHours() {
+  weekplanHours.innerHTML = "";
+
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const marker = document.createElement("span");
+    marker.textContent = `${String(hour).padStart(2, "0")}:00`;
+    marker.style.setProperty("--hour-top", `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+    weekplanHours.append(marker);
+  });
+}
+
 function renderWeekplan() {
   const { start, end } = getCalendarRange();
   const dayCount = calendarViewMode === "month" ? 0 : Math.round((end - start) / 86400000);
@@ -2832,14 +2936,18 @@ function renderWeekplan() {
     return;
   }
 
+  renderWeekplanHours();
+
   for (let index = 0; index < dayCount; index += 1) {
     const day = addDays(start, index);
     const dayKey = toDateInputValue(day);
     const dayEntries = getEntriesForDay(day, calendarEntries);
+    const positionedEntries = getPositionedDayEntries(dayEntries, day);
     const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayColumn = document.createElement("section");
     dayColumn.className = "weekplan-day";
     dayColumn.dataset.calendarDate = dayKey;
+    dayColumn.dataset.entryCount = String(dayEntries.length);
     dayColumn.tabIndex = 0;
 
     if (dayKey === toDateInputValue(new Date())) {
@@ -2866,18 +2974,31 @@ function renderWeekplan() {
     const timeline = document.createElement("div");
     timeline.className = "weekplan-timeline";
 
-    if (!dayEntries.length) {
+    if (!positionedEntries.length) {
       const empty = document.createElement("p");
       empty.className = "weekplan-empty";
-      empty.textContent = "";
+      empty.textContent = dayEntries.length ? "Keine Einträge zwischen 06:00 und 24:00" : "Keine Einträge";
       timeline.append(empty);
     }
 
-    dayEntries.forEach((entry) => {
+    positionedEntries.forEach(({ entry, range, lane, laneCount }) => {
       const block = document.createElement("article");
       block.className = `weekplan-entry weekplan-entry-${calendarViewMode}`;
+      block.style.setProperty("--entry-top", `${((range.start - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+      block.style.setProperty("--entry-height", `${((range.end - range.start) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+      block.style.setProperty("--entry-lane", String(lane));
+      block.style.setProperty("--entry-lanes", String(laneCount));
       block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
       block.title = `${entry.activity} · ${entry.category} · ${formatTime(entry.startedAt)} bis ${formatTime(entry.endedAt)}`;
+      block.dataset.entryId = entry.id;
+
+      if (range.clippedStart) {
+        block.classList.add("is-clipped-start");
+      }
+
+      if (range.clippedEnd) {
+        block.classList.add("is-clipped-end");
+      }
 
       const label = document.createElement("strong");
       label.textContent = entry.activity;
@@ -2885,9 +3006,7 @@ function renderWeekplan() {
 
       const time = document.createElement("span");
       time.textContent =
-        calendarViewMode === "day"
-          ? `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`
-          : `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)}`;
+        `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`;
       block.append(time);
       timeline.append(block);
     });
@@ -3942,18 +4061,10 @@ updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
 
 menuButton.addEventListener("click", () => {
-  if (usesPersistentNavigation()) {
-    closeNavigationMenu();
-    return;
-  }
-
-  const isOpen = menuButton.getAttribute("aria-expanded") === "true";
-
-  menuButton.setAttribute("aria-expanded", String(!isOpen));
-  menuPanel.hidden = isOpen;
+  setNavigationVisibility(!isNavigationVisible);
 });
 
-persistentNavigationQuery.addEventListener("change", closeNavigationMenu);
+navigationLayoutQuery.addEventListener("change", closeNavigationMenu);
 
 startButton.addEventListener("click", () => {
   if (isTimerRunning()) {
