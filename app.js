@@ -2310,7 +2310,7 @@ function applyNavigationVisibility() {
   document.documentElement.dataset.navigation = isNavigationVisible ? "visible" : "hidden";
   document.documentElement.dataset.navigationLayout = navigationLayoutQuery.matches ? "mobile" : "desktop";
   menuButton.hidden = false;
-  menuButton.textContent = isNavigationVisible ? "Menü aus" : "Menü";
+  menuButton.textContent = isNavigationVisible ? "–" : "Menü";
   menuButton.setAttribute("aria-expanded", String(isNavigationVisible));
   menuButton.setAttribute("aria-label", isNavigationVisible ? "Navigation ausblenden" : "Navigation einblenden");
   menuPanel.hidden = !isNavigationVisible;

@@ -8,17 +8,13 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=23" />
+    <link rel="stylesheet" href="styles.css?v=24" />
   </head>
   <body>
     <div class="app-shell">
       <header class="app-header" aria-label="App-Navigation">
-        <button class="menu-button" type="button" aria-label="Navigation ausblenden" aria-expanded="true" aria-controls="mainMenu">
-          Menü
-        </button>
         <div class="app-brand" aria-label="TimeKeeper">
           <span class="brand-name">TimeKeeper</span>
-          <span class="brand-claim">Focus · Plan · Track · Achieve</span>
         </div>
       </header>
 
@@ -27,8 +23,11 @@
         <a href="#verlauf" data-view-link="history" data-brand-icon="verlauf">Verlauf</a>
         <a href="#auswertungen" data-view-link="analytics" data-brand-icon="analyse">Statistik</a>
         <a href="#wochenplan" data-view-link="weekplan" data-brand-icon="kalender">Kalender</a>
-        <a class="menu-panel-secondary" href="#einstellungen" data-view-link="settings" data-brand-icon="einstellungen">Einstellungen</a>
+        <a class="menu-panel-secondary" href="#einstellungen" data-view-link="settings" data-brand-icon="einstellungen" aria-label="Einstellungen">Setup</a>
       </nav>
+      <button class="menu-button" type="button" aria-label="Navigation ausblenden" aria-expanded="true" aria-controls="mainMenu">
+        –
+      </button>
 
       <main class="timer-screen app-view" id="timerView" data-state="neutral">
         <section class="time-card" aria-label="Aktuelle Zeit">
@@ -417,7 +416,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20"></script>
+    <script src="app.js?v=21"></script>
   </body>
 </html>
 
