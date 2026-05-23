@@ -3407,7 +3407,8 @@ body {
 /* GitHub Pages mobile asset and layout hardening */
 :root {
   --mobile-bottom-nav-height: 80px;
-  --mobile-bottom-clearance: calc(var(--mobile-bottom-nav-height) + 36px + env(safe-area-inset-bottom));
+  --mobile-bottom-nav-offset: max(12px, env(safe-area-inset-bottom));
+  --mobile-bottom-clearance: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-offset) + 24px);
 }
 
 .brand-mark {
@@ -3528,6 +3529,7 @@ body {
 
 @media (max-width: 719px) {
   .app-shell {
+    min-height: 100svh;
     padding-bottom: var(--mobile-bottom-clearance);
   }
 
@@ -3582,34 +3584,57 @@ body {
   .weekplan-day {
     min-height: 0;
     align-content: start;
+    grid-template-rows: auto auto auto;
+    gap: 10px;
   }
 
-  .weekplan-timeline,
-  .weekplan-entry {
+  .weekplan-timeline {
+    gap: 8px;
     overflow: visible;
   }
 
   .weekplan-entry {
+    display: grid;
+    gap: 3px;
+    min-height: 0;
+    padding: 8px 10px;
+    overflow: visible;
     overflow-wrap: anywhere;
   }
 
+  .weekplan-entry strong,
+  .weekplan-entry span {
+    white-space: normal;
+  }
+
   .calendar-day-detail {
-    bottom: calc(var(--mobile-bottom-nav-height) + 24px + env(safe-area-inset-bottom));
-    max-height: calc(100svh - var(--mobile-bottom-clearance) - 48px);
-    padding-bottom: 18px;
+    right: 12px;
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-offset) + 12px);
+    left: 12px;
+    max-height: calc(100svh - var(--mobile-bottom-clearance) - 56px);
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    border-radius: 20px;
   }
 
   .calendar-day-detail-list {
-    padding-bottom: 8px;
+    gap: 10px;
+    padding-bottom: 12px;
+  }
+
+  .calendar-day-detail-entry {
+    gap: 8px;
+    padding: 10px 10px 10px 12px;
   }
 
   .calendar-day-detail-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .calendar-day-detail-actions button {
     min-width: 0;
+    min-height: 42px;
   }
 }
 

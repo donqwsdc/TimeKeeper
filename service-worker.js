@@ -1,7 +1,7 @@
-const CACHE_NAME = "timekeeper-pwa-v27";
+const CACHE_NAME = "timekeeper-pwa-v28";
 const APP_FILES = [
   "./index.html",
-  "./styles.css?v=21",
+  "./styles.css?v=22",
   "./supabase-config.js?v=2",
   "./app.js?v=19",
   "./manifest.json",
@@ -13,7 +13,10 @@ const APP_FILES = [
 function isAppFile(request) {
   const requestUrl = new URL(request.url);
 
-  return APP_FILES.some((file) => requestUrl.pathname.endsWith(file.replace("./", "/")));
+  return APP_FILES.some((file) => {
+    const appFileUrl = new URL(file, self.location.href);
+    return requestUrl.pathname === appFileUrl.pathname;
+  });
 }
 
 self.addEventListener("install", (event) => {
