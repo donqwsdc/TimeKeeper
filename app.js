@@ -50,6 +50,12 @@ const capacityProgressPercent = document.querySelector("#capacityProgressPercent
 const capacityStats = document.querySelector("#capacityStats");
 const focusStats = document.querySelector("#focusStats");
 const weekComparisonStats = document.querySelector("#weekComparisonStats");
+const interruptionStats = document.querySelector("#interruptionStats");
+const fragmentationCard = document.querySelector("#fragmentationCard");
+const analyticsDaySelect = document.querySelector("#analyticsDaySelect");
+const dayTimelineTrack = document.querySelector("#dayTimelineTrack");
+const dayTimelineEmpty = document.querySelector("#dayTimelineEmpty");
+const dayQualityStats = document.querySelector("#dayQualityStats");
 const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
 const calendarDayDetail = document.querySelector("#calendarDayDetail");
@@ -195,6 +201,7 @@ let lastElapsedMilliseconds = 0;
 let activeActivity = "";
 let activeCategory = "";
 let cloudImportConflicts = [];
+let analyticsSelectedDay = null;
 let activeUserId = DEFAULT_USERS[0].id;
 let users = DEFAULT_USERS.map((user) => ({ ...user }));
 let categories = [];
@@ -385,6 +392,7 @@ function renderUserProfileSettings() {
 
 function setActiveUserProfile(userId, { showMessage = false } = {}) {
   activeUserId = getValidUserId(userId);
+  analyticsSelectedDay = null;
 
   if (!saveUserProfiles()) {
     if (showMessage) {
@@ -2587,6 +2595,30 @@ function getCategoryMinutes(entries) {
   return categoryMinutes;
 }
 
+function sortEntriesByStart(entries) {
+  return [...entries]
+    .filter((entry) => entry?.startedAt instanceof Date && entry?.endedAt instanceof Date)
+    .filter((entry) => !Number.isNaN(entry.startedAt.getTime()) && !Number.isNaN(entry.endedAt.getTime()))
+    .filter((entry) => entry.endedAt > entry.startedAt)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+}
+
+function getEntriesGroupedByDay(entries) {
+  const groupedEntries = new Map();
+
+  sortEntriesByStart(entries).forEach((entry) => {
+    const dayKey = toDateInputValue(entry.startedAt);
+
+    if (!groupedEntries.has(dayKey)) {
+      groupedEntries.set(dayKey, []);
+    }
+
+    groupedEntries.get(dayKey).push(entry);
+  });
+
+  return groupedEntries;
+}
+
 function getFocusEntries(entries) {
   return entries.filter((entry) => getEntryMinutes(entry) >= 45);
 }
@@ -2613,6 +2645,302 @@ function getFocusStats(entries) {
     sessionCount: focusEntries.length,
     strongestDay: strongestDay ? new Date(`${strongestDay[0]}T00:00`) : null,
   };
+}
+
+function getEntryGapMinutes(previousEntry, nextEntry) {
+  if (!previousEntry || !nextEntry || toDateInputValue(previousEntry.startedAt) !== toDateInputValue(nextEntry.startedAt)) {
+    return null;
+  }
+
+  const gapMinutes = (nextEntry.startedAt.getTime() - previousEntry.endedAt.getTime()) / 60000;
+
+  return gapMinutes > 0 ? gapMinutes : null;
+}
+
+function getDayGapStats(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const stats = {
+    short: 0,
+    medium: 0,
+    long: 0,
+  };
+
+  sortedEntries.forEach((entry, index) => {
+    if (index === 0) {
+      return;
+    }
+
+    const gapMinutes = getEntryGapMinutes(sortedEntries[index - 1], entry);
+
+    if (!gapMinutes) {
+      return;
+    }
+
+    if (gapMinutes <= 15) {
+      stats.short += 1;
+    } else if (gapMinutes <= 60) {
+      stats.medium += 1;
+    } else {
+      stats.long += 1;
+    }
+  });
+
+  return stats;
+}
+
+function getContextSwitchCount(entries) {
+  let switchCount = 0;
+
+  getEntriesGroupedByDay(entries).forEach((dayEntries) => {
+    const sortedEntries = sortEntriesByStart(dayEntries);
+
+    sortedEntries.forEach((entry, index) => {
+      if (index === 0) {
+        return;
+      }
+
+      const previousEntry = sortedEntries[index - 1];
+      const categoryChanged = String(previousEntry.category || "") !== String(entry.category || "");
+      const activityChanged = String(previousEntry.activity || "") !== String(entry.activity || "");
+
+      if (categoryChanged || activityChanged) {
+        switchCount += 1;
+      }
+    });
+  });
+
+  return switchCount;
+}
+
+function getShortSessionCount(entries, thresholdMinutes = 15) {
+  return entries.filter((entry) => getEntryMinutes(entry) < thresholdMinutes).length;
+}
+
+function getFocusSessionCount(entries, thresholdMinutes = 45) {
+  return entries.filter((entry) => getEntryMinutes(entry) >= thresholdMinutes).length;
+}
+
+function getLongestSessionMinutes(entries) {
+  return entries.reduce((longest, entry) => Math.max(longest, getEntryMinutes(entry)), 0);
+}
+
+function getAverageSessionMinutes(entries) {
+  return entries.length ? getTotalMinutes(entries) / entries.length : 0;
+}
+
+function getRawFragmentationScore(entries) {
+  const gapStats = getDayGapStats(entries);
+  const averageSessionMinutes = getAverageSessionMinutes(entries);
+  const shortAveragePenalty = entries.length && averageSessionMinutes < 25 ? 12 : 0;
+  const rawScore =
+    getShortSessionCount(entries) * 10 +
+    getContextSwitchCount(entries) * 8 +
+    gapStats.short * 4 +
+    gapStats.medium * 2 +
+    shortAveragePenalty -
+    getFocusSessionCount(entries) * 5;
+
+  return Math.min(100, Math.max(0, Math.round(rawScore)));
+}
+
+function getFragmentationScore(entries) {
+  const groupedEntries = getEntriesGroupedByDay(entries);
+
+  if (!groupedEntries.size) {
+    return 0;
+  }
+
+  const dayScores = [...groupedEntries.values()].map(getRawFragmentationScore);
+  return Math.round(dayScores.reduce((total, score) => total + score, 0) / dayScores.length);
+}
+
+function getFragmentationLabel(score) {
+  if (score <= 30) {
+    return "ruhig";
+  }
+
+  if (score <= 60) {
+    return "moderat fragmentiert";
+  }
+
+  return "stark fragmentiert";
+}
+
+function getFragmentationStatusClass(score) {
+  if (score <= 30) {
+    return "is-calm";
+  }
+
+  if (score <= 60) {
+    return "is-mixed";
+  }
+
+  return "is-fragmented";
+}
+
+function getFragmentationInsight(score, stats = {}) {
+  if (!stats.sessionCount) {
+    return "Noch keine Arbeitsmuster für diese Woche erkennbar.";
+  }
+
+  if (score <= 30) {
+    return "Diese Woche war überwiegend ruhig strukturiert.";
+  }
+
+  if (score <= 60) {
+    const dayText = stats.mostFragmentedDay ? ` Besonders viele Wechsel gab es am ${formatWeekdayName(stats.mostFragmentedDay.date)}.` : "";
+    return `Deine Woche war teilweise fragmentiert.${dayText}`;
+  }
+
+  return "Diese Woche war stark unterbrochen. Kurze Sessions und viele Kontextwechsel prägen die Auswertung.";
+}
+
+function getStrongestCategory(entries) {
+  const categoryMinutes = getCategoryMinutes(entries);
+  return [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Noch offen";
+}
+
+function getDayQualityStats(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const totalMinutes = getTotalMinutes(sortedEntries);
+  const focusMinutes = getTotalMinutes(getFocusEntries(sortedEntries));
+  const fragmentationScore = getRawFragmentationScore(sortedEntries);
+  let rating = "keine Einträge";
+
+  if (sortedEntries.length && totalMinutes < 120) {
+    rating = "kurzer Arbeitstag";
+  } else if (sortedEntries.length && fragmentationScore <= 30 && focusMinutes >= 120) {
+    rating = "ruhiger Fokus-Tag";
+  } else if (sortedEntries.length && fragmentationScore >= 61) {
+    rating = "stark fragmentierter Tag";
+  } else if (sortedEntries.length) {
+    rating = "gemischter Arbeitstag";
+  }
+
+  return {
+    entries: sortedEntries,
+    totalMinutes,
+    firstStart: sortedEntries[0]?.startedAt || null,
+    lastEnd: sortedEntries[sortedEntries.length - 1]?.endedAt || null,
+    sessionCount: sortedEntries.length,
+    longestSession: getLongestSessionMinutes(sortedEntries),
+    averageSession: getAverageSessionMinutes(sortedEntries),
+    focusMinutes,
+    strongestCategory: getStrongestCategory(sortedEntries),
+    contextSwitches: getContextSwitchCount(sortedEntries),
+    fragmentationScore,
+    fragmentationLabel: getFragmentationLabel(fragmentationScore),
+    rating,
+  };
+}
+
+function getWeekInterruptionStats(entries) {
+  const groupedEntries = getEntriesGroupedByDay(entries);
+  const dayStats = [];
+  const weekStart = getWeekStart(new Date());
+  const gapStats = {
+    short: 0,
+    medium: 0,
+    long: 0,
+  };
+
+  for (let index = 0; index < 7; index += 1) {
+    const date = addDays(weekStart, index);
+    const dayKey = toDateInputValue(date);
+    const dayEntries = groupedEntries.get(dayKey) || [];
+    const dayGapStats = getDayGapStats(dayEntries);
+    const qualityStats = getDayQualityStats(dayEntries);
+
+    gapStats.short += dayGapStats.short;
+    gapStats.medium += dayGapStats.medium;
+    gapStats.long += dayGapStats.long;
+
+    dayStats.push({
+      date,
+      dayKey,
+      entries: dayEntries,
+      sessionCount: dayEntries.length,
+      shortSessionCount: getShortSessionCount(dayEntries),
+      contextSwitchCount: getContextSwitchCount(dayEntries),
+      averageSession: getAverageSessionMinutes(dayEntries),
+      focusSessionCount: getFocusSessionCount(dayEntries),
+      fragmentationScore: qualityStats.fragmentationScore,
+      fragmentationLabel: qualityStats.fragmentationLabel,
+      strongestCategory: qualityStats.strongestCategory,
+      gapStats: dayGapStats,
+    });
+  }
+
+  const daysWithEntries = dayStats.filter((day) => day.sessionCount > 0);
+  const quietestDay = daysWithEntries
+    .slice()
+    .sort((a, b) => a.fragmentationScore - b.fragmentationScore || b.averageSession - a.averageSession)[0] || null;
+  const mostFragmentedDay = daysWithEntries
+    .slice()
+    .sort((a, b) => b.fragmentationScore - a.fragmentationScore || b.sessionCount - a.sessionCount)[0] || null;
+  const fragmentationScore = daysWithEntries.length
+    ? Math.round(daysWithEntries.reduce((total, day) => total + day.fragmentationScore, 0) / daysWithEntries.length)
+    : 0;
+
+  return {
+    dayStats,
+    quietestDay,
+    mostFragmentedDay,
+    sessionCount: entries.length,
+    averageSession: getAverageSessionMinutes(entries),
+    shortSessionCount: getShortSessionCount(entries),
+    contextSwitchCount: getContextSwitchCount(entries),
+    gapStats,
+    fragmentationScore,
+    fragmentationLabel: getFragmentationLabel(fragmentationScore),
+  };
+}
+
+function getLastEntryDay(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const lastEntry = sortedEntries[sortedEntries.length - 1];
+
+  return lastEntry ? startOfDay(lastEntry.startedAt) : null;
+}
+
+function getSelectedAnalyticsDay(entries = getCurrentWeekEntries()) {
+  const selectedDay = analyticsSelectedDay ? startOfDay(analyticsSelectedDay) : null;
+  const weekStart = getWeekStart(new Date());
+  const weekEnd = getWeekEnd(new Date());
+
+  if (selectedDay && selectedDay >= weekStart && selectedDay < weekEnd) {
+    return selectedDay;
+  }
+
+  const today = startOfDay(new Date());
+  const todayEntries = getEntriesForDay(today, entries);
+
+  if (todayEntries.length) {
+    analyticsSelectedDay = today;
+    return today;
+  }
+
+  const lastEntryDay = getLastEntryDay(entries);
+
+  if (lastEntryDay) {
+    analyticsSelectedDay = lastEntryDay;
+    return lastEntryDay;
+  }
+
+  analyticsSelectedDay = today >= weekStart && today < weekEnd ? today : weekStart;
+  return analyticsSelectedDay;
+}
+
+function setSelectedAnalyticsDay(date) {
+  analyticsSelectedDay = startOfDay(date);
+}
+
+function formatWeekdayName(date) {
+  return new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(date);
+}
+
+function formatDaySelectorLabel(date) {
+  return `${formatWeekdayName(date)}, ${formatDate(date)}`;
 }
 
 function getRemainingWorkdays(date = new Date()) {
@@ -2904,6 +3232,200 @@ function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCate
   });
 }
 
+function renderInterruptionStats(stats) {
+  interruptionStats.innerHTML = "";
+
+  const gapText = `${stats.gapStats.short} kurz · ${stats.gapStats.medium} mittel · ${stats.gapStats.long} lang`;
+  const quietestDay = stats.quietestDay ? formatWeekdayName(stats.quietestDay.date) : "Noch offen";
+  const mostFragmentedDay = stats.mostFragmentedDay ? formatWeekdayName(stats.mostFragmentedDay.date) : "Noch offen";
+
+  [
+    ["Sessions", String(stats.sessionCount), "Jeder Eintrag zählt als Session"],
+    ["Durchschnitt", formatAnalyticsDuration(stats.averageSession), "pro Session"],
+    ["Kurze Sessions", String(stats.shortSessionCount), "unter 15 Minuten"],
+    ["Kontextwechsel", String(stats.contextSwitchCount), "Kategorie oder Tätigkeit gewechselt"],
+    ["Lücken", gapText, "zwischen Sessions am selben Tag"],
+    ["Ruhigster Tag", quietestDay],
+    ["Fragmentiertester Tag", mostFragmentedDay],
+  ].forEach(([label, value, detail]) => {
+    interruptionStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+
+  renderFragmentationCard(stats);
+}
+
+function renderFragmentationCard(stats) {
+  const label = getFragmentationLabel(stats.fragmentationScore);
+  const statusClass = getFragmentationStatusClass(stats.fragmentationScore);
+
+  fragmentationCard.className = `fragmentation-card ${statusClass}`;
+  fragmentationCard.innerHTML = `
+    <div>
+      <p>Fragmentierungsgrad</p>
+      <strong>${stats.fragmentationScore}</strong>
+    </div>
+    <span class="fragmentation-badge ${statusClass}">${escapeHtml(label)}</span>
+    <p>${escapeHtml(getFragmentationInsight(stats.fragmentationScore, stats))}</p>
+  `;
+}
+
+function renderAnalyticsDaySelector(weekEntries) {
+  const selectedDay = getSelectedAnalyticsDay(weekEntries);
+  const weekStart = getWeekStart(new Date());
+  const currentValue = toDateInputValue(selectedDay);
+
+  analyticsDaySelect.innerHTML = "";
+
+  for (let index = 0; index < 7; index += 1) {
+    const day = addDays(weekStart, index);
+    const option = document.createElement("option");
+    option.value = toDateInputValue(day);
+    option.textContent = formatDaySelectorLabel(day);
+    analyticsDaySelect.append(option);
+  }
+
+  analyticsDaySelect.value = currentValue;
+  return selectedDay;
+}
+
+function renderDayTimeline(weekEntries) {
+  const selectedDay = renderAnalyticsDaySelector(weekEntries);
+  const dayEntries = getEntriesForDay(selectedDay, weekEntries);
+
+  dayTimelineTrack.innerHTML = "";
+  dayTimelineEmpty.hidden = dayEntries.length > 0;
+
+  const scale = document.createElement("div");
+  scale.className = "day-timeline-scale";
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const marker = document.createElement("span");
+    marker.textContent = `${String(hour).padStart(2, "0")}:00`;
+    marker.style.top = `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    scale.append(marker);
+  });
+  dayTimelineTrack.append(scale);
+
+  const lanes = document.createElement("div");
+  lanes.className = "day-timeline-lanes";
+
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const line = document.createElement("span");
+    line.className = "day-timeline-line";
+    line.style.top = `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    lanes.append(line);
+  });
+
+  sortEntriesByStart(dayEntries).forEach((entry) => {
+    const startMinute = Math.max(CALENDAR_VISIBLE_START, getMinuteOfDay(entry.startedAt));
+    const endMinute = Math.min(CALENDAR_VISIBLE_END, getMinuteOfDay(entry.endedAt));
+    const visibleDuration = Math.max(5, endMinute - startMinute);
+
+    if (endMinute <= CALENDAR_VISIBLE_START || startMinute >= CALENDAR_VISIBLE_END) {
+      return;
+    }
+
+    const block = document.createElement("article");
+    block.className = `day-timeline-entry${getEntryMinutes(entry) < 15 ? " is-short" : ""}`;
+    block.style.top = `${((startMinute - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    block.style.height = `${Math.max(2.4, (visibleDuration / CALENDAR_VISIBLE_MINUTES) * 100)}%`;
+    block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+    block.style.background = `color-mix(in srgb, ${CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges} 14%, var(--surface))`;
+    block.title = `${entry.activity || "Ohne Tätigkeit"} · ${entry.category || "Ohne Kategorie"} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${formatAnalyticsDuration(getEntryMinutes(entry))}`;
+
+    const title = document.createElement("strong");
+    title.textContent = entry.activity || "Ohne Tätigkeit";
+    block.append(title);
+
+    const meta = document.createElement("span");
+    meta.textContent = `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${entry.category || "Ohne Kategorie"}`;
+    block.append(meta);
+
+    lanes.append(block);
+  });
+
+  dayTimelineTrack.append(lanes);
+}
+
+function renderDayQuality(weekEntries) {
+  const selectedDay = getSelectedAnalyticsDay(weekEntries);
+  const dayEntries = getEntriesForDay(selectedDay, weekEntries);
+  const stats = getDayQualityStats(dayEntries);
+
+  dayQualityStats.innerHTML = "";
+
+  [
+    ["Bewertung", stats.rating],
+    ["Gesamtzeit", formatAnalyticsDuration(stats.totalMinutes)],
+    ["Erste Startzeit", stats.firstStart ? formatTime(stats.firstStart) : "-"],
+    ["Letzte Endzeit", stats.lastEnd ? formatTime(stats.lastEnd) : "-"],
+    ["Sessions", String(stats.sessionCount)],
+    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["Durchschnitt", formatAnalyticsDuration(stats.averageSession)],
+    ["Fokuszeit", formatAnalyticsDuration(stats.focusMinutes)],
+    ["Stärkste Kategorie", stats.strongestCategory],
+    ["Kontextwechsel", String(stats.contextSwitches)],
+    ["Fragmentierung", String(stats.fragmentationScore), stats.fragmentationLabel],
+  ].forEach(([label, value, detail]) => {
+    dayQualityStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategoryMinutes) {
+  weekdayBars.innerHTML = "";
+  const weekStart = getWeekStart(new Date());
+  const maxWeekdayMinutes = Math.max(...weekdayMinutes.values(), 0);
+  const weekStats = getWeekInterruptionStats(weekEntries);
+
+  for (let index = 0; index < 7; index += 1) {
+    const day = addDays(weekStart, index);
+    const dayKey = toDateInputValue(day);
+    const minutes = weekdayMinutes.get(dayKey) || 0;
+    const dayCategories = weekdayCategoryMinutes.get(dayKey) || new Map();
+    const dayStats = weekStats.dayStats.find((item) => item.dayKey === dayKey);
+    const row = document.createElement("div");
+    row.className = "weekday-bar-row";
+
+    const header = document.createElement("div");
+    header.className = "weekday-bar-header";
+
+    const label = document.createElement("span");
+    label.textContent = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(day);
+    header.append(label);
+
+    const value = document.createElement("span");
+    value.textContent = formatAnalyticsDuration(minutes);
+    header.append(value);
+    row.append(header);
+
+    const meta = document.createElement("div");
+    meta.className = "weekday-bar-meta";
+    meta.innerHTML = `
+      <span>${dayStats?.sessionCount || 0} Sessions</span>
+      <span>${dayStats?.strongestCategory || "Noch offen"}</span>
+      <span class="fragmentation-badge ${getFragmentationStatusClass(dayStats?.fragmentationScore || 0)}">${escapeHtml(dayStats?.fragmentationLabel || "ruhig")} · ${dayStats?.fragmentationScore || 0}</span>
+    `;
+    row.append(meta);
+
+    const track = document.createElement("div");
+    track.className = "weekday-bar-track";
+
+    const totalWidth = maxWeekdayMinutes ? (minutes / maxWeekdayMinutes) * 100 : 0;
+    const segments = [...dayCategories.entries()].sort((a, b) => b[1] - a[1]);
+
+    segments.forEach(([category, categoryMinute]) => {
+      const fill = document.createElement("div");
+      fill.className = "weekday-bar-fill";
+      fill.style.width = `${minutes ? (categoryMinute / minutes) * totalWidth : 0}%`;
+      fill.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+      fill.title = `${category}: ${formatAnalyticsDuration(categoryMinute)}`;
+      track.append(fill);
+    });
+
+    row.append(track);
+    weekdayBars.append(row);
+  }
+}
+
 function renderAnalytics() {
   const weekEntries = getCurrentWeekEntries();
   const previousWeekEntries = getPreviousWeekEntries(new Date());
@@ -2938,51 +3460,10 @@ function renderAnalytics() {
   renderFocusStats(getFocusStats(weekEntries), totalMinutes);
   renderWeekComparisonStats(getWeekComparisonStats(weekEntries, previousWeekEntries));
   renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCategoryMinutes);
-
-  weekdayBars.innerHTML = "";
-  const weekStart = getWeekStart(new Date());
-  const maxWeekdayMinutes = Math.max(...weekdayMinutes.values(), 0);
-
-  for (let index = 0; index < 7; index += 1) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + index);
-    const dayKey = toDateInputValue(day);
-    const minutes = weekdayMinutes.get(dayKey) || 0;
-    const dayCategories = weekdayCategoryMinutes.get(dayKey) || new Map();
-    const row = document.createElement("div");
-    row.className = "weekday-bar-row";
-
-    const header = document.createElement("div");
-    header.className = "weekday-bar-header";
-
-    const label = document.createElement("span");
-    label.textContent = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(day);
-    header.append(label);
-
-    const value = document.createElement("span");
-    value.textContent = formatAnalyticsDuration(minutes);
-    header.append(value);
-    row.append(header);
-
-    const track = document.createElement("div");
-    track.className = "weekday-bar-track";
-
-    const totalWidth = maxWeekdayMinutes ? (minutes / maxWeekdayMinutes) * 100 : 0;
-    const segments = [...dayCategories.entries()].sort((a, b) => b[1] - a[1]);
-
-    segments.forEach(([category, categoryMinute]) => {
-      const fill = document.createElement("div");
-      fill.className = "weekday-bar-fill";
-      fill.style.width = `${minutes ? (categoryMinute / minutes) * totalWidth : 0}%`;
-      fill.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
-      fill.title = `${category}: ${formatAnalyticsDuration(categoryMinute)}`;
-      track.append(fill);
-    });
-
-    row.append(track);
-
-    weekdayBars.append(row);
-  }
+  renderInterruptionStats(getWeekInterruptionStats(weekEntries));
+  renderDayTimeline(weekEntries);
+  renderDayQuality(weekEntries);
+  renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategoryMinutes);
 }
 
 function getMinutesSinceDayStart(date) {
@@ -4396,6 +4877,11 @@ historyLink.addEventListener("click", (event) => {
 analyticsLink.addEventListener("click", (event) => {
   event.preventDefault();
   showAnalyticsView();
+});
+analyticsDaySelect.addEventListener("change", () => {
+  setSelectedAnalyticsDay(new Date(`${analyticsDaySelect.value}T00:00`));
+  renderDayTimeline(getCurrentWeekEntries());
+  renderDayQuality(getCurrentWeekEntries());
 });
 weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();

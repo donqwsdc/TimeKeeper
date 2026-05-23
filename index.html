@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=25" />
+    <link rel="stylesheet" href="styles.css?v=26" />
   </head>
   <body>
     <div class="app-shell">
@@ -213,6 +213,29 @@
         <section class="week-comparison-stats" aria-label="Vergleich zur Vorwoche">
           <h3>Vergleich zur Vorwoche</h3>
           <div class="analytics-kpi-grid" id="weekComparisonStats"></div>
+        </section>
+
+        <section class="interruption-stats" aria-label="Unterbrechungsanalyse">
+          <h3>Unterbrechungen</h3>
+          <div class="analytics-kpi-grid" id="interruptionStats"></div>
+          <article class="fragmentation-card" id="fragmentationCard" aria-label="Fragmentierungsgrad"></article>
+        </section>
+
+        <section class="day-timeline-section" aria-label="Tagesverlauf">
+          <div class="analytics-section-header">
+            <h3>Tagesverlauf</h3>
+            <label class="analytics-day-selector" for="analyticsDaySelect">
+              Tag
+              <select id="analyticsDaySelect"></select>
+            </label>
+          </div>
+          <div class="day-timeline" id="dayTimelineTrack"></div>
+          <p class="analytics-empty" id="dayTimelineEmpty" hidden>Keine Einträge für diesen Tag.</p>
+        </section>
+
+        <section class="day-quality-section" aria-label="Tagesqualität">
+          <h3>Tagesqualität</h3>
+          <div class="analytics-kpi-grid" id="dayQualityStats"></div>
         </section>
 
         <section class="category-stats" aria-label="Zeit je Kategorie">
@@ -442,7 +465,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=23"></script>
+    <script src="app.js?v=24"></script>
   </body>
 </html>
 
