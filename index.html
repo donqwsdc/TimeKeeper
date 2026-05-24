@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=29" />
+    <link rel="stylesheet" href="styles.css?v=30" />
   </head>
   <body>
     <div class="app-shell">
@@ -286,6 +286,23 @@
               Cloudspeicherung ist noch nicht eingerichtet.
             </p>
             <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
+            <p class="cloud-auth-status" id="cloudAuthStatus" role="status" aria-live="polite">
+              Nicht angemeldet
+            </p>
+            <div class="cloud-auth-panel">
+              <label class="settings-field" for="cloudAuthEmail">
+                E-Mail
+                <input id="cloudAuthEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
+              </label>
+              <div class="settings-actions">
+                <button class="settings-secondary-button" id="cloudLoginLinkButton" type="button">
+                  Login-Link senden
+                </button>
+                <button class="settings-secondary-button" id="cloudLogoutButton" type="button">
+                  Abmelden
+                </button>
+              </div>
+            </div>
             <p class="settings-helper">
               Cloud-Löschaktionen sind bis zur Einführung geschützter Admin-Rechte deaktiviert.
             </p>
@@ -479,7 +496,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
   </body>
 </html>
 

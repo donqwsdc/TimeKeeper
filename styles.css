@@ -1628,6 +1628,29 @@ textarea:focus {
   display: none;
 }
 
+.cloud-auth-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.cloud-auth-status {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(102, 113, 119, 0.08);
+  font-size: 0.76rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.cloud-auth-status[data-status="authenticated"] {
+  color: var(--accent);
+  background: rgba(33, 103, 91, 0.08);
+}
+
 .cloud-conflicts {
   display: grid;
   gap: 8px;
@@ -1805,6 +1828,7 @@ textarea:focus {
 }
 
 .settings-field select,
+.settings-field input[type="email"],
 .category-settings-form input[type="text"],
 .user-settings-form input[type="text"],
 .reminder-settings-form input[type="text"],
