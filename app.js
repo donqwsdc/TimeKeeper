@@ -132,6 +132,7 @@ const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
+const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus Sicherheitsgründen deaktiviert.";
 const SUPABASE_TIME_ENTRIES_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
@@ -974,8 +975,15 @@ function renderSupabaseStatus() {
   cloudStorageDetail.hidden = !status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
-  resetSelectedUserCloudButton.disabled = !status.connected;
-  resetAllCloudButton.disabled = !status.connected;
+  [resetSelectedUserCloudButton, resetAllCloudButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+
+    button.disabled = true;
+    button.hidden = true;
+    button.setAttribute("aria-hidden", "true");
+  });
   renderTimerContext();
 }
 
@@ -4378,15 +4386,9 @@ function resetAllLocalData({ showSuccess = true } = {}) {
 }
 
 function ensureCloudResetAvailable() {
-  const status = getSupabaseStatus();
-  renderSupabaseStatus();
-
-  if (!status.connected) {
-    showSettingsMessage("Cloud ist nicht verbunden. Supabase-Reset ist aktuell nicht verfügbar.", "error");
-    return false;
-  }
-
-  return true;
+  showSettingsMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  showCloudStorageMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  return false;
 }
 
 async function deleteSupabaseRows(query, errorContext) {
@@ -4401,7 +4403,7 @@ async function deleteSupabaseRows(query, errorContext) {
 
 async function resetSelectedUserCloudData(userId = activeUserId) {
   if (!ensureCloudResetAvailable()) {
-    return { error: new Error("Cloud ist nicht verbunden.") };
+    return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
   }
 
   const validUserId = getValidUserId(userId);
@@ -4449,7 +4451,7 @@ async function resetSelectedUserCloudData(userId = activeUserId) {
 
 async function resetAllCloudData() {
   if (!ensureCloudResetAvailable()) {
-    return { error: new Error("Cloud ist nicht verbunden.") };
+    return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
   }
 
   const defaultUsers = getDefaultUserProfiles();
@@ -4507,21 +4509,8 @@ function handleResetSelectedUserLocal() {
 }
 
 async function handleResetSelectedUserCloud() {
-  if (!confirmResetAction({ scope: "selected", includesCloud: true })) {
-    return;
-  }
-
-  showSettingsMessage("Cloud-Reset läuft ...");
-  const cloudResult = await resetSelectedUserCloudData(activeUserId);
-
-  if (cloudResult.error) {
-    showSettingsMessage(cloudResult.error.message, "error");
-    return;
-  }
-
-  if (resetSelectedUserLocalData({ showSuccess: false })) {
-    showSettingsMessage(`${getDefaultUserName(activeUserId)} wurde lokal und in der Cloud zurückgesetzt.`, "success");
-  }
+  showSettingsMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  showCloudStorageMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
 }
 
 function handleResetAllLocal() {
@@ -4533,21 +4522,8 @@ function handleResetAllLocal() {
 }
 
 async function handleResetAllCloud() {
-  if (!confirmResetAction({ scope: "all", includesCloud: true })) {
-    return;
-  }
-
-  showSettingsMessage("Cloud-Reset läuft ...");
-  const cloudResult = await resetAllCloudData();
-
-  if (cloudResult.error) {
-    showSettingsMessage(cloudResult.error.message, "error");
-    return;
-  }
-
-  if (resetAllLocalData({ showSuccess: false })) {
-    showSettingsMessage("Alle Nutzer wurden lokal und in der Cloud zurückgesetzt.", "success");
-  }
+  showSettingsMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  showCloudStorageMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
 }
 
 function importCsvEntries(event) {

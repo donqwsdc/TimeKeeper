@@ -1740,6 +1740,10 @@ textarea:focus {
   width: 100%;
 }
 
+.data-reset-actions [hidden] {
+  display: none;
+}
+
 .settings-primary-button,
 .settings-danger-button,
 .settings-secondary-button,

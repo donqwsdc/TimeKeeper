@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=28" />
+    <link rel="stylesheet" href="styles.css?v=29" />
   </head>
   <body>
     <div class="app-shell">
@@ -286,6 +286,9 @@
               Cloudspeicherung ist noch nicht eingerichtet.
             </p>
             <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
+            <p class="settings-helper">
+              Cloud-Löschaktionen sind bis zur Einführung geschützter Admin-Rechte deaktiviert.
+            </p>
             <div class="settings-actions">
               <button class="settings-primary-button" id="cloudBackupButton" type="button">
                 Sichern
@@ -383,13 +386,13 @@
                 <button class="settings-danger-button" id="resetSelectedUserLocalButton" type="button">
                   Ausgewählten Nutzer lokal zurücksetzen
                 </button>
-                <button class="settings-danger-button" id="resetSelectedUserCloudButton" type="button">
+                <button class="settings-danger-button" id="resetSelectedUserCloudButton" type="button" hidden disabled aria-hidden="true">
                   Ausgewählten Nutzer lokal + Cloud zurücksetzen
                 </button>
                 <button class="settings-danger-button" id="resetAllLocalButton" type="button">
                   Alle Nutzer lokal zurücksetzen
                 </button>
-                <button class="settings-danger-button" id="resetAllCloudButton" type="button">
+                <button class="settings-danger-button" id="resetAllCloudButton" type="button" hidden disabled aria-hidden="true">
                   Alle Nutzer lokal + Cloud zurücksetzen
                 </button>
               </div>
@@ -476,7 +479,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=27"></script>
+    <script src="app.js?v=28"></script>
   </body>
 </html>
 
