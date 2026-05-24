@@ -102,6 +102,10 @@ const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
 const cloudBackupButton = document.querySelector("#cloudBackupButton");
 const cloudImportButton = document.querySelector("#cloudImportButton");
 const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
+const cloudAuthStatus = document.querySelector("#cloudAuthStatus");
+const cloudAuthEmailInput = document.querySelector("#cloudAuthEmail");
+const cloudLoginLinkButton = document.querySelector("#cloudLoginLinkButton");
+const cloudLogoutButton = document.querySelector("#cloudLogoutButton");
 const settingsMessage = document.querySelector("#settingsMessage");
 const resetSelectedUserLocalButton = document.querySelector("#resetSelectedUserLocalButton");
 const resetSelectedUserCloudButton = document.querySelector("#resetSelectedUserCloudButton");
@@ -138,6 +142,7 @@ const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
 const SUPABASE_TIME_ENTRY_COLUMNS = [
   "id",
+  "owner_id",
   "user_id",
   "activity",
   "category",
@@ -154,8 +159,8 @@ const SUPABASE_TIME_ENTRY_COLUMNS = [
   "created_at",
   "updated_at",
 ];
-const SUPABASE_USER_COLUMNS = ["id", "name", "created_at", "updated_at"];
-const SUPABASE_CATEGORY_COLUMNS = ["id", "user_id", "name", "sort_order", "created_at", "updated_at"];
+const SUPABASE_USER_COLUMNS = ["id", "owner_id", "name", "created_at", "updated_at"];
+const SUPABASE_CATEGORY_COLUMNS = ["id", "owner_id", "user_id", "name", "sort_order", "created_at", "updated_at"];
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
@@ -195,6 +200,8 @@ let calendarViewMode = "7days";
 let calendarSelectedDate = new Date();
 let calendarDetailDate = null;
 let supabaseClient = null;
+let currentAuthUser = null;
+let supabaseAuthLoaded = false;
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -907,8 +914,9 @@ function initializeSupabaseClient() {
   try {
     supabaseClient = globalThis.supabase.createClient(config.url, config.key, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
       },
     });
     return supabaseClient;
@@ -958,6 +966,14 @@ function getSupabaseStatus() {
     };
   }
 
+  if (!currentAuthUser) {
+    return {
+      connected: false,
+      message: "Login erforderlich",
+      detail: "Bitte im Cloud-Bereich per E-Mail anmelden.",
+    };
+  }
+
   const lastSync = getLastSyncDate();
 
   return {
@@ -975,6 +991,7 @@ function renderSupabaseStatus() {
   cloudStorageDetail.hidden = !status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
+  renderSupabaseAuthStatus();
   [resetSelectedUserCloudButton, resetAllCloudButton].forEach((button) => {
     if (!button) {
       return;
@@ -985,6 +1002,149 @@ function renderSupabaseStatus() {
     button.setAttribute("aria-hidden", "true");
   });
   renderTimerContext();
+}
+
+function getCurrentOwnerId() {
+  return currentAuthUser?.id || "";
+}
+
+function renderSupabaseAuthStatus() {
+  if (!cloudAuthStatus) {
+    return;
+  }
+
+  if (!supabaseClient) {
+    cloudAuthStatus.textContent = "Nicht angemeldet";
+    cloudAuthStatus.dataset.status = "local";
+    cloudLoginLinkButton.disabled = true;
+    cloudLogoutButton.disabled = true;
+    return;
+  }
+
+  if (!currentAuthUser) {
+    cloudAuthStatus.textContent = "Nicht angemeldet";
+    cloudAuthStatus.dataset.status = "local";
+    cloudLoginLinkButton.disabled = false;
+    cloudLogoutButton.disabled = true;
+    return;
+  }
+
+  const userLabel = currentAuthUser.email || currentAuthUser.id;
+  cloudAuthStatus.textContent = `Angemeldet als ${userLabel}`;
+  cloudAuthStatus.dataset.status = "authenticated";
+  cloudLoginLinkButton.disabled = false;
+  cloudLogoutButton.disabled = false;
+}
+
+async function refreshSupabaseAuthUser() {
+  if (!supabaseClient?.auth?.getUser) {
+    currentAuthUser = null;
+    supabaseAuthLoaded = true;
+    renderSupabaseStatus();
+    return currentAuthUser;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.getUser();
+    currentAuthUser = error ? null : data?.user || null;
+  } catch (error) {
+    currentAuthUser = null;
+  }
+
+  supabaseAuthLoaded = true;
+  renderSupabaseStatus();
+  return currentAuthUser;
+}
+
+function initializeSupabaseAuth() {
+  if (!supabaseClient?.auth) {
+    supabaseAuthLoaded = true;
+    currentAuthUser = null;
+    renderSupabaseStatus();
+    return;
+  }
+
+  if (typeof supabaseClient.auth.onAuthStateChange === "function") {
+    supabaseClient.auth.onAuthStateChange(() => {
+      refreshSupabaseAuthUser();
+    });
+  }
+
+  refreshSupabaseAuthUser();
+}
+
+async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessage) {
+  if (!supabaseClient) {
+    messageTarget("Cloudspeicherung ist nicht eingerichtet.", "error");
+    renderSupabaseStatus();
+    return false;
+  }
+
+  if (!supabaseAuthLoaded) {
+    await refreshSupabaseAuthUser();
+  }
+
+  if (!currentAuthUser) {
+    messageTarget("Bitte zuerst im Cloud-Bereich anmelden.", "error");
+    renderSupabaseStatus();
+    return false;
+  }
+
+  return true;
+}
+
+async function sendSupabaseLoginLink() {
+  if (!supabaseClient?.auth?.signInWithOtp) {
+    showCloudStorageMessage("Cloud-Login ist nicht verfügbar.", "error");
+    return;
+  }
+
+  const email = String(cloudAuthEmailInput.value || "").trim();
+
+  if (!email) {
+    showCloudStorageMessage("Bitte E-Mail-Adresse eingeben.", "error");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.href.split("#")[0],
+      },
+    });
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    showCloudStorageMessage("Login-Link wurde gesendet.", "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  }
+}
+
+async function signOutSupabaseUser() {
+  if (!supabaseClient?.auth?.signOut) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    currentAuthUser = null;
+    supabaseAuthLoaded = true;
+    renderSupabaseStatus();
+    showCloudStorageMessage("Abgemeldet.", "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  }
 }
 
 function toSupabaseTimeValue(date) {
@@ -1001,6 +1161,7 @@ function createSupabaseTimeEntryRecord(entry) {
 
   return {
     id: String(entry.id),
+    owner_id: getCurrentOwnerId(),
     user_id: userId,
     activity: String(entry.activity ?? "").trim(),
     category: String(entry.category ?? "").trim(),
@@ -1026,6 +1187,7 @@ function createSupabaseUserRecord(user) {
 
   return {
     id: validUserId,
+    owner_id: getCurrentOwnerId(),
     name: String(user.name || getUserName(validUserId) || defaultName).trim() || defaultName,
     created_at: user.created_at || user.createdAt || now,
     updated_at: user.updated_at || user.updatedAt || now,
@@ -1037,6 +1199,7 @@ function createSupabaseCategoryRecord(category) {
 
   return {
     id: String(category.id),
+    owner_id: getCurrentOwnerId(),
     user_id: getValidUserId(category.user_id),
     name: String(category.name ?? "").trim(),
     sort_order: Number.isFinite(Number(category.sort_order)) ? Number(category.sort_order) : 0,
@@ -1122,7 +1285,8 @@ async function upsertSupabaseCategories() {
 async function loadSupabaseUserProfiles() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_USERS_TABLE_NAME)
-    .select(SUPABASE_USER_COLUMNS.join(","));
+    .select(SUPABASE_USER_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
 
   if (error) {
     return { error, updated: false };
@@ -1181,7 +1345,8 @@ async function loadSupabaseUserProfiles() {
 async function loadSupabaseCategories() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_CATEGORIES_TABLE_NAME)
-    .select(SUPABASE_CATEGORY_COLUMNS.join(","));
+    .select(SUPABASE_CATEGORY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
 
   if (error) {
     return { error, updated: false };
@@ -1240,7 +1405,8 @@ async function loadSupabaseCategories() {
 async function loadSupabaseTimeEntryRecords() {
   return supabaseClient
     .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
-    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
+    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
 }
 
 function mergeCloudEntriesIntoLocal(cloudEntries) {
@@ -1294,10 +1460,14 @@ function showStartupSyncMessage(message, type = "info") {
 }
 
 async function synchronizeWithSupabaseOnStartup() {
+  if (!supabaseAuthLoaded) {
+    await refreshSupabaseAuthUser();
+  }
+
   const status = getSupabaseStatus();
 
   if (!status.connected) {
-    showStartupSyncMessage("Offline");
+    showStartupSyncMessage(status.message);
     renderSupabaseStatus();
     return;
   }
@@ -1371,11 +1541,15 @@ async function synchronizeWithSupabaseOnStartup() {
 }
 
 async function backupLocalEntriesToCloud() {
+  if (!(await ensureSupabaseAuthForCloud())) {
+    return;
+  }
+
   const status = getSupabaseStatus();
   renderSupabaseStatus();
 
   if (!status.connected) {
-    showCloudStorageMessage("Offline", "error");
+    showCloudStorageMessage(status.message, "error");
     return;
   }
 
@@ -1614,12 +1788,16 @@ function resolveAllCloudConflicts(decision) {
 }
 
 async function importCloudEntriesToApp() {
+  if (!(await ensureSupabaseAuthForCloud())) {
+    return;
+  }
+
   const status = getSupabaseStatus();
   renderSupabaseStatus();
   clearCloudConflictPanel();
 
   if (!status.connected) {
-    showCloudStorageMessage("Offline", "error");
+    showCloudStorageMessage(status.message, "error");
     return;
   }
 
@@ -5215,6 +5393,8 @@ categorySettingsForm.addEventListener("submit", addCategory);
 categorySettingsList.addEventListener("click", handleCategorySettingsAction);
 cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 cloudImportButton.addEventListener("click", importCloudEntriesToApp);
+cloudLoginLinkButton.addEventListener("click", sendSupabaseLoginLink);
+cloudLogoutButton.addEventListener("click", signOutSupabaseUser);
 cloudConflictPanel.addEventListener("click", (event) => {
   const actionButton = event.target.closest("button[data-cloud-conflict-action]");
 
@@ -5287,6 +5467,7 @@ loadUserProfiles();
 loadCategories();
 loadPersistedEntries();
 initializeSupabaseClient();
+initializeSupabaseAuth();
 loadCalendarState();
 renderHistory();
 renderAnalytics();
