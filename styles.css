@@ -1418,6 +1418,10 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .data-reset-actions {
+    grid-template-columns: 1fr;
+  }
+
   .analytics-section-header {
     align-items: flex-start;
     flex-direction: column;
@@ -1700,6 +1704,42 @@ textarea:focus {
   align-items: center;
 }
 
+.data-reset-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--danger) 34%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+
+.data-reset-section h4,
+.data-reset-section p {
+  margin: 0;
+}
+
+.data-reset-section h4 {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.data-reset-section p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.38;
+}
+
+.data-reset-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.data-reset-actions .settings-danger-button {
+  width: 100%;
+}
+
 .settings-primary-button,
 .settings-danger-button,
 .settings-secondary-button,
@@ -1862,6 +1902,7 @@ textarea:focus {
 }
 
 .settings-primary-button:disabled,
+.settings-danger-button:disabled,
 .settings-secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

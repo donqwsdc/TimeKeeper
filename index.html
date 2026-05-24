@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=27" />
+    <link rel="stylesheet" href="styles.css?v=28" />
   </head>
   <body>
     <div class="app-shell">
@@ -373,8 +373,27 @@
             <div class="settings-actions">
               <a class="settings-secondary-link" href="#exportieren" data-view-link="export">CSV exportieren</a>
               <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
-              <button class="settings-danger-button" id="deleteAllDataButton" type="button">Alles löschen</button>
             </div>
+            <section class="data-reset-section" aria-label="Daten zurücksetzen">
+              <div>
+                <h4>Daten zurücksetzen</h4>
+                <p>Diese Aktion kann nicht rückgängig gemacht werden.</p>
+              </div>
+              <div class="data-reset-actions">
+                <button class="settings-danger-button" id="resetSelectedUserLocalButton" type="button">
+                  Ausgewählten Nutzer lokal zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetSelectedUserCloudButton" type="button">
+                  Ausgewählten Nutzer lokal + Cloud zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetAllLocalButton" type="button">
+                  Alle Nutzer lokal zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetAllCloudButton" type="button">
+                  Alle Nutzer lokal + Cloud zurücksetzen
+                </button>
+              </div>
+            </section>
             <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
           </details>
 
@@ -457,7 +476,7 @@
 
     <script src="supabase-config.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=25"></script>
+    <script src="app.js?v=26"></script>
   </body>
 </html>
 

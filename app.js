@@ -103,7 +103,10 @@ const cloudBackupButton = document.querySelector("#cloudBackupButton");
 const cloudImportButton = document.querySelector("#cloudImportButton");
 const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
 const settingsMessage = document.querySelector("#settingsMessage");
-const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
+const resetSelectedUserLocalButton = document.querySelector("#resetSelectedUserLocalButton");
+const resetSelectedUserCloudButton = document.querySelector("#resetSelectedUserCloudButton");
+const resetAllLocalButton = document.querySelector("#resetAllLocalButton");
+const resetAllCloudButton = document.querySelector("#resetAllCloudButton");
 const csvImportInput = document.querySelector("#csvImportInput");
 const reminderSettingsForm = document.querySelector("#reminderSettingsForm");
 const remindersEnabledInput = document.querySelector("#remindersEnabled");
@@ -971,6 +974,8 @@ function renderSupabaseStatus() {
   cloudStorageDetail.hidden = !status.detail;
   cloudBackupButton.disabled = !status.connected;
   cloudImportButton.disabled = !status.connected;
+  resetSelectedUserCloudButton.disabled = !status.connected;
+  resetAllCloudButton.disabled = !status.connected;
   renderTimerContext();
 }
 
@@ -4292,6 +4297,7 @@ function entriesFromCsvText(text) {
 }
 
 function deleteAllEntries() {
+  return handleResetAllLocal();
   const shouldDelete = window.confirm("Alle lokal gespeicherten Zeiteinträge wirklich löschen?");
 
   if (!shouldDelete) {
@@ -4316,6 +4322,316 @@ function deleteAllEntries() {
   timeEntries.splice(0, timeEntries.length);
   refreshEntryViews();
   showSettingsMessage("Alle Zeiteinträge wurden gelöscht.", "success");
+}
+
+function getDefaultUserProfile(userId) {
+  const validUserId = getValidUserId(userId);
+  const defaultUser = DEFAULT_USERS.find((user) => user.id === validUserId) || DEFAULT_USERS[0];
+
+  return { ...defaultUser };
+}
+
+function getDefaultUserProfiles() {
+  return DEFAULT_USERS.map((user) => ({ ...user }));
+}
+
+function getDefaultCategoriesForUsers(userIds) {
+  return userIds.flatMap((userId) => createDefaultCategoriesForUser(userId));
+}
+
+function renderAfterDataReset() {
+  renderTimerContext();
+  renderCategoryDropdowns();
+  renderCategorySettings();
+  renderUserProfileSettings();
+  refreshEntryViews();
+  renderSupabaseStatus();
+}
+
+function confirmResetAction({ scope, includesCloud }) {
+  const selectedUserName = getUserName(activeUserId);
+  const affectedText = scope === "selected" ? `den Nutzer "${selectedUserName}"` : "alle Nutzer";
+  const storageText = includesCloud ? "lokal und in der Cloud" : "lokal";
+  const timerText = isTimerRunning() && scope === "selected"
+    ? "\n\nEin laufender Timer dieses Nutzers wird beendet."
+    : isTimerRunning() && scope === "all"
+      ? "\n\nEin laufender Timer wird beendet."
+      : "";
+
+  const confirmed = window.confirm(
+    `Daten zurücksetzen?\n\nBetroffen: ${affectedText}\nSpeicher: ${storageText}\nDiese Aktion kann nicht rückgängig gemacht werden.${timerText}`,
+  );
+
+  if (!confirmed) {
+    showSettingsMessage("Zurücksetzen abgebrochen.");
+    return false;
+  }
+
+  const expectedInput = scope === "all" ? "ALLE LÖSCHEN" : "RESET";
+  const promptText = scope === "all"
+    ? `Bitte "${expectedInput}" eingeben, um alle Nutzer zurückzusetzen.`
+    : `Bitte "${expectedInput}" eingeben, um ${selectedUserName} zurückzusetzen.`;
+  const finalConfirmation = window.prompt(promptText);
+
+  if (finalConfirmation !== expectedInput) {
+    showSettingsMessage("Zurücksetzen abgebrochen. Die Bestätigung war nicht korrekt.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+function resetSelectedUserLocalData({ showSuccess = true } = {}) {
+  const selectedUserId = activeUserId;
+  const nextEntries = timeEntries.filter((entry) => getValidUserId(entry.user_id) !== selectedUserId);
+  const nextCategories = [
+    ...categories.filter((category) => getValidUserId(category.user_id) !== selectedUserId),
+    ...createDefaultCategoriesForUser(selectedUserId),
+  ];
+  const defaultUser = getDefaultUserProfile(selectedUserId);
+  const nextUsers = users.map((user) => (user.id === selectedUserId ? defaultUser : user));
+
+  if (!persistEntries(nextEntries)) {
+    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  categories = nextCategories;
+  if (!saveCategories()) {
+    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  users = nextUsers;
+  if (!saveUserProfiles()) {
+    showSettingsMessage("Nutzerprofil konnte nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  if (isTimerRunning()) {
+    resetTimerScreen();
+  }
+  renderAfterDataReset();
+
+  if (showSuccess) {
+    showSettingsMessage(`${defaultUser.name} wurde lokal zurückgesetzt.`, "success");
+  }
+
+  return true;
+}
+
+function resetAllLocalData({ showSuccess = true } = {}) {
+  const nextUsers = getDefaultUserProfiles();
+  const nextCategories = getDefaultCategoriesForUsers(DEFAULT_USERS.map((user) => user.id));
+
+  if (!persistEntries([])) {
+    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  categories = nextCategories;
+  if (!saveCategories()) {
+    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  users = nextUsers;
+  activeUserId = DEFAULT_USERS[0].id;
+  if (!saveUserProfiles()) {
+    showSettingsMessage("Nutzerprofile konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  try {
+    localStorage.removeItem(REMINDER_FIRED_KEY);
+  } catch (error) {
+    showSettingsMessage("Reminder-Status konnte nicht vollständig zurückgesetzt werden.", "error");
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length);
+  resetTimerScreen();
+  renderAfterDataReset();
+
+  if (showSuccess) {
+    showSettingsMessage("Alle lokalen Nutzerdaten wurden zurückgesetzt.", "success");
+  }
+
+  return true;
+}
+
+function ensureCloudResetAvailable() {
+  const status = getSupabaseStatus();
+  renderSupabaseStatus();
+
+  if (!status.connected) {
+    showSettingsMessage("Cloud ist nicht verbunden. Supabase-Reset ist aktuell nicht verfügbar.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+async function deleteSupabaseRows(query, errorContext) {
+  const result = await query;
+
+  if (result.error) {
+    return { error: new Error(`${errorContext}: ${getSupabaseErrorMessage(result.error)}`) };
+  }
+
+  return { error: null };
+}
+
+async function resetSelectedUserCloudData(userId = activeUserId) {
+  if (!ensureCloudResetAvailable()) {
+    return { error: new Error("Cloud ist nicht verbunden.") };
+  }
+
+  const validUserId = getValidUserId(userId);
+  const defaultUser = getDefaultUserProfile(validUserId);
+  const defaultCategories = createDefaultCategoriesForUser(validUserId);
+  const operations = [
+    () => deleteSupabaseRows(
+      supabaseClient.from(SUPABASE_TABLE_NAME).delete().eq("user_id", validUserId),
+      "Cloud-Zeiteinträge konnten nicht gelöscht werden",
+    ),
+    () => deleteSupabaseRows(
+      supabaseClient.from(SUPABASE_CATEGORIES_TABLE_NAME).delete().eq("user_id", validUserId),
+      "Cloud-Kategorien konnten nicht gelöscht werden",
+    ),
+    async () => {
+      const result = await supabaseClient
+        .from(SUPABASE_USERS_TABLE_NAME)
+        .upsert([createSupabaseUserRecord(defaultUser)], { onConflict: "id" });
+      return result.error
+        ? { error: new Error(`Cloud-Nutzerprofil konnte nicht zurückgesetzt werden: ${getSupabaseErrorMessage(result.error)}`) }
+        : { error: null };
+    },
+    async () => {
+      const result = await supabaseClient
+        .from(SUPABASE_CATEGORIES_TABLE_NAME)
+        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+      return result.error
+        ? { error: new Error(`Cloud-Standardkategorien konnten nicht erstellt werden: ${getSupabaseErrorMessage(result.error)}`) }
+        : { error: null };
+    },
+  ];
+
+  for (const operation of operations) {
+    const { error } = await operation();
+
+    if (error) {
+      return { error };
+    }
+  }
+
+  markCloudSyncCompleted();
+  renderSupabaseStatus();
+  return { error: null };
+}
+
+async function resetAllCloudData() {
+  if (!ensureCloudResetAvailable()) {
+    return { error: new Error("Cloud ist nicht verbunden.") };
+  }
+
+  const defaultUsers = getDefaultUserProfiles();
+  const defaultCategories = getDefaultCategoriesForUsers(defaultUsers.map((user) => user.id));
+  const operations = [
+    () => deleteSupabaseRows(
+      supabaseClient.from(SUPABASE_TABLE_NAME).delete().neq("id", "__timekeeper_keep_none__"),
+      "Cloud-Zeiteinträge konnten nicht gelöscht werden",
+    ),
+    () => deleteSupabaseRows(
+      supabaseClient.from(SUPABASE_CATEGORIES_TABLE_NAME).delete().neq("id", "__timekeeper_keep_none__"),
+      "Cloud-Kategorien konnten nicht gelöscht werden",
+    ),
+    () => deleteSupabaseRows(
+      supabaseClient.from(SUPABASE_USERS_TABLE_NAME).delete().neq("id", "__timekeeper_keep_none__"),
+      "Cloud-Nutzerprofile konnten nicht gelöscht werden",
+    ),
+    async () => {
+      const result = await supabaseClient
+        .from(SUPABASE_USERS_TABLE_NAME)
+        .upsert(defaultUsers.map(createSupabaseUserRecord), { onConflict: "id" });
+      return result.error
+        ? { error: new Error(`Cloud-Nutzerprofile konnten nicht zurückgesetzt werden: ${getSupabaseErrorMessage(result.error)}`) }
+        : { error: null };
+    },
+    async () => {
+      const result = await supabaseClient
+        .from(SUPABASE_CATEGORIES_TABLE_NAME)
+        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+      return result.error
+        ? { error: new Error(`Cloud-Standardkategorien konnten nicht erstellt werden: ${getSupabaseErrorMessage(result.error)}`) }
+        : { error: null };
+    },
+  ];
+
+  for (const operation of operations) {
+    const { error } = await operation();
+
+    if (error) {
+      return { error };
+    }
+  }
+
+  markCloudSyncCompleted();
+  renderSupabaseStatus();
+  return { error: null };
+}
+
+function handleResetSelectedUserLocal() {
+  if (!confirmResetAction({ scope: "selected", includesCloud: false })) {
+    return;
+  }
+
+  resetSelectedUserLocalData();
+}
+
+async function handleResetSelectedUserCloud() {
+  if (!confirmResetAction({ scope: "selected", includesCloud: true })) {
+    return;
+  }
+
+  showSettingsMessage("Cloud-Reset läuft ...");
+  const cloudResult = await resetSelectedUserCloudData(activeUserId);
+
+  if (cloudResult.error) {
+    showSettingsMessage(cloudResult.error.message, "error");
+    return;
+  }
+
+  if (resetSelectedUserLocalData({ showSuccess: false })) {
+    showSettingsMessage(`${getDefaultUserName(activeUserId)} wurde lokal und in der Cloud zurückgesetzt.`, "success");
+  }
+}
+
+function handleResetAllLocal() {
+  if (!confirmResetAction({ scope: "all", includesCloud: false })) {
+    return;
+  }
+
+  resetAllLocalData();
+}
+
+async function handleResetAllCloud() {
+  if (!confirmResetAction({ scope: "all", includesCloud: true })) {
+    return;
+  }
+
+  showSettingsMessage("Cloud-Reset läuft ...");
+  const cloudResult = await resetAllCloudData();
+
+  if (cloudResult.error) {
+    showSettingsMessage(cloudResult.error.message, "error");
+    return;
+  }
+
+  if (resetAllLocalData({ showSuccess: false })) {
+    showSettingsMessage("Alle Nutzer wurden lokal und in der Cloud zurückgesetzt.", "success");
+  }
 }
 
 function importCsvEntries(event) {
@@ -5044,7 +5360,10 @@ cloudConflictPanel.addEventListener("click", (event) => {
     resolveCloudConflict(conflictIndex, "keep-both");
   }
 });
-deleteAllDataButton.addEventListener("click", deleteAllEntries);
+resetSelectedUserLocalButton.addEventListener("click", handleResetSelectedUserLocal);
+resetSelectedUserCloudButton.addEventListener("click", handleResetSelectedUserCloud);
+resetAllLocalButton.addEventListener("click", handleResetAllLocal);
+resetAllCloudButton.addEventListener("click", handleResetAllCloud);
 csvImportInput.addEventListener("change", importCsvEntries);
 reminderSettingsForm.addEventListener("input", saveReminderSettingsFromForm);
 reminderSettingsForm.addEventListener("change", saveReminderSettingsFromForm);
