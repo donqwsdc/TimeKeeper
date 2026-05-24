@@ -132,7 +132,7 @@ const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
-const SUPABASE_TABLE_NAME = "time_entries";
+const SUPABASE_TIME_ENTRIES_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
 const SUPABASE_TIME_ENTRY_COLUMNS = [
@@ -988,19 +988,21 @@ function createSupabaseTimeEntryRecord(entry) {
   const userId = getValidUserId(entry.user_id);
   const updatedAt = entry.updated_at || entry.updatedAt || now;
   const createdAt = entry.created_at || entry.createdAt || updatedAt;
+  const startedAt = entry.startedAt instanceof Date ? entry.startedAt : new Date(entry.startedAt);
+  const endedAt = entry.endedAt instanceof Date ? entry.endedAt : new Date(entry.endedAt);
 
   return {
-    id: entry.id,
+    id: String(entry.id),
     user_id: userId,
-    activity: entry.activity,
-    category: entry.category,
-    started_at: entry.startedAt.toISOString(),
-    ended_at: entry.endedAt.toISOString(),
-    date: toDateInputValue(entry.startedAt),
-    start_time: toSupabaseTimeValue(entry.startedAt),
-    end_time: toSupabaseTimeValue(entry.endedAt),
-    duration_minutes: Math.max(0, Math.round((entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000)),
-    note: entry.note || "",
+    activity: String(entry.activity ?? "").trim(),
+    category: String(entry.category ?? "").trim(),
+    started_at: startedAt.toISOString(),
+    ended_at: endedAt.toISOString(),
+    date: toDateInputValue(startedAt),
+    start_time: toSupabaseTimeValue(startedAt),
+    end_time: toSupabaseTimeValue(endedAt),
+    duration_minutes: Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000)),
+    note: String(entry.note ?? ""),
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
@@ -1012,10 +1014,11 @@ function createSupabaseTimeEntryRecord(entry) {
 function createSupabaseUserRecord(user) {
   const now = new Date().toISOString();
   const validUserId = getValidUserId(user.id);
+  const defaultName = getDefaultUserName(validUserId);
 
   return {
     id: validUserId,
-    name: String(user.name || getUserName(validUserId)).trim() || getUserName(validUserId),
+    name: String(user.name || getUserName(validUserId) || defaultName).trim() || defaultName,
     created_at: user.created_at || user.createdAt || now,
     updated_at: user.updated_at || user.updatedAt || now,
   };
@@ -1025,10 +1028,10 @@ function createSupabaseCategoryRecord(category) {
   const now = new Date().toISOString();
 
   return {
-    id: category.id,
+    id: String(category.id),
     user_id: getValidUserId(category.user_id),
-    name: category.name,
-    sort_order: Number(category.sort_order) || 0,
+    name: String(category.name ?? "").trim(),
+    sort_order: Number.isFinite(Number(category.sort_order)) ? Number(category.sort_order) : 0,
     created_at: category.created_at || category.createdAt || now,
     updated_at: category.updated_at || category.updatedAt || now,
   };
@@ -1090,59 +1093,10 @@ function getSupabaseErrorMessage(error) {
     .join(" ");
 }
 
-function isMissingSupabaseUserIdColumnError(error) {
-  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
-  return message.includes("user_id") && (message.includes("column") || message.includes("schema"));
-}
-
-function isMissingSupabaseColumnError(error) {
-  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
-  return message.includes("column") || message.includes("schema cache") || message.includes("schema");
-}
-
-function removeOptionalSupabaseTimeEntryColumns(records) {
-  return records.map(({ date, start_time: startTime, end_time: endTime, ...record }) => record);
-}
-
-function keepRequestedSupabaseTimeEntryColumns(records) {
-  return records.map((record) => ({
-    id: record.id,
-    user_id: record.user_id,
-    date: record.date,
-    start_time: record.start_time,
-    end_time: record.end_time,
-    duration_minutes: record.duration_minutes,
-    category: record.category,
-    note: record.note,
-    created_at: record.created_at,
-    updated_at: record.updated_at,
-  }));
-}
-
 async function upsertSupabaseTimeEntryRecords(records) {
-  const result = await supabaseClient
-    .from(SUPABASE_TABLE_NAME)
+  return supabaseClient
+    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
     .upsert(records, { onConflict: "id" });
-
-  if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
-    const requestedStructureResult = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .upsert(keepRequestedSupabaseTimeEntryColumns(records), { onConflict: "id" });
-
-    if (!requestedStructureResult.error) {
-      return requestedStructureResult;
-    }
-
-    if (isMissingSupabaseColumnError(requestedStructureResult.error)) {
-      return supabaseClient
-        .from(SUPABASE_TABLE_NAME)
-        .upsert(removeOptionalSupabaseTimeEntryColumns(records), { onConflict: "id" });
-    }
-
-    return requestedStructureResult;
-  }
-
-  return result;
 }
 
 async function upsertSupabaseUserProfiles() {
@@ -1276,18 +1230,9 @@ async function loadSupabaseCategories() {
 }
 
 async function loadSupabaseTimeEntryRecords() {
-  const result = await supabaseClient
-    .from(SUPABASE_TABLE_NAME)
+  return supabaseClient
+    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
     .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
-
-  if (result.error && isMissingSupabaseColumnError(result.error) && !isMissingSupabaseUserIdColumnError(result.error)) {
-    const fallbackColumns = ["id", "user_id", "date", "start_time", "end_time", "duration_minutes", "category", "note", "created_at", "updated_at"];
-    return supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .select(fallbackColumns.join(","));
-  }
-
-  return result;
 }
 
 function mergeCloudEntriesIntoLocal(cloudEntries) {
@@ -1468,17 +1413,25 @@ async function backupLocalEntriesToCloud() {
 }
 
 function createLocalEntryFromSupabaseRecord(record) {
-  const startedAt = record.started_at ? new Date(record.started_at) : parseCloudDateTime(record.date, record.start_time);
-  const endedAt = record.ended_at ? new Date(record.ended_at) : parseCloudDateTime(record.date, record.end_time);
+  const startedAt = new Date(record.started_at);
+  const endedAt = new Date(record.ended_at);
 
-  if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+  if (
+    !record.id ||
+    !record.user_id ||
+    !record.activity ||
+    !record.category ||
+    Number.isNaN(startedAt.getTime()) ||
+    Number.isNaN(endedAt.getTime()) ||
+    endedAt <= startedAt
+  ) {
     return null;
   }
 
   return {
     id: record.id,
-    activity: record.activity || record.description || record.note || "Zeiteintrag",
-    category: record.category || "",
+    activity: record.activity,
+    category: record.category,
     startedAt,
     endedAt,
     note: record.note || "",
@@ -1911,15 +1864,6 @@ function escapeHtml(value) {
 
 function createEntryId() {
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now());
-}
-
-function parseCloudDateTime(dateValue, timeValue) {
-  if (!dateValue || !timeValue) {
-    return null;
-  }
-
-  const date = new Date(`${dateValue}T${String(timeValue).slice(0, 8)}`);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function getEntryUpdatedAtTime(entry) {
@@ -4296,34 +4240,6 @@ function entriesFromCsvText(text) {
   return importedEntries;
 }
 
-function deleteAllEntries() {
-  return handleResetAllLocal();
-  const shouldDelete = window.confirm("Alle lokal gespeicherten Zeiteinträge wirklich löschen?");
-
-  if (!shouldDelete) {
-    showSettingsMessage("Löschen abgebrochen.");
-    return;
-  }
-
-  const confirmedFinal = window.confirm(
-    `Endgültig löschen?\n\n${timeEntries.length} lokale Zeiteinträge werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.`,
-  );
-
-  if (!confirmedFinal) {
-    showSettingsMessage("Löschen abgebrochen.");
-    return;
-  }
-
-  if (!persistEntries([])) {
-    showSettingsMessage("Daten konnten nicht gelöscht werden. Bitte Browser-Speicher prüfen.", "error");
-    return;
-  }
-
-  timeEntries.splice(0, timeEntries.length);
-  refreshEntryViews();
-  showSettingsMessage("Alle Zeiteinträge wurden gelöscht.", "success");
-}
-
 function getDefaultUserProfile(userId) {
   const validUserId = getValidUserId(userId);
   const defaultUser = DEFAULT_USERS.find((user) => user.id === validUserId) || DEFAULT_USERS[0];
@@ -4493,7 +4409,7 @@ async function resetSelectedUserCloudData(userId = activeUserId) {
   const defaultCategories = createDefaultCategoriesForUser(validUserId);
   const operations = [
     () => deleteSupabaseRows(
-      supabaseClient.from(SUPABASE_TABLE_NAME).delete().eq("user_id", validUserId),
+      supabaseClient.from(SUPABASE_TIME_ENTRIES_TABLE_NAME).delete().eq("user_id", validUserId),
       "Cloud-Zeiteinträge konnten nicht gelöscht werden",
     ),
     () => deleteSupabaseRows(
@@ -4540,7 +4456,7 @@ async function resetAllCloudData() {
   const defaultCategories = getDefaultCategoriesForUsers(defaultUsers.map((user) => user.id));
   const operations = [
     () => deleteSupabaseRows(
-      supabaseClient.from(SUPABASE_TABLE_NAME).delete().neq("id", "__timekeeper_keep_none__"),
+      supabaseClient.from(SUPABASE_TIME_ENTRIES_TABLE_NAME).delete().neq("id", "__timekeeper_keep_none__"),
       "Cloud-Zeiteinträge konnten nicht gelöscht werden",
     ),
     () => deleteSupabaseRows(
