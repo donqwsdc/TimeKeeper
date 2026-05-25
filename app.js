@@ -2251,10 +2251,10 @@ function renderCloudConflictPanel() {
       <h4>${cloudImportConflicts.length} Konflikte gefunden</h4>
       <div class="cloud-conflict-actions">
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local-all">
-          Für alle lokale Einträge behalten
+          Für alle lokale Versionen behalten
         </button>
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud-all">
-          Für alle Cloud-Einträge übernehmen
+          Für alle Cloud-Versionen übernehmen
         </button>
       </div>
     </div>
@@ -2269,20 +2269,76 @@ function renderCloudConflictPanel() {
             </div>
             <div class="cloud-conflict-actions">
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local" data-conflict-index="${index}">
-                Lokalen Eintrag behalten
+                Lokale Version behalten
               </button>
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud" data-conflict-index="${index}">
-                Cloud-Eintrag übernehmen
+                Cloud-Version übernehmen
               </button>
-              <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-both" data-conflict-index="${index}">
+              ${
+                conflict.type === "time_entry"
+                  ? `<button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-both" data-conflict-index="${index}">
                 Beide behalten
-              </button>
+              </button>`
+                  : ""
+              }
             </div>
           </section>
         `,
       )
       .join("")}
   `;
+}
+
+function getConflictLocalRecord(conflict) {
+  return conflict?.localRecord || conflict?.localEntry || null;
+}
+
+function getConflictCloudRecord(conflict) {
+  return conflict?.cloudRecord || conflict?.cloudEntry || null;
+}
+
+function getPendingUploadFromConflict(conflict) {
+  const localRecord = getConflictLocalRecord(conflict);
+
+  if (!localRecord) {
+    return null;
+  }
+
+  return {
+    type: conflict.type || "time_entry",
+    record: localRecord,
+  };
+}
+
+async function uploadLocalConflictVersions(conflicts) {
+  if (!(await beginCloudSync())) {
+    return { error: new Error(CLOUD_LOGIN_REQUIRED_MESSAGE) };
+  }
+
+  try {
+    const pendingUploads = conflicts
+      .map(getPendingUploadFromConflict)
+      .filter(Boolean);
+
+    if (!pendingUploads.length) {
+      return { error: new Error("Keine lokale Version zum Hochladen gefunden.") };
+    }
+
+    const result = await uploadPendingSyncRecords(pendingUploads);
+
+    if (result.error) {
+      failCloudSync(result.error);
+      return result;
+    }
+
+    markCloudSyncCompleted();
+    return { error: null };
+  } catch (error) {
+    failCloudSync(error);
+    return { error };
+  } finally {
+    finishCloudSync();
+  }
 }
 
 function saveCloudImportEntries(nextEntries, successMessage) {
@@ -2301,16 +2357,39 @@ function saveCloudImportEntries(nextEntries, successMessage) {
   return true;
 }
 
-function resolveCloudConflict(index, decision) {
+async function resolveCloudConflict(index, decision) {
   const conflict = cloudImportConflicts[index];
 
   if (!conflict) {
     return;
   }
 
+  if (decision === "keep-local") {
+    const uploadResult = await uploadLocalConflictVersions([conflict]);
+
+    if (uploadResult.error) {
+      return;
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Lokale Version wurde in der Cloud gesichert.", "success");
+    return;
+  }
+
   if (conflict.type === "user") {
-    if (decision === "use-cloud" && conflict.cloudRecord) {
-      users = users.map((user) => (user.id === conflict.cloudRecord.id ? normalizeSyncRecord(conflict.cloudRecord, "user") : user));
+    if (decision === "keep-both") {
+      showCloudStorageMessage("Beide behalten ist für Nutzer nicht verfügbar.", "info");
+      return;
+    }
+
+    const cloudUserRecord = getConflictCloudRecord(conflict);
+
+    if (decision === "use-cloud" && cloudUserRecord) {
+      users = users.map((user) => (user.id === cloudUserRecord.id ? normalizeSyncRecord(cloudUserRecord, "user") : user));
       saveUserProfiles();
       renderUserProfileSettings();
       refreshEntryViews();
@@ -2326,8 +2405,15 @@ function resolveCloudConflict(index, decision) {
   }
 
   if (conflict.type === "category") {
-    if (decision === "use-cloud" && conflict.cloudRecord) {
-      const cloudCategory = normalizeSyncRecord(conflict.cloudRecord, "category");
+    if (decision === "keep-both") {
+      showCloudStorageMessage("Beide behalten ist für Kategorien nicht verfügbar.", "info");
+      return;
+    }
+
+    const cloudCategoryRecord = getConflictCloudRecord(conflict);
+
+    if (decision === "use-cloud" && cloudCategoryRecord) {
+      const cloudCategory = normalizeSyncRecord(cloudCategoryRecord, "category");
       categories = ensureDefaultCategoriesForAllUsers([
         ...categories.filter((category) => category.id !== cloudCategory.id),
         cloudCategory,
@@ -2347,16 +2433,17 @@ function resolveCloudConflict(index, decision) {
   }
 
   let nextEntries = [...timeEntries];
+  const cloudEntryRecord = getConflictCloudRecord(conflict);
 
-  if (decision === "use-cloud") {
+  if (decision === "use-cloud" && cloudEntryRecord) {
     const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
     nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
-    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+    nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord));
   }
 
-  if (decision === "keep-both") {
-    const hasSameId = nextEntries.some((entry) => entry.id === conflict.cloudEntry.id);
-    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry, hasSameId));
+  if (decision === "keep-both" && cloudEntryRecord) {
+    const hasSameId = nextEntries.some((entry) => entry.id === cloudEntryRecord.id);
+    nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord, hasSameId));
   }
 
   if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
@@ -2367,25 +2454,42 @@ function resolveCloudConflict(index, decision) {
   renderCloudConflictPanel();
 }
 
-function resolveAllCloudConflicts(decision) {
+async function resolveAllCloudConflicts(decision) {
   let nextEntries = [...timeEntries];
 
+  if (decision === "keep-local") {
+    const uploadResult = await uploadLocalConflictVersions(cloudImportConflicts);
+
+    if (uploadResult.error) {
+      return;
+    }
+
+    clearCloudConflictPanel();
+    setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    showCloudStorageMessage("Lokale Versionen wurden in der Cloud gesichert.", "success");
+    return;
+  }
+
   if (decision === "use-cloud") {
-    cloudImportConflicts.filter((conflict) => conflict.type === "user" && conflict.cloudRecord).forEach((conflict) => {
-      const cloudUser = normalizeSyncRecord(conflict.cloudRecord, "user");
+    cloudImportConflicts.filter((conflict) => conflict.type === "user" && getConflictCloudRecord(conflict)).forEach((conflict) => {
+      const cloudUser = normalizeSyncRecord(getConflictCloudRecord(conflict), "user");
       users = users.map((user) => (user.id === cloudUser.id ? cloudUser : user));
     });
-    cloudImportConflicts.filter((conflict) => conflict.type === "category" && conflict.cloudRecord).forEach((conflict) => {
-      const cloudCategory = normalizeSyncRecord(conflict.cloudRecord, "category");
+    cloudImportConflicts.filter((conflict) => conflict.type === "category" && getConflictCloudRecord(conflict)).forEach((conflict) => {
+      const cloudCategory = normalizeSyncRecord(getConflictCloudRecord(conflict), "category");
       categories = [
         ...categories.filter((category) => category.id !== cloudCategory.id),
         cloudCategory,
       ];
     });
     cloudImportConflicts.filter((conflict) => conflict.type === "time_entry").forEach((conflict) => {
+      const cloudEntryRecord = getConflictCloudRecord(conflict);
+      if (!cloudEntryRecord) {
+        return;
+      }
       const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
       nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
-      nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+      nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord));
     });
     categories = ensureDefaultCategoriesForAllUsers(categories);
     saveUserProfiles();
@@ -5956,12 +6060,12 @@ cloudConflictPanel.addEventListener("click", (event) => {
   const action = actionButton.dataset.cloudConflictAction;
 
   if (action === "keep-local-all") {
-    resolveAllCloudConflicts("keep-local");
+    void resolveAllCloudConflicts("keep-local");
     return;
   }
 
   if (action === "use-cloud-all") {
-    resolveAllCloudConflicts("use-cloud");
+    void resolveAllCloudConflicts("use-cloud");
     return;
   }
 
@@ -5972,15 +6076,15 @@ cloudConflictPanel.addEventListener("click", (event) => {
   }
 
   if (action === "keep-local") {
-    resolveCloudConflict(conflictIndex, "keep-local");
+    void resolveCloudConflict(conflictIndex, "keep-local");
   }
 
   if (action === "use-cloud") {
-    resolveCloudConflict(conflictIndex, "use-cloud");
+    void resolveCloudConflict(conflictIndex, "use-cloud");
   }
 
   if (action === "keep-both") {
-    resolveCloudConflict(conflictIndex, "keep-both");
+    void resolveCloudConflict(conflictIndex, "keep-both");
   }
 });
 resetSelectedUserLocalButton.addEventListener("click", handleResetSelectedUserLocal);
