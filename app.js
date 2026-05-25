@@ -138,6 +138,15 @@ const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
 const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus Sicherheitsgründen deaktiviert.";
 const CLOUD_LOGIN_REQUIRED_MESSAGE = "Bitte zuerst im Cloud-Bereich anmelden.";
+const CLOUD_SYNC_STATUS = {
+  offline: "offline",
+  authRequired: "auth_required",
+  idle: "idle",
+  syncing: "syncing",
+  synced: "synced",
+  conflict: "conflict",
+  error: "error",
+};
 const SUPABASE_TIME_ENTRIES_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
@@ -203,6 +212,9 @@ let calendarDetailDate = null;
 let supabaseClient = null;
 let currentAuthUser = null;
 let supabaseAuthLoaded = false;
+let cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+let cloudSyncStatusDetail = "";
+let isCloudSyncRunning = false;
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -944,15 +956,36 @@ function markCloudSyncCompleted() {
   } catch (error) {
     // Cloud status is helpful UI state, not core user data.
   }
+
+  setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
 }
 
 function formatLastSyncTime(date) {
   return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
+function setCloudSyncStatus(status, detail = "") {
+  cloudSyncStatus = status;
+  cloudSyncStatusDetail = detail;
+  renderSupabaseStatus();
+}
+
+function getCloudStatusMessage(status) {
+  return {
+    [CLOUD_SYNC_STATUS.offline]: "Offline",
+    [CLOUD_SYNC_STATUS.authRequired]: "Login erforderlich",
+    [CLOUD_SYNC_STATUS.idle]: "Bereit",
+    [CLOUD_SYNC_STATUS.syncing]: "Synchronisiere",
+    [CLOUD_SYNC_STATUS.synced]: "Synchronisiert",
+    [CLOUD_SYNC_STATUS.conflict]: "Konflikte",
+    [CLOUD_SYNC_STATUS.error]: "Fehler",
+  }[status] || "Bereit";
+}
+
 function getSupabaseStatus() {
   if (!isSupabaseConfigured()) {
     return {
+      state: CLOUD_SYNC_STATUS.offline,
       connected: false,
       message: "Offline",
       detail: "Cloudspeicherung ist noch nicht eingerichtet.",
@@ -961,6 +994,7 @@ function getSupabaseStatus() {
 
   if (!supabaseClient) {
     return {
+      state: CLOUD_SYNC_STATUS.offline,
       connected: false,
       message: "Offline",
       detail: "Supabase ist konfiguriert, aber der Client konnte nicht erstellt werden.",
@@ -969,6 +1003,7 @@ function getSupabaseStatus() {
 
   if (!currentAuthUser) {
     return {
+      state: CLOUD_SYNC_STATUS.authRequired,
       connected: false,
       message: "Login erforderlich",
       detail: "Bitte im Cloud-Bereich per E-Mail anmelden.",
@@ -976,22 +1011,26 @@ function getSupabaseStatus() {
   }
 
   const lastSync = getLastSyncDate();
+  const state = isCloudSyncRunning ? CLOUD_SYNC_STATUS.syncing : cloudSyncStatus;
+  const fallbackDetail = lastSync ? `Letzter Sync ${formatLastSyncTime(lastSync)}` : "";
+  const detail = cloudSyncStatusDetail || fallbackDetail;
 
   return {
+    state,
     connected: true,
-    message: lastSync ? "Synchronisiert" : "Cloud verbunden",
-    detail: "",
+    message: getCloudStatusMessage(state),
+    detail,
   };
 }
 
 function renderSupabaseStatus() {
   const status = getSupabaseStatus();
   cloudStorageStatus.textContent = status.message;
-  cloudStorageStatus.dataset.status = status.connected ? "connected" : "local";
+  cloudStorageStatus.dataset.status = status.connected && status.state !== CLOUD_SYNC_STATUS.error ? "connected" : "local";
   cloudStorageDetail.textContent = status.detail;
   cloudStorageDetail.hidden = !status.detail;
-  cloudBackupButton.disabled = !status.connected;
-  cloudImportButton.disabled = !status.connected;
+  cloudBackupButton.disabled = !status.connected || isCloudSyncRunning;
+  cloudImportButton.disabled = !status.connected || isCloudSyncRunning;
   renderSupabaseAuthStatus();
   [resetSelectedUserCloudButton, resetAllCloudButton].forEach((button) => {
     if (!button) {
@@ -1053,6 +1092,10 @@ async function refreshSupabaseAuthUser() {
   }
 
   supabaseAuthLoaded = true;
+  if (currentAuthUser && [CLOUD_SYNC_STATUS.offline, CLOUD_SYNC_STATUS.authRequired].includes(cloudSyncStatus)) {
+    cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+    cloudSyncStatusDetail = "";
+  }
   renderSupabaseStatus();
   return currentAuthUser;
 }
@@ -1077,6 +1120,8 @@ function initializeSupabaseAuth() {
 async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessage) {
   if (!supabaseClient) {
     messageTarget("Cloudspeicherung ist nicht eingerichtet.", "error");
+    cloudSyncStatus = CLOUD_SYNC_STATUS.offline;
+    cloudSyncStatusDetail = "Cloudspeicherung ist nicht eingerichtet.";
     renderSupabaseStatus();
     return false;
   }
@@ -1087,11 +1132,51 @@ async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessag
 
   if (!currentAuthUser) {
     messageTarget(CLOUD_LOGIN_REQUIRED_MESSAGE, "error");
+    cloudSyncStatus = CLOUD_SYNC_STATUS.authRequired;
+    cloudSyncStatusDetail = "Bitte im Cloud-Bereich per E-Mail anmelden.";
     renderSupabaseStatus();
     return false;
   }
 
   return true;
+}
+
+async function beginCloudSync(messageTarget = showCloudStorageMessage) {
+  if (isCloudSyncRunning) {
+    messageTarget("Synchronisierung läuft bereits.", "info");
+    renderSupabaseStatus();
+    return false;
+  }
+
+  if (!(await ensureSupabaseAuthForCloud(messageTarget))) {
+    return false;
+  }
+
+  isCloudSyncRunning = true;
+  cloudSyncStatus = CLOUD_SYNC_STATUS.syncing;
+  cloudSyncStatusDetail = "";
+  renderSupabaseStatus();
+  return true;
+}
+
+function finishCloudSync() {
+  isCloudSyncRunning = false;
+  renderSupabaseStatus();
+}
+
+function failCloudSync(error, messageTarget = showCloudStorageMessage) {
+  const message = getSupabaseErrorMessage(error);
+  cloudSyncStatus = CLOUD_SYNC_STATUS.error;
+  cloudSyncStatusDetail = message;
+  messageTarget(message, "error");
+  renderSupabaseStatus();
+}
+
+function flagCloudConflicts(count, messageTarget = showCloudStorageMessage) {
+  cloudSyncStatus = CLOUD_SYNC_STATUS.conflict;
+  cloudSyncStatusDetail = `${count} Konflikte gefunden`;
+  messageTarget(cloudSyncStatusDetail, "info");
+  renderSupabaseStatus();
 }
 
 async function sendSupabaseLoginLink() {
@@ -1311,11 +1396,41 @@ async function upsertSupabaseCategories() {
     .upsert(categories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
 }
 
-async function loadSupabaseUserProfiles() {
-  const { data, error } = await supabaseClient
+async function fetchSupabaseUserRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
     .from(SUPABASE_USERS_TABLE_NAME)
     .select(SUPABASE_USER_COLUMNS.join(","))
     .eq("owner_id", getCurrentOwnerId());
+}
+
+async function fetchSupabaseCategoryRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
+    .from(SUPABASE_CATEGORIES_TABLE_NAME)
+    .select(SUPABASE_CATEGORY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
+}
+
+async function fetchSupabaseTimeEntryRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
+    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
+    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
+}
+
+async function loadSupabaseUserProfiles() {
+  const { data, error } = await fetchSupabaseUserRecords();
 
   if (error) {
     return { error, updated: false };
@@ -1372,10 +1487,7 @@ async function loadSupabaseUserProfiles() {
 }
 
 async function loadSupabaseCategories() {
-  const { data, error } = await supabaseClient
-    .from(SUPABASE_CATEGORIES_TABLE_NAME)
-    .select(SUPABASE_CATEGORY_COLUMNS.join(","))
-    .eq("owner_id", getCurrentOwnerId());
+  const { data, error } = await fetchSupabaseCategoryRecords();
 
   if (error) {
     return { error, updated: false };
@@ -1432,10 +1544,274 @@ async function loadSupabaseCategories() {
 }
 
 async function loadSupabaseTimeEntryRecords() {
-  return supabaseClient
-    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
-    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","))
-    .eq("owner_id", getCurrentOwnerId());
+  return fetchSupabaseTimeEntryRecords();
+}
+
+function getSyncKey(record) {
+  return String(record?.id || "");
+}
+
+function getRecordUpdatedAt(record) {
+  const candidates = [
+    record?.updated_at,
+    record?.updatedAt,
+    record?.created_at,
+    record?.createdAt,
+    record?.ended_at,
+    record?.endedAt,
+    record?.started_at,
+    record?.startedAt,
+  ];
+  const value = candidates.find(Boolean);
+  const date = value instanceof Date ? value : new Date(value || 0);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function normalizeSyncRecord(record, type) {
+  if (!record) {
+    return null;
+  }
+
+  if (type === "time_entry") {
+    if (record.started_at || record.ended_at) {
+      return createLocalEntryFromSupabaseRecord(record);
+    }
+
+    const startedAt = record.startedAt instanceof Date ? new Date(record.startedAt) : new Date(record.startedAt);
+    const endedAt = record.endedAt instanceof Date ? new Date(record.endedAt) : new Date(record.endedAt);
+
+    if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+      return null;
+    }
+
+    return {
+      ...record,
+      id: String(record.id),
+      user_id: getValidUserId(record.user_id),
+      activity: String(record.activity || "").trim(),
+      category: String(record.category || "").trim(),
+      note: String(record.note || ""),
+      startedAt,
+      endedAt,
+      edited: Boolean(record.edited),
+      manual: Boolean(record.manual),
+      uploaded: Boolean(record.uploaded),
+      created_at: record.created_at || record.createdAt || startedAt.toISOString(),
+      updated_at: record.updated_at || record.updatedAt || endedAt.toISOString(),
+    };
+  }
+
+  if (type === "category") {
+    return normalizeCategory(record);
+  }
+
+  if (type === "user") {
+    const validUserId = getValidUserId(record.id);
+    const defaultName = getDefaultUserName(validUserId);
+
+    return {
+      id: validUserId,
+      name: String(record.name || defaultName).trim() || defaultName,
+      created_at: record.created_at || record.createdAt || DEFAULT_USERS.find((user) => user.id === validUserId)?.created_at,
+      updated_at: record.updated_at || record.updatedAt || DEFAULT_USERS.find((user) => user.id === validUserId)?.updated_at,
+    };
+  }
+
+  return { ...record };
+}
+
+function areSyncRecordsEqual(localRecord, cloudRecord, type) {
+  const localSyncRecord = normalizeSyncRecord(localRecord, type);
+  const cloudSyncRecord = normalizeSyncRecord(cloudRecord, type);
+
+  if (!localSyncRecord || !cloudSyncRecord) {
+    return false;
+  }
+
+  if (type === "time_entry") {
+    return localSyncRecord.id === cloudSyncRecord.id && !areEntriesDifferent(localSyncRecord, cloudSyncRecord);
+  }
+
+  if (type === "category") {
+    return !areCategoriesDifferent(localSyncRecord, cloudSyncRecord);
+  }
+
+  if (type === "user") {
+    return [
+      "id",
+      "name",
+    ].every((key) => String(localSyncRecord[key] ?? "") === String(cloudSyncRecord[key] ?? ""));
+  }
+
+  return JSON.stringify(localSyncRecord) === JSON.stringify(cloudSyncRecord);
+}
+
+function compareSyncRecord(localRecord, cloudRecord, type) {
+  const localSyncRecord = normalizeSyncRecord(localRecord, type);
+  const cloudSyncRecord = normalizeSyncRecord(cloudRecord, type);
+
+  if (!localSyncRecord && cloudSyncRecord) {
+    return { action: "add_local", reason: "missing_local" };
+  }
+
+  if (localSyncRecord && !cloudSyncRecord) {
+    return { action: "upload", reason: "missing_cloud" };
+  }
+
+  if (!localSyncRecord || !cloudSyncRecord) {
+    return { action: "conflict", reason: "timestamp_unclear" };
+  }
+
+  if (areSyncRecordsEqual(localSyncRecord, cloudSyncRecord, type)) {
+    return { action: "equal", reason: "same" };
+  }
+
+  const localUpdatedAt = getRecordUpdatedAt(localSyncRecord);
+  const cloudUpdatedAt = getRecordUpdatedAt(cloudSyncRecord);
+
+  if (!localUpdatedAt || !cloudUpdatedAt) {
+    return { action: "conflict", reason: "timestamp_unclear" };
+  }
+
+  if (localUpdatedAt > cloudUpdatedAt) {
+    return { action: "upload", reason: "local_newer" };
+  }
+
+  if (cloudUpdatedAt > localUpdatedAt) {
+    return { action: "use_cloud", reason: "cloud_newer" };
+  }
+
+  return { action: "conflict", reason: "both_changed" };
+}
+
+function createSyncConflict({ type, key, localRecord, cloudRecord, reason }) {
+  return {
+    type,
+    key,
+    localRecord,
+    cloudRecord,
+    localEntry: localRecord,
+    cloudEntry: cloudRecord,
+    duplicates: localRecord ? [localRecord] : [],
+    reason,
+  };
+}
+
+function mergeSyncCollection({ type, localRecords, cloudRecords, getKey = getSyncKey }) {
+  const localMap = new Map();
+  const cloudMap = new Map();
+  const mergedMap = new Map();
+  const conflicts = [];
+  const pendingUploads = [];
+  const localAdditions = [];
+  const cloudUpdates = [];
+
+  localRecords
+    .map((record) => normalizeSyncRecord(record, type))
+    .filter(Boolean)
+    .forEach((record) => {
+      const key = getKey(record);
+      if (key) {
+        localMap.set(key, record);
+        mergedMap.set(key, record);
+      }
+    });
+
+  cloudRecords
+    .map((record) => normalizeSyncRecord(record, type))
+    .filter(Boolean)
+    .forEach((record) => {
+      const key = getKey(record);
+      if (key) {
+        cloudMap.set(key, record);
+      }
+    });
+
+  cloudMap.forEach((cloudRecord, key) => {
+    const localRecord = localMap.get(key);
+
+    if (!localRecord && type === "time_entry") {
+      const duplicate = [...localMap.values()].find(
+        (record) => getCloudEntryDuplicateKey(record) === getCloudEntryDuplicateKey(cloudRecord),
+      );
+
+      if (duplicate) {
+        conflicts.push(createSyncConflict({
+          type,
+          key,
+          localRecord: duplicate,
+          cloudRecord,
+          reason: "duplicate_content",
+        }));
+        return;
+      }
+    }
+
+    const comparison = compareSyncRecord(localRecord, cloudRecord, type);
+
+    if (comparison.action === "add_local") {
+      localAdditions.push(cloudRecord);
+      mergedMap.set(key, cloudRecord);
+      return;
+    }
+
+    if (comparison.action === "use_cloud") {
+      cloudUpdates.push({ localRecord, cloudRecord, key, reason: comparison.reason });
+      mergedMap.set(key, cloudRecord);
+      return;
+    }
+
+    if (comparison.action === "upload") {
+      pendingUploads.push(localRecord);
+      return;
+    }
+
+    if (comparison.action === "conflict") {
+      conflicts.push(createSyncConflict({
+        type,
+        key,
+        localRecord,
+        cloudRecord,
+        reason: comparison.reason === "both_changed" ? "both_changed" : comparison.reason,
+      }));
+    }
+  });
+
+  localMap.forEach((localRecord, key) => {
+    if (!cloudMap.has(key)) {
+      pendingUploads.push(localRecord);
+    }
+  });
+
+  return {
+    mergedRecords: [...mergedMap.values()],
+    localAdditions,
+    cloudUpdates,
+    pendingUploads,
+    conflicts,
+  };
+}
+
+function getPendingUploadRecords(localRecords, cloudRecords, type) {
+  return mergeSyncCollection({ type, localRecords, cloudRecords }).pendingUploads;
+}
+
+function markRecordsAsCloudSaved(records) {
+  let changed = false;
+
+  records.forEach((record) => {
+    record.cloud_saved = true;
+    const localEntry = timeEntries.find((entry) => entry.id === record.id);
+
+    if (localEntry) {
+      localEntry.cloud_saved = true;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    persistEntries(timeEntries);
+  }
 }
 
 function mergeCloudEntriesIntoLocal(cloudEntries) {
@@ -1488,138 +1864,254 @@ function showStartupSyncMessage(message, type = "info") {
   }, 5000);
 }
 
-async function synchronizeWithSupabaseOnStartup() {
-  if (!supabaseAuthLoaded) {
-    await refreshSupabaseAuthUser();
+async function loadCloudSyncSnapshot() {
+  const userResult = await fetchSupabaseUserRecords();
+
+  if (userResult.error) {
+    return { error: userResult.error };
   }
 
-  const status = getSupabaseStatus();
+  const categoryResult = await fetchSupabaseCategoryRecords();
 
-  if (!status.connected) {
-    showStartupSyncMessage(status.message);
-    renderSupabaseStatus();
+  if (categoryResult.error) {
+    return { error: categoryResult.error };
+  }
+
+  const entryResult = await fetchSupabaseTimeEntryRecords();
+
+  if (entryResult.error) {
+    return { error: entryResult.error };
+  }
+
+  return {
+    error: null,
+    users: userResult.data || [],
+    categories: categoryResult.data || [],
+    entries: entryResult.data || [],
+  };
+}
+
+function getLocalSyncSnapshot() {
+  ensureLocalTimeEntriesHaveUserIds();
+
+  return {
+    users: users.map((user) => ({ ...user })),
+    categories: categories.map((category) => ({ ...category })),
+    entries: timeEntries.map((entry) => ({ ...entry, startedAt: new Date(entry.startedAt), endedAt: new Date(entry.endedAt) })),
+  };
+}
+
+function mergeCloudSnapshotIntoLocal(cloudSnapshot) {
+  const localSnapshot = getLocalSyncSnapshot();
+  const userMerge = mergeSyncCollection({
+    type: "user",
+    localRecords: localSnapshot.users,
+    cloudRecords: cloudSnapshot.users,
+  });
+  const categoryMerge = mergeSyncCollection({
+    type: "category",
+    localRecords: localSnapshot.categories,
+    cloudRecords: cloudSnapshot.categories,
+  });
+  const entryMerge = mergeSyncCollection({
+    type: "time_entry",
+    localRecords: localSnapshot.entries,
+    cloudRecords: cloudSnapshot.entries,
+  });
+  const conflicts = [
+    ...userMerge.conflicts,
+    ...categoryMerge.conflicts,
+    ...entryMerge.conflicts,
+  ];
+  const nextUsers = DEFAULT_USERS.map((defaultUser) => {
+    const mergedUser = userMerge.mergedRecords.find((user) => user.id === defaultUser.id);
+    return mergedUser || users.find((user) => user.id === defaultUser.id) || defaultUser;
+  });
+  const nextCategories = ensureDefaultCategoriesForAllUsers(categoryMerge.mergedRecords);
+  const nextEntries = entryMerge.mergedRecords.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  const usersChanged = nextUsers.some((user, index) => users[index]?.name !== user.name || users[index]?.updated_at !== user.updated_at);
+  const categoriesChanged =
+    nextCategories.length !== categories.length ||
+    nextCategories.some((category, index) => areCategoriesDifferent(category, categories[index] || {}));
+  const entriesChanged =
+    nextEntries.length !== timeEntries.length ||
+    nextEntries.some((entry, index) => areEntriesDifferent(entry, timeEntries[index] || {}) || entry.id !== timeEntries[index]?.id);
+
+  if (usersChanged) {
+    users = nextUsers;
+    saveUserProfiles();
+    renderUserProfileSettings();
+  }
+
+  if (categoriesChanged) {
+    categories = nextCategories;
+    saveCategories();
+    renderCategorySettings();
+  }
+
+  if (entriesChanged) {
+    if (!persistEntries(nextEntries)) {
+      return {
+        error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." },
+        conflicts,
+        pendingUploads: [],
+      };
+    }
+
+    timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  }
+
+  if (usersChanged || categoriesChanged || entriesChanged) {
+    refreshEntryViews();
+  }
+
+  return {
+    error: null,
+    conflicts,
+    pendingUploads: [
+      ...userMerge.pendingUploads.map((record) => ({ type: "user", record })),
+      ...categoryMerge.pendingUploads.map((record) => ({ type: "category", record })),
+      ...entryMerge.pendingUploads.map((record) => ({ type: "time_entry", record })),
+    ],
+    addedCount: userMerge.localAdditions.length + categoryMerge.localAdditions.length + entryMerge.localAdditions.length,
+  };
+}
+
+async function uploadPendingSyncRecords(pendingUploads = []) {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  const pendingUsers = pendingUploads.filter((item) => item.type === "user").map((item) => item.record);
+  const pendingCategories = pendingUploads.filter((item) => item.type === "category").map((item) => item.record);
+  const pendingEntries = pendingUploads.filter((item) => item.type === "time_entry").map((item) => item.record);
+
+  if (pendingUsers.length) {
+    const result = await supabaseClient
+      .from(SUPABASE_USERS_TABLE_NAME)
+      .upsert(pendingUsers.map(createSupabaseUserRecord), { onConflict: "owner_id,id" });
+
+    if (result.error) {
+      return result;
+    }
+  }
+
+  if (pendingCategories.length) {
+    const result = await supabaseClient
+      .from(SUPABASE_CATEGORIES_TABLE_NAME)
+      .upsert(pendingCategories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
+
+    if (result.error) {
+      return result;
+    }
+  }
+
+  if (pendingEntries.length) {
+    const result = await upsertSupabaseTimeEntryRecords(pendingEntries.map(createSupabaseTimeEntryRecord));
+
+    if (result.error) {
+      return result;
+    }
+
+    markRecordsAsCloudSaved(pendingEntries);
+  }
+
+  return { error: null };
+}
+
+async function synchronizeWithSupabaseOnStartup() {
+  if (!(await beginCloudSync(showStartupSyncMessage))) {
     return;
   }
 
   try {
-    ensureLocalTimeEntriesHaveUserIds();
+    const cloudSnapshot = await loadCloudSyncSnapshot();
 
-    const userResult = await loadSupabaseUserProfiles();
-
-    if (userResult.error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(userResult.error), "error");
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error, showStartupSyncMessage);
       return;
     }
 
-    const categoryResult = await loadSupabaseCategories();
-
-    if (categoryResult.error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(categoryResult.error), "error");
-      return;
-    }
-
-    const { data, error } = await loadSupabaseTimeEntryRecords();
-
-    if (error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
-      return;
-    }
-
-    const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
-    const mergeResult = mergeCloudEntriesIntoLocal(cloudEntries);
+    const mergeResult = mergeCloudSnapshotIntoLocal(cloudSnapshot);
 
     if (mergeResult.error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(mergeResult.error), "error");
+      failCloudSync(mergeResult.error, showStartupSyncMessage);
       return;
     }
 
-    const userUploadResult = await upsertSupabaseUserProfiles();
-
-    if (userUploadResult.error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(userUploadResult.error), "error");
+    if (mergeResult.conflicts.length) {
+      cloudImportConflicts = mergeResult.conflicts;
+      renderCloudConflictPanel();
+      flagCloudConflicts(mergeResult.conflicts.length, showStartupSyncMessage);
       return;
     }
 
-    const categoryUploadResult = await upsertSupabaseCategories();
+    const uploadResult = await uploadPendingSyncRecords(mergeResult.pendingUploads);
 
-    if (categoryUploadResult.error) {
-      showStartupSyncMessage(getSupabaseErrorMessage(categoryUploadResult.error), "error");
+    if (uploadResult.error) {
+      failCloudSync(uploadResult.error, showStartupSyncMessage);
       return;
     }
 
-    if (timeEntries.length) {
-      const entryUploadResult = await upsertSupabaseTimeEntryRecords(timeEntries.map(createSupabaseTimeEntryRecord));
-
-      if (entryUploadResult.error) {
-        showStartupSyncMessage(getSupabaseErrorMessage(entryUploadResult.error), "error");
-        return;
-      }
-    }
-
-    refreshEntryViews();
-    renderUserProfileSettings();
-    renderCategorySettings();
     markCloudSyncCompleted();
-    renderSupabaseStatus();
     showStartupSyncMessage("Synchronisiert", "success");
   } catch (error) {
-    showStartupSyncMessage(getSupabaseErrorMessage(error), "error");
+    failCloudSync(error, showStartupSyncMessage);
   } finally {
-    renderSupabaseStatus();
+    finishCloudSync();
   }
 }
 
 async function backupLocalEntriesToCloud() {
-  if (!(await ensureSupabaseAuthForCloud())) {
-    return;
-  }
-
-  const status = getSupabaseStatus();
-  renderSupabaseStatus();
-
-  if (!status.connected) {
-    showCloudStorageMessage(status.message, "error");
+  if (!(await beginCloudSync())) {
     return;
   }
 
   try {
-    const userResult = await upsertSupabaseUserProfiles();
+    const cloudSnapshot = await loadCloudSyncSnapshot();
 
-    if (userResult.error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(userResult.error), "error");
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error);
       return;
     }
 
-    const categoryResult = await upsertSupabaseCategories();
+    const localSnapshot = getLocalSyncSnapshot();
+    const userMerge = mergeSyncCollection({ type: "user", localRecords: localSnapshot.users, cloudRecords: cloudSnapshot.users });
+    const categoryMerge = mergeSyncCollection({ type: "category", localRecords: localSnapshot.categories, cloudRecords: cloudSnapshot.categories });
+    const entryMerge = mergeSyncCollection({ type: "time_entry", localRecords: localSnapshot.entries, cloudRecords: cloudSnapshot.entries });
+    const conflicts = [
+      ...userMerge.conflicts,
+      ...categoryMerge.conflicts,
+      ...entryMerge.conflicts,
+      ...userMerge.cloudUpdates.map((item) => createSyncConflict({ type: "user", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+      ...categoryMerge.cloudUpdates.map((item) => createSyncConflict({ type: "category", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+      ...entryMerge.cloudUpdates.map((item) => createSyncConflict({ type: "time_entry", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+    ];
 
-    if (categoryResult.error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(categoryResult.error), "error");
+    if (conflicts.length) {
+      cloudImportConflicts = conflicts;
+      renderCloudConflictPanel();
+      flagCloudConflicts(conflicts.length);
       return;
     }
 
-    if (!timeEntries.length) {
-      markCloudSyncCompleted();
-      showCloudStorageMessage("Gesichert", "success");
-      return;
-    }
+    const uploadResult = await uploadPendingSyncRecords([
+      ...userMerge.pendingUploads.map((record) => ({ type: "user", record })),
+      ...categoryMerge.pendingUploads.map((record) => ({ type: "category", record })),
+      ...entryMerge.pendingUploads.map((record) => ({ type: "time_entry", record })),
+    ]);
 
-    ensureLocalTimeEntriesHaveUserIds();
-    const records = timeEntries.map((entry) =>
-      createSupabaseTimeEntryRecord({ ...entry, user_id: getValidUserId(entry.user_id) }),
-    );
-    const { error } = await upsertSupabaseTimeEntryRecords(records);
-
-    if (error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    if (uploadResult.error) {
+      failCloudSync(uploadResult.error);
       return;
     }
 
     markCloudSyncCompleted();
     showCloudStorageMessage("Gesichert", "success");
   } catch (error) {
-    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    failCloudSync(error);
   } finally {
-    renderSupabaseStatus();
+    finishCloudSync();
   }
 }
 
@@ -1662,6 +2154,7 @@ function getCloudEntryDuplicateKey(entry) {
     toDateInputValue(entry.startedAt),
     toSupabaseTimeValue(entry.startedAt),
     toSupabaseTimeValue(entry.endedAt),
+    String(entry.activity || "").trim(),
     String(entry.category || "").trim(),
     String(entry.note || "").trim(),
   ].join("|");
@@ -1686,7 +2179,44 @@ function cloneCloudEntryForLocalConflict(entry, forceNewId = false) {
   };
 }
 
-function renderCloudConflictEntry(entry, sourceLabel) {
+function renderCloudConflictEntry(entry, sourceLabel, type = "time_entry") {
+  if (!entry) {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <p>Nicht vorhanden.</p>
+      </article>
+    `;
+  }
+
+  if (type === "user") {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <dl>
+          <div><dt>ID</dt><dd>${escapeHtml(entry.id || "-")}</dd></div>
+          <div><dt>Name</dt><dd>${escapeHtml(entry.name || "-")}</dd></div>
+          <div><dt>Aktualisiert</dt><dd>${escapeHtml(entry.updated_at || entry.updatedAt || "-")}</dd></div>
+        </dl>
+      </article>
+    `;
+  }
+
+  if (type === "category") {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <dl>
+          <div><dt>ID</dt><dd>${escapeHtml(entry.id || "-")}</dd></div>
+          <div><dt>Nutzer</dt><dd>${escapeHtml(entry.user_id || "-")}</dd></div>
+          <div><dt>Name</dt><dd>${escapeHtml(entry.name || "-")}</dd></div>
+          <div><dt>Sortierung</dt><dd>${escapeHtml(entry.sort_order ?? "-")}</dd></div>
+          <div><dt>Aktualisiert</dt><dd>${escapeHtml(entry.updated_at || entry.updatedAt || "-")}</dd></div>
+        </dl>
+      </article>
+    `;
+  }
+
   const flags = [
     entry.edited ? "bearbeitet" : "nicht bearbeitet",
     entry.manual ? "nachgetragen" : "nicht nachgetragen",
@@ -1732,9 +2262,10 @@ function renderCloudConflictPanel() {
       .map(
         (conflict, index) => `
           <section class="cloud-conflict-card" data-conflict-index="${index}">
+            <p class="settings-helper">Grund: ${escapeHtml(conflict.reason || "Konflikt")}</p>
             <div class="cloud-conflict-versions">
-              ${renderCloudConflictEntry(conflict.localEntry, "Lokal")}
-              ${renderCloudConflictEntry(conflict.cloudEntry, "Cloud")}
+              ${renderCloudConflictEntry(conflict.localRecord || conflict.localEntry, "Lokal", conflict.type)}
+              ${renderCloudConflictEntry(conflict.cloudRecord || conflict.cloudEntry, "Cloud", conflict.type)}
             </div>
             <div class="cloud-conflict-actions">
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local" data-conflict-index="${index}">
@@ -1777,10 +2308,48 @@ function resolveCloudConflict(index, decision) {
     return;
   }
 
+  if (conflict.type === "user") {
+    if (decision === "use-cloud" && conflict.cloudRecord) {
+      users = users.map((user) => (user.id === conflict.cloudRecord.id ? normalizeSyncRecord(conflict.cloudRecord, "user") : user));
+      saveUserProfiles();
+      renderUserProfileSettings();
+      refreshEntryViews();
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Konflikt wurde bearbeitet.", "success");
+    return;
+  }
+
+  if (conflict.type === "category") {
+    if (decision === "use-cloud" && conflict.cloudRecord) {
+      const cloudCategory = normalizeSyncRecord(conflict.cloudRecord, "category");
+      categories = ensureDefaultCategoriesForAllUsers([
+        ...categories.filter((category) => category.id !== cloudCategory.id),
+        cloudCategory,
+      ]);
+      saveCategories();
+      renderCategorySettings();
+      refreshEntryViews();
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Konflikt wurde bearbeitet.", "success");
+    return;
+  }
+
   let nextEntries = [...timeEntries];
 
   if (decision === "use-cloud") {
-    const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
+    const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
     nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
     nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
   }
@@ -1802,11 +2371,27 @@ function resolveAllCloudConflicts(decision) {
   let nextEntries = [...timeEntries];
 
   if (decision === "use-cloud") {
-    cloudImportConflicts.forEach((conflict) => {
-      const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
+    cloudImportConflicts.filter((conflict) => conflict.type === "user" && conflict.cloudRecord).forEach((conflict) => {
+      const cloudUser = normalizeSyncRecord(conflict.cloudRecord, "user");
+      users = users.map((user) => (user.id === cloudUser.id ? cloudUser : user));
+    });
+    cloudImportConflicts.filter((conflict) => conflict.type === "category" && conflict.cloudRecord).forEach((conflict) => {
+      const cloudCategory = normalizeSyncRecord(conflict.cloudRecord, "category");
+      categories = [
+        ...categories.filter((category) => category.id !== cloudCategory.id),
+        cloudCategory,
+      ];
+    });
+    cloudImportConflicts.filter((conflict) => conflict.type === "time_entry").forEach((conflict) => {
+      const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
       nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
       nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
     });
+    categories = ensureDefaultCategoriesForAllUsers(categories);
+    saveUserProfiles();
+    saveCategories();
+    renderUserProfileSettings();
+    renderCategorySettings();
   }
 
   if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
@@ -1817,103 +2402,40 @@ function resolveAllCloudConflicts(decision) {
 }
 
 async function importCloudEntriesToApp() {
-  if (!(await ensureSupabaseAuthForCloud())) {
+  if (!(await beginCloudSync())) {
     return;
   }
 
-  const status = getSupabaseStatus();
-  renderSupabaseStatus();
   clearCloudConflictPanel();
 
-  if (!status.connected) {
-    showCloudStorageMessage(status.message, "error");
-    return;
-  }
-
   try {
-    const userResult = await loadSupabaseUserProfiles();
+    const cloudSnapshot = await loadCloudSyncSnapshot();
 
-    if (userResult.error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(userResult.error), "error");
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error);
       return;
     }
 
-    const categoryResult = await loadSupabaseCategories();
+    const mergeResult = mergeCloudSnapshotIntoLocal(cloudSnapshot);
 
-    if (categoryResult.error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(categoryResult.error), "error");
+    if (mergeResult.error) {
+      failCloudSync(mergeResult.error);
       return;
     }
 
-    const { data, error } = await loadSupabaseTimeEntryRecords();
-
-    if (error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
-      return;
-    }
-
-    const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
-
-    if (!cloudEntries.length) {
-      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Geladen" : "Nichts Neues");
-      return;
-    }
-
-    const newEntries = [];
-    const conflicts = [];
-    const comparisonEntries = [...timeEntries];
-
-    cloudEntries.forEach((cloudEntry) => {
-      const duplicates = findDuplicateLocalEntries(cloudEntry, comparisonEntries);
-
-      if (duplicates.length) {
-        const hasConflict = duplicates.some(
-          (duplicate) => duplicate.id !== cloudEntry.id || areEntriesDifferent(duplicate, cloudEntry),
-        );
-
-        if (!hasConflict) {
-          return;
-        }
-
-        conflicts.push({
-          localEntry: duplicates[0],
-          cloudEntry,
-          duplicates,
-        });
-        return;
-      }
-
-      newEntries.push(cloudEntry);
-      comparisonEntries.push(cloudEntry);
-    });
-
-    if (newEntries.length) {
-      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], "Geladen");
-
-      if (!imported) {
-        return;
-      }
-    }
-
-    if (conflicts.length) {
-      cloudImportConflicts = conflicts;
+    if (mergeResult.conflicts.length) {
+      cloudImportConflicts = mergeResult.conflicts;
       renderCloudConflictPanel();
-      showCloudStorageMessage(
-        newEntries.length
-          ? `${conflicts.length} Konflikte`
-          : `${conflicts.length} Konflikte gefunden`,
-        "info",
-      );
+      flagCloudConflicts(mergeResult.conflicts.length);
       return;
     }
 
-    if (!newEntries.length) {
-      showCloudStorageMessage(userResult.updated || categoryResult.updated ? "Geladen" : "Nichts Neues");
-    }
+    markCloudSyncCompleted();
+    showCloudStorageMessage(mergeResult.addedCount ? "Geladen" : "Nichts Neues", "success");
   } catch (error) {
-    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    failCloudSync(error);
   } finally {
-    renderSupabaseStatus();
+    finishCloudSync();
   }
 }
 
