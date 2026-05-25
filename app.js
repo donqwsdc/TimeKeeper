@@ -137,6 +137,7 @@ const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
 const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus Sicherheitsgründen deaktiviert.";
+const CLOUD_LOGIN_REQUIRED_MESSAGE = "Bitte zuerst im Cloud-Bereich anmelden.";
 const SUPABASE_TIME_ENTRIES_TABLE_NAME = "time_entries";
 const SUPABASE_USERS_TABLE_NAME = "users";
 const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
@@ -1085,7 +1086,7 @@ async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessag
   }
 
   if (!currentAuthUser) {
-    messageTarget("Bitte zuerst im Cloud-Bereich anmelden.", "error");
+    messageTarget(CLOUD_LOGIN_REQUIRED_MESSAGE, "error");
     renderSupabaseStatus();
     return false;
   }
@@ -1253,6 +1254,10 @@ function getSupabaseErrorMessage(error) {
     return "Supabase-Fehler: Die Daten konnten nicht verarbeitet werden.";
   }
 
+  if (error.message === CLOUD_LOGIN_REQUIRED_MESSAGE) {
+    return CLOUD_LOGIN_REQUIRED_MESSAGE;
+  }
+
   return [
     "Supabase-Fehler:",
     error.message,
@@ -1264,22 +1269,46 @@ function getSupabaseErrorMessage(error) {
     .join(" ");
 }
 
+function getCloudWriteOwnerId() {
+  const ownerId = getCurrentOwnerId();
+  return currentAuthUser && ownerId ? ownerId : "";
+}
+
+function createCloudLoginRequiredResult() {
+  const error = new Error(CLOUD_LOGIN_REQUIRED_MESSAGE);
+  showCloudStorageMessage(CLOUD_LOGIN_REQUIRED_MESSAGE, "error");
+  renderSupabaseStatus();
+  return { data: null, error };
+}
+
 async function upsertSupabaseTimeEntryRecords(records) {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
   return supabaseClient
     .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
-    .upsert(records, { onConflict: "id" });
+    .upsert(records, { onConflict: "owner_id,id" });
 }
 
 async function upsertSupabaseUserProfiles() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
   return supabaseClient
     .from(SUPABASE_USERS_TABLE_NAME)
-    .upsert(users.map(createSupabaseUserRecord), { onConflict: "id" });
+    .upsert(users.map(createSupabaseUserRecord), { onConflict: "owner_id,id" });
 }
 
 async function upsertSupabaseCategories() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
   return supabaseClient
     .from(SUPABASE_CATEGORIES_TABLE_NAME)
-    .upsert(categories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+    .upsert(categories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
 }
 
 async function loadSupabaseUserProfiles() {
@@ -4599,7 +4628,7 @@ async function resetSelectedUserCloudData(userId = activeUserId) {
     async () => {
       const result = await supabaseClient
         .from(SUPABASE_USERS_TABLE_NAME)
-        .upsert([createSupabaseUserRecord(defaultUser)], { onConflict: "id" });
+        .upsert([createSupabaseUserRecord(defaultUser)], { onConflict: "owner_id,id" });
       return result.error
         ? { error: new Error(`Cloud-Nutzerprofil konnte nicht zurückgesetzt werden: ${getSupabaseErrorMessage(result.error)}`) }
         : { error: null };
@@ -4607,7 +4636,7 @@ async function resetSelectedUserCloudData(userId = activeUserId) {
     async () => {
       const result = await supabaseClient
         .from(SUPABASE_CATEGORIES_TABLE_NAME)
-        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
       return result.error
         ? { error: new Error(`Cloud-Standardkategorien konnten nicht erstellt werden: ${getSupabaseErrorMessage(result.error)}`) }
         : { error: null };
@@ -4650,7 +4679,7 @@ async function resetAllCloudData() {
     async () => {
       const result = await supabaseClient
         .from(SUPABASE_USERS_TABLE_NAME)
-        .upsert(defaultUsers.map(createSupabaseUserRecord), { onConflict: "id" });
+        .upsert(defaultUsers.map(createSupabaseUserRecord), { onConflict: "owner_id,id" });
       return result.error
         ? { error: new Error(`Cloud-Nutzerprofile konnten nicht zurückgesetzt werden: ${getSupabaseErrorMessage(result.error)}`) }
         : { error: null };
@@ -4658,7 +4687,7 @@ async function resetAllCloudData() {
     async () => {
       const result = await supabaseClient
         .from(SUPABASE_CATEGORIES_TABLE_NAME)
-        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "id" });
+        .upsert(defaultCategories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
       return result.error
         ? { error: new Error(`Cloud-Standardkategorien konnten nicht erstellt werden: ${getSupabaseErrorMessage(result.error)}`) }
         : { error: null };
