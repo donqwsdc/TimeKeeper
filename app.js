@@ -8,6 +8,9 @@ const elapsedTimeElement = document.querySelector("#elapsedTime");
 const startButton = document.querySelector(".start-button");
 const timerScreen = document.querySelector(".timer-screen");
 const timerStateElement = document.querySelector("#timerState");
+const timerUserSelect = document.querySelector("#timerUserSelect");
+const timerSyncStatus = document.querySelector("#timerSyncStatus");
+const timerReminderStatus = document.querySelector("#timerReminderStatus");
 const completionPanel = document.querySelector("#completionPanel");
 const noteInput = document.querySelector("#note");
 const activityInput = document.querySelector("#activity");
@@ -15,6 +18,7 @@ const categorySelect = document.querySelector("#category");
 const saveButton = document.querySelector(".save-button");
 const discardButton = document.querySelector(".discard-button");
 const timerMessage = document.querySelector("#timerMessage");
+const syncStatusMessage = document.querySelector("#syncStatusMessage");
 const historyEmpty = document.querySelector("#historyEmpty");
 const historyList = document.querySelector("#historyList");
 const timerView = document.querySelector("#timerView");
@@ -40,13 +44,33 @@ const dailyAverageElement = document.querySelector("#dailyAverage");
 const analyticsEmpty = document.querySelector("#analyticsEmpty");
 const categoryBars = document.querySelector("#categoryBars");
 const weekdayBars = document.querySelector("#weekdayBars");
+const capacityStatus = document.querySelector("#capacityStatus");
+const capacityProgressFill = document.querySelector("#capacityProgressFill");
+const capacityProgressPercent = document.querySelector("#capacityProgressPercent");
+const capacityStats = document.querySelector("#capacityStats");
+const focusStats = document.querySelector("#focusStats");
+const weekComparisonStats = document.querySelector("#weekComparisonStats");
+const interruptionStats = document.querySelector("#interruptionStats");
+const fragmentationCard = document.querySelector("#fragmentationCard");
+const analyticsDaySelect = document.querySelector("#analyticsDaySelect");
+const dayTimelineTrack = document.querySelector("#dayTimelineTrack");
+const dayTimelineEmpty = document.querySelector("#dayTimelineEmpty");
+const dayQualityStats = document.querySelector("#dayQualityStats");
 const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
+const calendarDayDetail = document.querySelector("#calendarDayDetail");
+const calendarDayDetailDate = document.querySelector("#calendarDayDetailDate");
+const calendarDayDetailTotal = document.querySelector("#calendarDayDetailTotal");
+const calendarDayDetailList = document.querySelector("#calendarDayDetailList");
+const calendarDayDetailClose = document.querySelector("#calendarDayDetailClose");
+const calendarDayDetailAdd = document.querySelector("#calendarDayDetailAdd");
 const calendarViewModeSelect = document.querySelector("#calendarViewMode");
 const calendarPrevButton = document.querySelector("#calendarPrevButton");
 const calendarTodayButton = document.querySelector("#calendarTodayButton");
 const calendarNextButton = document.querySelector("#calendarNextButton");
 const calendarPeriodLabel = document.querySelector("#calendarPeriodLabel");
+const exportSummary = document.querySelector("#exportSummary");
+const exportScopeSelect = document.querySelector("#exportScopeSelect");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const exportMessage = document.querySelector("#exportMessage");
 const reminderPanel = document.querySelector("#reminderPanel");
@@ -62,15 +86,40 @@ const reminderPopupMessage = document.querySelector("#reminderPopupMessage");
 const reminderPopupClose = document.querySelector("#reminderPopupClose");
 const reminderPopupManual = document.querySelector("#reminderPopupManual");
 const reminderTestPanel = document.querySelector(".reminder-test-panel");
+const developerSettingsPanel = document.querySelector(".settings-panel-developer");
 const developerModeToggle = document.querySelector("#developerModeToggle");
+const activeUserSelect = document.querySelector("#activeUserSelect");
+const userSettingsForm = document.querySelector("#userSettingsForm");
+const userProfileMessage = document.querySelector("#userProfileMessage");
+const userSettingsList = document.querySelector("#userSettingsList");
+const categorySettingsForm = document.querySelector("#categorySettingsForm");
+const categorySettingsList = document.querySelector("#categorySettingsList");
+const categorySettingsMessage = document.querySelector("#categorySettingsMessage");
+const newCategoryNameInput = document.querySelector("#newCategoryName");
 const cloudStorageStatus = document.querySelector("#cloudStorageStatus");
 const cloudStorageDetail = document.querySelector("#cloudStorageDetail");
 const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
 const cloudBackupButton = document.querySelector("#cloudBackupButton");
 const cloudImportButton = document.querySelector("#cloudImportButton");
 const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
+const cloudAuthStatus = document.querySelector("#cloudAuthStatus");
+const cloudAuthEmailInput = document.querySelector("#cloudAuthEmail");
+const cloudLoginLinkButton = document.querySelector("#cloudLoginLinkButton");
+const cloudLogoutButton = document.querySelector("#cloudLogoutButton");
 const settingsMessage = document.querySelector("#settingsMessage");
-const deleteAllDataButton = document.querySelector("#deleteAllDataButton");
+const resetSelectedUserLocalButton = document.querySelector("#resetSelectedUserLocalButton");
+const resetSelectedUserCloudButton = document.querySelector("#resetSelectedUserCloudButton");
+const resetAllLocalButton = document.querySelector("#resetAllLocalButton");
+const resetAllCloudButton = document.querySelector("#resetAllCloudButton");
+const safetyDialog = document.querySelector("#safetyDialog");
+const safetyDialogTitle = document.querySelector("#safetyDialogTitle");
+const safetyDialogText = document.querySelector("#safetyDialogText");
+const safetyDialogInputLabel = document.querySelector("#safetyDialogInputLabel");
+const safetyDialogInputHelp = document.querySelector("#safetyDialogInputHelp");
+const safetyDialogInput = document.querySelector("#safetyDialogInput");
+const safetyDialogMessage = document.querySelector("#safetyDialogMessage");
+const safetyDialogCancel = document.querySelector("#safetyDialogCancel");
+const safetyDialogConfirm = document.querySelector("#safetyDialogConfirm");
 const csvImportInput = document.querySelector("#csvImportInput");
 const reminderSettingsForm = document.querySelector("#reminderSettingsForm");
 const remindersEnabledInput = document.querySelector("#remindersEnabled");
@@ -88,16 +137,40 @@ const ACTIVE_TIMER_KEY = "timekeeper.activeTimer.v1";
 const REMINDER_FIRED_KEY = "timekeeper.reminders.fired.v1";
 const NOTIFICATION_PERMISSION_KEY = "timekeeper.notifications.permission.v1";
 const DEVELOPER_MODE_KEY = "timekeeper.developerMode.v1";
+const ACTIVE_USER_KEY = "timekeeper.activeUser.v1";
+const USERS_KEY = "timekeeper.users.v1";
+const CATEGORIES_KEY = "timekeeper.categories.v1";
+const AUDIT_LOG_KEY = "timekeeper.auditLog.v1";
+const LAST_SYNC_KEY = "timekeeper.cloud.lastSync.v1";
 const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
-const SUPABASE_TABLE_NAME = "time_entries";
+const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
+const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus Sicherheitsgründen deaktiviert.";
+const CLOUD_LOGIN_REQUIRED_MESSAGE = "Bitte zuerst im Cloud-Bereich anmelden.";
+const CLOUD_SYNC_STATUS = {
+  offline: "offline",
+  authRequired: "auth_required",
+  idle: "idle",
+  syncing: "syncing",
+  synced: "synced",
+  conflict: "conflict",
+  error: "error",
+};
+const SUPABASE_TIME_ENTRIES_TABLE_NAME = "time_entries";
+const SUPABASE_USERS_TABLE_NAME = "users";
+const SUPABASE_CATEGORIES_TABLE_NAME = "categories";
 const SUPABASE_TIME_ENTRY_COLUMNS = [
   "id",
+  "owner_id",
+  "user_id",
   "activity",
   "category",
   "started_at",
   "ended_at",
+  "date",
+  "start_time",
+  "end_time",
   "duration_minutes",
   "note",
   "edited",
@@ -106,12 +179,32 @@ const SUPABASE_TIME_ENTRY_COLUMNS = [
   "created_at",
   "updated_at",
 ];
+const SUPABASE_USER_COLUMNS = ["id", "owner_id", "name", "created_at", "updated_at"];
+const SUPABASE_CATEGORY_COLUMNS = ["id", "owner_id", "user_id", "name", "sort_order", "created_at", "updated_at"];
 const DEFAULT_REMINDER_SETTINGS = {
   enabled: true,
   text: "Was hast du mit deiner Zeit gemacht?",
   times: ["17:30", "19:30", "23:00"],
   targetWorkHours: 8,
 };
+const MAX_USER_COUNT = 25;
+const DEFAULT_USERS = Array.from({ length: MAX_USER_COUNT }, (_, index) => ({
+  id: `user_${index + 1}`,
+  name: `Person ${index + 1}`,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+}));
+const DEFAULT_CATEGORY_NAMES = [
+  "Organisation",
+  "Meetings",
+  "Marketing Zentral",
+  "Filialmarketing",
+  "Eventplanung",
+  "Administration",
+  "Netzwerk",
+  "Fläche",
+  "Sonstiges",
+];
 const CALENDAR_VIEW_MODES = {
   day: 1,
   "3days": 3,
@@ -119,9 +212,19 @@ const CALENDAR_VIEW_MODES = {
   "7days": 7,
   month: 0,
 };
+const CALENDAR_VISIBLE_START = 6 * 60;
+const CALENDAR_VISIBLE_END = 24 * 60;
+const CALENDAR_VISIBLE_MINUTES = CALENDAR_VISIBLE_END - CALENDAR_VISIBLE_START;
+const CALENDAR_HOUR_MARKERS = [6, 9, 12, 15, 18, 21, 24];
 let calendarViewMode = "7days";
 let calendarSelectedDate = new Date();
+let calendarDetailDate = null;
 let supabaseClient = null;
+let currentAuthUser = null;
+let supabaseAuthLoaded = false;
+let cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+let cloudSyncStatusDetail = "";
+let isCloudSyncRunning = false;
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -130,10 +233,12 @@ let lastElapsedMilliseconds = 0;
 let activeActivity = "";
 let activeCategory = "";
 let cloudImportConflicts = [];
+let analyticsSelectedDay = null;
+let pendingSafetyConfirmation = null;
+let activeUserId = DEFAULT_USERS[0].id;
+let users = DEFAULT_USERS.map((user) => ({ ...user }));
+let categories = [];
 const timeEntries = [];
-const categoryOptions = Array.from(categorySelect.options)
-  .map((option) => option.value || option.textContent)
-  .filter(Boolean);
 const CATEGORY_COLORS = {
   Organisation: "#21675b",
   Meetings: "#4f6f9f",
@@ -201,19 +306,620 @@ function saveReminderSettings(settings) {
   }
 }
 
+function getValidUserId(userId) {
+  return DEFAULT_USERS.some((user) => user.id === userId) ? userId : DEFAULT_USERS[0].id;
+}
+
+function normalizeUsers(savedUsers = []) {
+  const savedUserMap = new Map(
+    (Array.isArray(savedUsers) ? savedUsers : [])
+      .filter((user) => user && getValidUserId(user.id) === user.id)
+      .map((user) => [user.id, user]),
+  );
+
+  return DEFAULT_USERS.map((defaultUser) => ({
+    id: defaultUser.id,
+    name: String(savedUserMap.get(defaultUser.id)?.name || "").trim() || defaultUser.name,
+    created_at: savedUserMap.get(defaultUser.id)?.created_at || defaultUser.created_at,
+    updated_at:
+      savedUserMap.get(defaultUser.id)?.updated_at ||
+      savedUserMap.get(defaultUser.id)?.updatedAt ||
+      (String(savedUserMap.get(defaultUser.id)?.name || "").trim() &&
+      String(savedUserMap.get(defaultUser.id)?.name || "").trim() !== defaultUser.name
+        ? getNowIsoString()
+        : defaultUser.updated_at),
+  }));
+}
+
+function getUserName(userId) {
+  const validUserId = getValidUserId(userId);
+  return users.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
+}
+
+function getDefaultUserName(userId) {
+  const validUserId = getValidUserId(userId);
+  return DEFAULT_USERS.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
+}
+
+function getUserUpdatedAtTime(user) {
+  const updatedAt = new Date(user?.updated_at || user?.updatedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
+function loadUserProfiles() {
+  try {
+    users = normalizeUsers(JSON.parse(localStorage.getItem(USERS_KEY) || "[]"));
+    activeUserId = getValidUserId(localStorage.getItem(ACTIVE_USER_KEY));
+    saveUserProfiles();
+  } catch (error) {
+    users = normalizeUsers();
+    activeUserId = DEFAULT_USERS[0].id;
+    saveUserProfiles();
+  }
+}
+
+function saveUserProfiles() {
+  try {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    localStorage.setItem(ACTIVE_USER_KEY, activeUserId);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function showUserProfileMessage(message, type = "info") {
+  userProfileMessage.textContent = message;
+  userProfileMessage.dataset.type = type;
+  userProfileMessage.hidden = false;
+}
+
+function clearUserProfileMessage() {
+  userProfileMessage.textContent = "";
+  userProfileMessage.removeAttribute("data-type");
+  userProfileMessage.hidden = true;
+}
+
+function renderTimerContext() {
+  timerUserSelect.innerHTML = "";
+
+  users.forEach((user) => {
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = user.name;
+    timerUserSelect.append(option);
+  });
+
+  timerUserSelect.value = activeUserId;
+
+  const cloudStatus = getSupabaseStatus();
+  timerSyncStatus.textContent = cloudStatus.connected ? cloudStatus.message : "Nur lokal";
+  timerSyncStatus.dataset.status = cloudStatus.connected ? "connected" : "local";
+
+  const reminderSettings = getReminderSettings();
+  timerReminderStatus.textContent = reminderSettings.enabled ? "Reminder aktiv" : "Reminder aus";
+  timerReminderStatus.dataset.status = reminderSettings.enabled ? "active" : "inactive";
+}
+
+function renderUserProfileSettings() {
+  activeUserSelect.innerHTML = "";
+  userSettingsList.innerHTML = "";
+
+  users.forEach((user) => {
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = user.name;
+    activeUserSelect.append(option);
+
+    const defaultUser = DEFAULT_USERS.find((item) => item.id === user.id);
+    const label = document.createElement("label");
+    label.className = "user-settings-item";
+    label.htmlFor = `userName-${user.id}`;
+
+    const labelText = document.createElement("span");
+    labelText.textContent = defaultUser?.name || user.id;
+    label.append(labelText);
+
+    const input = document.createElement("input");
+    input.id = `userName-${user.id}`;
+    input.name = user.id;
+    input.type = "text";
+    input.value = user.name;
+    input.maxLength = 60;
+    input.placeholder = defaultUser?.name || user.id;
+    input.dataset.userNameInput = user.id;
+    label.append(input);
+
+    userSettingsList.append(label);
+  });
+
+  activeUserSelect.value = activeUserId;
+  renderTimerContext();
+  userSettingsForm.hidden = false;
+  userSettingsForm.removeAttribute("aria-hidden");
+}
+
+function setActiveUserProfile(userId, { showMessage = false } = {}) {
+  activeUserId = getValidUserId(userId);
+  analyticsSelectedDay = null;
+
+  if (!saveUserProfiles()) {
+    if (showMessage) {
+      showUserProfileMessage("Nutzerprofil konnte nicht gespeichert werden.", "error");
+    }
+    return;
+  }
+
+  renderTimerContext();
+  renderUserProfileSettings();
+  renderCategorySettings();
+  if (showMessage) {
+    showUserProfileMessage(`${getUserName(activeUserId)} ist jetzt aktiv.`, "success");
+  }
+  refreshEntryViews();
+}
+
+function saveActiveUserFromSettings() {
+  setActiveUserProfile(activeUserSelect.value, { showMessage: true });
+}
+
+function saveActiveUserFromStartscreen() {
+  setActiveUserProfile(timerUserSelect.value);
+}
+
+function saveUserNamesFromSettings({ showMessage = false } = {}) {
+  const now = getNowIsoString();
+  const inputMap = new Map(
+    Array.from(userSettingsList.querySelectorAll("[data-user-name-input]")).map((input) => [input.dataset.userNameInput, input]),
+  );
+  const previousUserMap = new Map(users.map((user) => [user.id, user]));
+
+  users = DEFAULT_USERS.map((defaultUser) => {
+    const previousUser = previousUserMap.get(defaultUser.id);
+    const input = inputMap.get(defaultUser.id);
+    const nextName = String(input?.value || "").trim() || defaultUser.name;
+    const previousName = previousUser?.name || defaultUser.name;
+
+    return {
+      id: defaultUser.id,
+      name: nextName,
+      created_at: previousUser?.created_at || defaultUser.created_at,
+      updated_at: nextName !== previousName ? now : previousUser?.updated_at || defaultUser.updated_at,
+    };
+  });
+
+  if (!saveUserProfiles()) {
+    showUserProfileMessage("Nutzernamen konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    return;
+  }
+
+  Array.from(activeUserSelect.options).forEach((option) => {
+    option.textContent = getUserName(option.value);
+  });
+  activeUserSelect.value = activeUserId;
+  renderTimerContext();
+  refreshEntryViews();
+  if (showMessage) {
+    showUserProfileMessage("Nutzerprofile wurden gespeichert.", "success");
+  } else {
+    clearUserProfileMessage();
+  }
+}
+
+function createCategoryId(userId, name) {
+  const slug = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+
+  return `${getValidUserId(userId)}_${slug || Date.now()}`;
+}
+
+function createDefaultCategoriesForUser(userId) {
+  const now = getNowIsoString();
+
+  return DEFAULT_CATEGORY_NAMES.map((name, index) => ({
+    id: createCategoryId(userId, name),
+    user_id: getValidUserId(userId),
+    name,
+    sort_order: index,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+function normalizeCategory(category, index = 0) {
+  const userId = getValidUserId(category?.user_id);
+  const name = String(category?.name || "").trim();
+  const now = getNowIsoString();
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: String(category?.id || createCategoryId(userId, name)),
+    user_id: userId,
+    name,
+    sort_order: Number.isFinite(Number(category?.sort_order)) ? Number(category.sort_order) : index,
+    created_at: category?.created_at || category?.createdAt || now,
+    updated_at: category?.updated_at || category?.updatedAt || now,
+  };
+}
+
+function ensureDefaultCategoriesForAllUsers(nextCategories) {
+  const normalized = nextCategories.map(normalizeCategory).filter(Boolean);
+
+  DEFAULT_USERS.forEach((user) => {
+    if (!normalized.some((category) => category.user_id === user.id)) {
+      normalized.push(...createDefaultCategoriesForUser(user.id));
+    }
+  });
+
+  return normalized;
+}
+
+function loadCategories() {
+  try {
+    categories = ensureDefaultCategoriesForAllUsers(JSON.parse(localStorage.getItem(CATEGORIES_KEY) || "[]"));
+  } catch (error) {
+    categories = ensureDefaultCategoriesForAllUsers([]);
+  }
+  saveCategories();
+}
+
+function saveCategories() {
+  try {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+    return true;
+  } catch (error) {
+    showStorageError("Kategorien konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.");
+    return false;
+  }
+}
+
+function getCategoriesForUser(userId = activeUserId) {
+  const validUserId = getValidUserId(userId);
+  const userCategories = categories
+    .filter((category) => category.user_id === validUserId)
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "de"));
+
+  if (userCategories.length) {
+    return userCategories;
+  }
+
+  const defaults = createDefaultCategoriesForUser(validUserId);
+  categories.push(...defaults);
+  saveCategories();
+  return defaults;
+}
+
+function getCategoryNamesForActiveUser() {
+  return getCategoriesForUser(activeUserId).map((category) => category.name);
+}
+
+function getCategoryNamesForActiveUserWithCurrent(currentCategory = "") {
+  const names = getCategoryNamesForActiveUser();
+
+  if (currentCategory && !names.includes(currentCategory)) {
+    return [currentCategory, ...names];
+  }
+
+  return names;
+}
+
+function getCategoryUpdatedAtTime(category) {
+  const updatedAt = new Date(category?.updated_at || category?.updatedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
+function areCategoriesDifferent(firstCategory, secondCategory) {
+  return [
+    "id",
+    "user_id",
+    "name",
+    "sort_order",
+    "created_at",
+    "updated_at",
+  ].some((key) => String(firstCategory[key] ?? "") !== String(secondCategory[key] ?? ""));
+}
+
+function renderCategorySelect(select, selectedValue = "") {
+  select.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Kategorie auswählen";
+  select.append(placeholder);
+
+  getCategoriesForUser(activeUserId).forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category.name;
+    option.textContent = category.name;
+    select.append(option);
+  });
+
+  select.value = selectedValue;
+}
+
+function renderCategoryDropdowns() {
+  renderCategorySelect(categorySelect, categorySelect.value);
+  renderCategorySelect(manualForm.elements.category, manualForm.elements.category.value);
+}
+
+function showCategorySettingsMessage(message, type = "info") {
+  categorySettingsMessage.textContent = message;
+  categorySettingsMessage.dataset.type = type;
+  categorySettingsMessage.hidden = false;
+}
+
+function clearCategorySettingsMessage() {
+  categorySettingsMessage.textContent = "";
+  categorySettingsMessage.removeAttribute("data-type");
+  categorySettingsMessage.hidden = true;
+}
+
+function renderCategorySettings() {
+  const userCategories = getCategoriesForUser(activeUserId);
+  categorySettingsList.innerHTML = "";
+
+  userCategories.forEach((category, index) => {
+    const item = document.createElement("li");
+    item.className = "category-settings-item";
+    item.dataset.categoryId = category.id;
+    item.innerHTML = `
+      <span>${escapeHtml(category.name)}</span>
+      <div class="category-settings-actions">
+        <button class="settings-secondary-button" type="button" data-category-action="up" aria-label="${escapeHtml(category.name)} nach oben" ${index === 0 ? "disabled" : ""}>↑</button>
+        <button class="settings-secondary-button" type="button" data-category-action="down" aria-label="${escapeHtml(category.name)} nach unten" ${index === userCategories.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="settings-secondary-button" type="button" data-category-action="rename">Ändern</button>
+        <button class="settings-danger-button" type="button" data-category-action="delete">Entfernen</button>
+      </div>
+    `;
+    categorySettingsList.append(item);
+  });
+
+  renderCategoryDropdowns();
+}
+
+function refreshCategoryViews() {
+  renderCategorySettings();
+  renderAnalytics();
+  renderWeekplan();
+}
+
+function addCategory(event) {
+  event.preventDefault();
+  const name = newCategoryNameInput.value.trim();
+
+  if (!name) {
+    showCategorySettingsMessage("Bitte einen Kategorienamen eingeben.", "error");
+    return;
+  }
+
+  if (getCategoryNamesForActiveUser().some((categoryName) => categoryName.toLowerCase() === name.toLowerCase())) {
+    showCategorySettingsMessage("Diese Kategorie gibt es bereits.", "error");
+    return;
+  }
+
+  const userCategories = getCategoriesForUser(activeUserId);
+  const now = getNowIsoString();
+  categories.push({
+    id: createCategoryId(activeUserId, name),
+    user_id: activeUserId,
+    name,
+    sort_order: userCategories.length,
+    created_at: now,
+    updated_at: now,
+  });
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Kategorie konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  newCategoryNameInput.value = "";
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde hinzugefügt.", "success");
+}
+
+function updateEntriesForRenamedCategory(oldName, newName) {
+  const shouldUpdateEntries = window.confirm("Bestehende Einträge mit dieser Kategorie ebenfalls umbenennen?");
+
+  if (!shouldUpdateEntries) {
+    return true;
+  }
+
+  const nextEntries = timeEntries.map((entry) =>
+    getValidUserId(entry.user_id) === activeUserId && entry.category === oldName
+      ? { ...entry, category: newName, edited: true, updated_at: getNowIsoString() }
+      : entry,
+  );
+
+  if (!persistEntries(nextEntries)) {
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  return true;
+}
+
+function renameCategory(category) {
+  const nextName = window.prompt("Neuer Kategoriename", category.name)?.trim();
+
+  if (!nextName || nextName === category.name) {
+    return;
+  }
+
+  if (getCategoryNamesForActiveUser().some((categoryName) => categoryName.toLowerCase() === nextName.toLowerCase())) {
+    showCategorySettingsMessage("Diese Kategorie gibt es bereits.", "error");
+    return;
+  }
+
+  const oldName = category.name;
+  const oldUpdatedAt = category.updated_at;
+  category.name = nextName;
+  category.updated_at = getNowIsoString();
+
+  if (!updateEntriesForRenamedCategory(oldName, nextName)) {
+    category.name = oldName;
+    category.updated_at = oldUpdatedAt;
+    showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+    return;
+  }
+
+  if (!saveCategories()) {
+    category.name = oldName;
+    category.updated_at = oldUpdatedAt;
+    showCategorySettingsMessage("Kategorie konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  refreshEntryViews();
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde umbenannt.", "success");
+}
+
+function deleteCategory(category) {
+  const usedEntries = timeEntries.filter(
+    (entry) => getValidUserId(entry.user_id) === activeUserId && entry.category === category.name,
+  );
+
+  if (usedEntries.length) {
+    const choice = window.prompt(
+      `Diese Kategorie wird in ${usedEntries.length} Einträgen verwendet.\n1 = Kategorie löschen und alte Einträge behalten\n2 = Einträge auf andere Kategorie umstellen\n3 = Abbrechen`,
+      "3",
+    );
+
+    if (choice === "2") {
+      const replacement = window.prompt(
+        `Neue Kategorie für bestehende Einträge:\n${getCategoryNamesForActiveUser()
+          .filter((name) => name !== category.name)
+          .join(", ")}`,
+      )?.trim();
+
+      if (!replacement) {
+        return;
+      }
+
+      if (!getCategoryNamesForActiveUser().some((name) => name === replacement && name !== category.name)) {
+        showCategorySettingsMessage("Bitte eine bestehende andere Kategorie eingeben.", "error");
+        return;
+      }
+
+      const nextEntries = timeEntries.map((entry) =>
+        getValidUserId(entry.user_id) === activeUserId && entry.category === category.name
+          ? { ...entry, category: replacement, edited: true, updated_at: getNowIsoString() }
+          : entry,
+      );
+
+      if (!persistEntries(nextEntries)) {
+        showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+        return;
+      }
+
+      timeEntries.splice(0, timeEntries.length, ...nextEntries);
+    } else if (choice !== "1") {
+      return;
+    }
+  } else if (!window.confirm("Kategorie wirklich löschen?")) {
+    return;
+  }
+
+  categories = categories.filter((item) => item.id !== category.id);
+  normalizeCategorySortOrders(activeUserId);
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Kategorie konnte nicht gelöscht werden.", "error");
+    return;
+  }
+
+  refreshEntryViews();
+  refreshCategoryViews();
+  showCategorySettingsMessage("Kategorie wurde gelöscht.", "success");
+}
+
+function normalizeCategorySortOrders(userId = activeUserId) {
+  const now = getNowIsoString();
+  getCategoriesForUser(userId).forEach((category, index) => {
+    if (category.sort_order !== index) {
+      category.sort_order = index;
+      category.updated_at = now;
+    }
+  });
+}
+
+function moveCategory(category, direction) {
+  const userCategories = getCategoriesForUser(activeUserId);
+  const index = userCategories.findIndex((item) => item.id === category.id);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+
+  if (index < 0 || swapIndex < 0 || swapIndex >= userCategories.length) {
+    return;
+  }
+
+  const currentOrder = userCategories[index].sort_order;
+  const now = getNowIsoString();
+  userCategories[index].sort_order = userCategories[swapIndex].sort_order;
+  userCategories[swapIndex].sort_order = currentOrder;
+  userCategories[index].updated_at = now;
+  userCategories[swapIndex].updated_at = now;
+  normalizeCategorySortOrders(activeUserId);
+
+  if (!saveCategories()) {
+    showCategorySettingsMessage("Reihenfolge konnte nicht gespeichert werden.", "error");
+    return;
+  }
+
+  refreshCategoryViews();
+  showCategorySettingsMessage("Reihenfolge wurde gespeichert.", "success");
+}
+
+function handleCategorySettingsAction(event) {
+  const actionButton = event.target.closest("button[data-category-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const categoryId = actionButton.closest("[data-category-id]")?.dataset.categoryId;
+  const category = categories.find((item) => item.id === categoryId && item.user_id === activeUserId);
+
+  if (!category) {
+    return;
+  }
+
+  const action = actionButton.dataset.categoryAction;
+
+  if (action === "rename") {
+    renameCategory(category);
+  }
+
+  if (action === "delete") {
+    deleteCategory(category);
+  }
+
+  if (action === "up" || action === "down") {
+    moveCategory(category, action);
+  }
+}
+
 function getSupabaseConfig() {
   const config = globalThis.TIMEKEEPER_SUPABASE_CONFIG || {};
 
   return {
     url: String(config.SUPABASE_URL || "").trim(),
-    anonKey: String(config.SUPABASE_ANON_KEY || "").trim(),
+    key: String(config.SUPABASE_KEY || config.SUPABASE_ANON_KEY || "").trim(),
   };
 }
 
 function isSupabaseConfigured() {
   const config = getSupabaseConfig();
 
-  return Boolean(config.url && config.anonKey);
+  return Boolean(config.url && config.key);
 }
 
 function initializeSupabaseClient() {
@@ -230,10 +936,11 @@ function initializeSupabaseClient() {
   const config = getSupabaseConfig();
 
   try {
-    supabaseClient = globalThis.supabase.createClient(config.url, config.anonKey, {
+    supabaseClient = globalThis.supabase.createClient(config.url, config.key, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
       },
     });
     return supabaseClient;
@@ -243,56 +950,381 @@ function initializeSupabaseClient() {
   }
 }
 
+function getLastSyncDate() {
+  try {
+    const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+    const date = lastSync ? new Date(lastSync) : null;
+
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function markCloudSyncCompleted() {
+  try {
+    localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  } catch (error) {
+    // Cloud status is helpful UI state, not core user data.
+  }
+
+  setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+}
+
+function formatLastSyncTime(date) {
+  return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+function setCloudSyncStatus(status, detail = "") {
+  cloudSyncStatus = status;
+  cloudSyncStatusDetail = detail;
+  renderSupabaseStatus();
+}
+
+function getCloudStatusMessage(status) {
+  return {
+    [CLOUD_SYNC_STATUS.offline]: "Offline",
+    [CLOUD_SYNC_STATUS.authRequired]: "Login erforderlich",
+    [CLOUD_SYNC_STATUS.idle]: "Bereit",
+    [CLOUD_SYNC_STATUS.syncing]: "Synchronisiere",
+    [CLOUD_SYNC_STATUS.synced]: "Synchronisiert",
+    [CLOUD_SYNC_STATUS.conflict]: "Konflikte",
+    [CLOUD_SYNC_STATUS.error]: "Fehler",
+  }[status] || "Bereit";
+}
+
 function getSupabaseStatus() {
   if (!isSupabaseConfigured()) {
     return {
+      state: CLOUD_SYNC_STATUS.offline,
       connected: false,
-      message: "Cloudspeicherung nicht verbunden",
-      detail: "SUPABASE_URL und SUPABASE_ANON_KEY sind noch nicht konfiguriert.",
+      message: "Offline",
+      detail: "Cloudspeicherung ist noch nicht eingerichtet.",
     };
   }
 
   if (!supabaseClient) {
     return {
+      state: CLOUD_SYNC_STATUS.offline,
       connected: false,
-      message: "Cloudspeicherung nicht verbunden",
+      message: "Offline",
       detail: "Supabase ist konfiguriert, aber der Client konnte nicht erstellt werden.",
     };
   }
 
+  if (!currentAuthUser) {
+    return {
+      state: CLOUD_SYNC_STATUS.authRequired,
+      connected: false,
+      message: "Login erforderlich",
+      detail: "Bitte im Cloud-Bereich per E-Mail anmelden.",
+    };
+  }
+
+  const lastSync = getLastSyncDate();
+  const state = isCloudSyncRunning ? CLOUD_SYNC_STATUS.syncing : cloudSyncStatus;
+  const fallbackDetail = lastSync ? `Letzter Sync ${formatLastSyncTime(lastSync)}` : "";
+  const detail = cloudSyncStatusDetail || fallbackDetail;
+
   return {
+    state,
     connected: true,
-    message: "Cloudspeicherung verbunden",
-    detail: `Tabelle vorbereitet: ${SUPABASE_TABLE_NAME}`,
+    message: getCloudStatusMessage(state),
+    detail,
   };
 }
 
 function renderSupabaseStatus() {
   const status = getSupabaseStatus();
   cloudStorageStatus.textContent = status.message;
-  cloudStorageStatus.dataset.status = status.connected ? "connected" : "disconnected";
+  cloudStorageStatus.dataset.status = status.connected && status.state !== CLOUD_SYNC_STATUS.error ? "connected" : "local";
   cloudStorageDetail.textContent = status.detail;
-  cloudBackupButton.disabled = !status.connected;
-  cloudImportButton.disabled = !status.connected;
+  cloudStorageDetail.hidden = !status.detail;
+  cloudBackupButton.disabled = !status.connected || isCloudSyncRunning;
+  cloudImportButton.disabled = !status.connected || isCloudSyncRunning;
+  renderSupabaseAuthStatus();
+  [resetSelectedUserCloudButton, resetAllCloudButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+
+    button.disabled = true;
+    button.hidden = true;
+    button.setAttribute("aria-hidden", "true");
+  });
+  renderTimerContext();
+}
+
+function getCurrentOwnerId() {
+  return currentAuthUser?.id || "";
+}
+
+function renderSupabaseAuthStatus() {
+  if (!cloudAuthStatus) {
+    return;
+  }
+
+  if (!supabaseClient) {
+    cloudAuthStatus.textContent = "Nicht angemeldet";
+    cloudAuthStatus.dataset.status = "local";
+    cloudLoginLinkButton.disabled = true;
+    cloudLogoutButton.disabled = true;
+    return;
+  }
+
+  if (!currentAuthUser) {
+    cloudAuthStatus.textContent = "Nicht angemeldet";
+    cloudAuthStatus.dataset.status = "local";
+    cloudLoginLinkButton.disabled = false;
+    cloudLogoutButton.disabled = true;
+    return;
+  }
+
+  const userLabel = currentAuthUser.email || currentAuthUser.id;
+  cloudAuthStatus.textContent = `Angemeldet als ${userLabel}`;
+  cloudAuthStatus.dataset.status = "authenticated";
+  cloudLoginLinkButton.disabled = false;
+  cloudLogoutButton.disabled = false;
+}
+
+async function refreshSupabaseAuthUser() {
+  if (!supabaseClient?.auth?.getUser) {
+    currentAuthUser = null;
+    supabaseAuthLoaded = true;
+    renderSupabaseStatus();
+    return currentAuthUser;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.getUser();
+    currentAuthUser = error ? null : data?.user || null;
+  } catch (error) {
+    currentAuthUser = null;
+  }
+
+  supabaseAuthLoaded = true;
+  if (currentAuthUser && [CLOUD_SYNC_STATUS.offline, CLOUD_SYNC_STATUS.authRequired].includes(cloudSyncStatus)) {
+    cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+    cloudSyncStatusDetail = "";
+  }
+  renderSupabaseStatus();
+  return currentAuthUser;
+}
+
+function initializeSupabaseAuth() {
+  if (!supabaseClient?.auth) {
+    supabaseAuthLoaded = true;
+    currentAuthUser = null;
+    renderSupabaseStatus();
+    return;
+  }
+
+  if (typeof supabaseClient.auth.onAuthStateChange === "function") {
+    supabaseClient.auth.onAuthStateChange(() => {
+      refreshSupabaseAuthUser();
+    });
+  }
+
+  refreshSupabaseAuthUser();
+}
+
+async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessage) {
+  if (!supabaseClient) {
+    messageTarget("Cloudspeicherung ist nicht eingerichtet.", "error");
+    cloudSyncStatus = CLOUD_SYNC_STATUS.offline;
+    cloudSyncStatusDetail = "Cloudspeicherung ist nicht eingerichtet.";
+    renderSupabaseStatus();
+    return false;
+  }
+
+  if (!supabaseAuthLoaded) {
+    await refreshSupabaseAuthUser();
+  }
+
+  if (!currentAuthUser) {
+    messageTarget(CLOUD_LOGIN_REQUIRED_MESSAGE, "error");
+    cloudSyncStatus = CLOUD_SYNC_STATUS.authRequired;
+    cloudSyncStatusDetail = "Bitte im Cloud-Bereich per E-Mail anmelden.";
+    renderSupabaseStatus();
+    return false;
+  }
+
+  return true;
+}
+
+async function beginCloudSync(messageTarget = showCloudStorageMessage) {
+  if (isCloudSyncRunning) {
+    messageTarget("Synchronisierung läuft bereits.", "info");
+    renderSupabaseStatus();
+    return false;
+  }
+
+  if (!(await ensureSupabaseAuthForCloud(messageTarget))) {
+    return false;
+  }
+
+  isCloudSyncRunning = true;
+  cloudSyncStatus = CLOUD_SYNC_STATUS.syncing;
+  cloudSyncStatusDetail = "";
+  renderSupabaseStatus();
+  return true;
+}
+
+function finishCloudSync() {
+  isCloudSyncRunning = false;
+  renderSupabaseStatus();
+}
+
+function failCloudSync(error, messageTarget = showCloudStorageMessage) {
+  const message = getSupabaseErrorMessage(error);
+  cloudSyncStatus = CLOUD_SYNC_STATUS.error;
+  cloudSyncStatusDetail = message;
+  messageTarget(message, "error");
+  renderSupabaseStatus();
+}
+
+function flagCloudConflicts(count, messageTarget = showCloudStorageMessage) {
+  cloudSyncStatus = CLOUD_SYNC_STATUS.conflict;
+  cloudSyncStatusDetail = `${count} Konflikte gefunden`;
+  messageTarget(cloudSyncStatusDetail, "info");
+  renderSupabaseStatus();
+}
+
+async function sendSupabaseLoginLink() {
+  if (!supabaseClient?.auth?.signInWithOtp) {
+    showCloudStorageMessage("Cloud-Login ist nicht verfügbar.", "error");
+    return;
+  }
+
+  const email = String(cloudAuthEmailInput.value || "").trim();
+
+  if (!email) {
+    showCloudStorageMessage("Bitte E-Mail-Adresse eingeben.", "error");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.href.split("#")[0],
+      },
+    });
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    showCloudStorageMessage("Login-Link wurde gesendet.", "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  }
+}
+
+async function signOutSupabaseUser() {
+  if (!supabaseClient?.auth?.signOut) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+      return;
+    }
+
+    currentAuthUser = null;
+    supabaseAuthLoaded = true;
+    renderSupabaseStatus();
+    showCloudStorageMessage("Abgemeldet.", "success");
+  } catch (error) {
+    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  }
+}
+
+function toSupabaseTimeValue(date) {
+  return date.toTimeString().slice(0, 8);
 }
 
 function createSupabaseTimeEntryRecord(entry) {
   const now = new Date().toISOString();
+  const userId = getValidUserId(entry.user_id);
+  const updatedAt = entry.updated_at || entry.updatedAt || now;
+  const createdAt = entry.created_at || entry.createdAt || updatedAt;
+  const startedAt = entry.startedAt instanceof Date ? entry.startedAt : new Date(entry.startedAt);
+  const endedAt = entry.endedAt instanceof Date ? entry.endedAt : new Date(entry.endedAt);
 
   return {
-    id: entry.id,
-    activity: entry.activity,
-    category: entry.category,
-    started_at: entry.startedAt.toISOString(),
-    ended_at: entry.endedAt.toISOString(),
-    duration_minutes: Math.max(0, Math.round((entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000)),
-    note: entry.note || "",
+    id: String(entry.id),
+    owner_id: getCurrentOwnerId(),
+    user_id: userId,
+    activity: String(entry.activity ?? "").trim(),
+    category: String(entry.category ?? "").trim(),
+    started_at: startedAt.toISOString(),
+    ended_at: endedAt.toISOString(),
+    date: toDateInputValue(startedAt),
+    start_time: toSupabaseTimeValue(startedAt),
+    end_time: toSupabaseTimeValue(endedAt),
+    duration_minutes: Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000)),
+    note: String(entry.note ?? ""),
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
-    created_at: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : now,
-    updated_at: now,
+    created_at: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
+    updated_at: updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt,
   };
+}
+
+function createSupabaseUserRecord(user) {
+  const now = new Date().toISOString();
+  const validUserId = getValidUserId(user.id);
+  const defaultName = getDefaultUserName(validUserId);
+
+  return {
+    id: validUserId,
+    owner_id: getCurrentOwnerId(),
+    name: String(user.name || getUserName(validUserId) || defaultName).trim() || defaultName,
+    created_at: user.created_at || user.createdAt || now,
+    updated_at: user.updated_at || user.updatedAt || now,
+  };
+}
+
+function createSupabaseCategoryRecord(category) {
+  const now = new Date().toISOString();
+
+  return {
+    id: String(category.id),
+    owner_id: getCurrentOwnerId(),
+    user_id: getValidUserId(category.user_id),
+    name: String(category.name ?? "").trim(),
+    sort_order: Number.isFinite(Number(category.sort_order)) ? Number(category.sort_order) : 0,
+    created_at: category.created_at || category.createdAt || now,
+    updated_at: category.updated_at || category.updatedAt || now,
+  };
+}
+
+function ensureLocalTimeEntriesHaveUserIds() {
+  let changed = false;
+
+  timeEntries.forEach((entry) => {
+    if (!entry.user_id) {
+      entry.user_id = DEFAULT_USERS[0].id;
+      changed = true;
+      return;
+    }
+
+    const validUserId = getValidUserId(entry.user_id);
+    if (validUserId !== entry.user_id) {
+      entry.user_id = validUserId;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    persistEntries(timeEntries);
+  }
 }
 
 function showCloudStorageMessage(message, type = "info") {
@@ -318,40 +1350,779 @@ function getSupabaseErrorMessage(error) {
     return "Supabase-Fehler: Die Daten konnten nicht verarbeitet werden.";
   }
 
-  return `Supabase-Fehler: ${error.message || error.details || "Die Daten konnten nicht verarbeitet werden."}`;
+  if (error.message === CLOUD_LOGIN_REQUIRED_MESSAGE) {
+    return CLOUD_LOGIN_REQUIRED_MESSAGE;
+  }
+
+  return [
+    "Supabase-Fehler:",
+    error.message,
+    error.details,
+    error.hint,
+    error.code,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
-async function backupLocalEntriesToCloud() {
-  const status = getSupabaseStatus();
+function getCloudWriteOwnerId() {
+  const ownerId = getCurrentOwnerId();
+  return currentAuthUser && ownerId ? ownerId : "";
+}
+
+function createCloudLoginRequiredResult() {
+  const error = new Error(CLOUD_LOGIN_REQUIRED_MESSAGE);
+  showCloudStorageMessage(CLOUD_LOGIN_REQUIRED_MESSAGE, "error");
   renderSupabaseStatus();
+  return { data: null, error };
+}
 
-  if (!status.connected) {
-    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
-    return;
+async function upsertSupabaseTimeEntryRecords(records) {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
   }
 
-  if (!timeEntries.length) {
-    showCloudStorageMessage("Keine lokalen Einträge vorhanden");
-    return;
+  return supabaseClient
+    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
+    .upsert(records, { onConflict: "owner_id,id" });
+}
+
+async function upsertSupabaseUserProfiles() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
   }
 
-  const records = timeEntries.map(createSupabaseTimeEntryRecord);
+  return supabaseClient
+    .from(SUPABASE_USERS_TABLE_NAME)
+    .upsert(users.map(createSupabaseUserRecord), { onConflict: "owner_id,id" });
+}
 
-  try {
-    const { error } = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .upsert(records, { onConflict: "id" });
+async function upsertSupabaseCategories() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
 
-    if (error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+  return supabaseClient
+    .from(SUPABASE_CATEGORIES_TABLE_NAME)
+    .upsert(categories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
+}
+
+async function fetchSupabaseUserRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
+    .from(SUPABASE_USERS_TABLE_NAME)
+    .select(SUPABASE_USER_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
+}
+
+async function fetchSupabaseCategoryRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
+    .from(SUPABASE_CATEGORIES_TABLE_NAME)
+    .select(SUPABASE_CATEGORY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
+}
+
+async function fetchSupabaseTimeEntryRecords() {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  return supabaseClient
+    .from(SUPABASE_TIME_ENTRIES_TABLE_NAME)
+    .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","))
+    .eq("owner_id", getCurrentOwnerId());
+}
+
+async function loadSupabaseUserProfiles() {
+  const { data, error } = await fetchSupabaseUserRecords();
+
+  if (error) {
+    return { error, updated: false };
+  }
+
+  const cloudUserMap = new Map(
+    (data || [])
+      .filter((user) => user && getValidUserId(user.id) === user.id)
+      .map((user) => [user.id, user]),
+  );
+
+  if (!cloudUserMap.size) {
+    return { error: null, updated: false };
+  }
+
+  const nextUsers = DEFAULT_USERS.map((defaultUser) => {
+    const localUser = users.find((user) => user.id === defaultUser.id) || defaultUser;
+    const cloudUser = cloudUserMap.get(defaultUser.id);
+    const cloudName = String(cloudUser?.name || "").trim();
+    const localName = String(localUser.name || defaultUser.name).trim() || defaultUser.name;
+    const localIsCustom = localName !== defaultUser.name;
+    const cloudIsDefault = !cloudName || cloudName === defaultUser.name;
+
+    if (cloudName && !localIsCustom && !cloudIsDefault) {
+      return {
+        id: defaultUser.id,
+        name: cloudName,
+        created_at: cloudUser.created_at || localUser.created_at || defaultUser.created_at,
+        updated_at: cloudUser.updated_at || cloudUser.updatedAt || localUser.updated_at || defaultUser.updated_at,
+      };
+    }
+
+    return {
+      id: defaultUser.id,
+      name: localName,
+      created_at: localUser.created_at || defaultUser.created_at,
+      updated_at: localUser.updated_at || localUser.updatedAt || defaultUser.updated_at,
+    };
+  });
+  const changed = nextUsers.some(
+    (user) =>
+      user.name !== getUserName(user.id) ||
+      user.updated_at !== (users.find((localUser) => localUser.id === user.id)?.updated_at || DEFAULT_USERS.find((defaultUser) => defaultUser.id === user.id)?.updated_at),
+  );
+
+  if (changed) {
+    users = nextUsers;
+    saveUserProfiles();
+    renderUserProfileSettings();
+    renderHistory();
+  }
+
+  return { error: null, updated: changed };
+}
+
+async function loadSupabaseCategories() {
+  const { data, error } = await fetchSupabaseCategoryRecords();
+
+  if (error) {
+    return { error, updated: false };
+  }
+
+  const cloudCategories = (data || []).map(normalizeCategory).filter(Boolean);
+
+  if (!cloudCategories.length) {
+    return { error: null, updated: false };
+  }
+
+  const categoryMap = new Map();
+
+  [...categories, ...cloudCategories].forEach((category) => {
+    const existingCategory = categoryMap.get(category.id);
+
+    if (!existingCategory) {
+      categoryMap.set(category.id, category);
+    }
+  });
+
+  const mergedCategories = [];
+  const categoryNameMap = new Map();
+
+  categoryMap.forEach((category) => {
+    const nameKey = `${category.user_id}|${category.name.toLowerCase()}`;
+    const existingIndex = categoryNameMap.get(nameKey);
+
+    if (existingIndex === undefined) {
+      categoryNameMap.set(nameKey, mergedCategories.length);
+      mergedCategories.push(category);
       return;
     }
 
-    showCloudStorageMessage(`${records.length} Einträge wurden in der Cloud gesichert`, "success");
+  });
+
+  const nextCategories = ensureDefaultCategoriesForAllUsers(mergedCategories);
+  const changed =
+    nextCategories.length !== categories.length ||
+    nextCategories.some((category, index) => areCategoriesDifferent(category, categories[index] || {}));
+
+  categories = nextCategories;
+
+  if (!saveCategories()) {
+    return { error: { message: "Kategorien konnten nicht lokal gespeichert werden." }, updated: false };
+  }
+
+  if (changed) {
+    renderCategorySettings();
+    refreshEntryViews();
+  }
+
+  return { error: null, updated: changed };
+}
+
+async function loadSupabaseTimeEntryRecords() {
+  return fetchSupabaseTimeEntryRecords();
+}
+
+function getSyncKey(record) {
+  return String(record?.id || "");
+}
+
+function getRecordUpdatedAt(record) {
+  const candidates = [
+    record?.updated_at,
+    record?.updatedAt,
+    record?.created_at,
+    record?.createdAt,
+    record?.ended_at,
+    record?.endedAt,
+    record?.started_at,
+    record?.startedAt,
+  ];
+  const value = candidates.find(Boolean);
+  const date = value instanceof Date ? value : new Date(value || 0);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function normalizeSyncRecord(record, type) {
+  if (!record) {
+    return null;
+  }
+
+  if (type === "time_entry") {
+    if (record.started_at || record.ended_at) {
+      return createLocalEntryFromSupabaseRecord(record);
+    }
+
+    const startedAt = record.startedAt instanceof Date ? new Date(record.startedAt) : new Date(record.startedAt);
+    const endedAt = record.endedAt instanceof Date ? new Date(record.endedAt) : new Date(record.endedAt);
+
+    if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+      return null;
+    }
+
+    return {
+      ...record,
+      id: String(record.id),
+      user_id: getValidUserId(record.user_id),
+      activity: String(record.activity || "").trim(),
+      category: String(record.category || "").trim(),
+      note: String(record.note || ""),
+      startedAt,
+      endedAt,
+      edited: Boolean(record.edited),
+      manual: Boolean(record.manual),
+      uploaded: Boolean(record.uploaded),
+      created_at: record.created_at || record.createdAt || startedAt.toISOString(),
+      updated_at: record.updated_at || record.updatedAt || endedAt.toISOString(),
+    };
+  }
+
+  if (type === "category") {
+    return normalizeCategory(record);
+  }
+
+  if (type === "user") {
+    const validUserId = getValidUserId(record.id);
+    const defaultName = getDefaultUserName(validUserId);
+
+    return {
+      id: validUserId,
+      name: String(record.name || defaultName).trim() || defaultName,
+      created_at: record.created_at || record.createdAt || DEFAULT_USERS.find((user) => user.id === validUserId)?.created_at,
+      updated_at: record.updated_at || record.updatedAt || DEFAULT_USERS.find((user) => user.id === validUserId)?.updated_at,
+    };
+  }
+
+  return { ...record };
+}
+
+function areSyncRecordsEqual(localRecord, cloudRecord, type) {
+  const localSyncRecord = normalizeSyncRecord(localRecord, type);
+  const cloudSyncRecord = normalizeSyncRecord(cloudRecord, type);
+
+  if (!localSyncRecord || !cloudSyncRecord) {
+    return false;
+  }
+
+  if (type === "time_entry") {
+    return localSyncRecord.id === cloudSyncRecord.id && !areEntriesDifferent(localSyncRecord, cloudSyncRecord);
+  }
+
+  if (type === "category") {
+    return !areCategoriesDifferent(localSyncRecord, cloudSyncRecord);
+  }
+
+  if (type === "user") {
+    return [
+      "id",
+      "name",
+    ].every((key) => String(localSyncRecord[key] ?? "") === String(cloudSyncRecord[key] ?? ""));
+  }
+
+  return JSON.stringify(localSyncRecord) === JSON.stringify(cloudSyncRecord);
+}
+
+function compareSyncRecord(localRecord, cloudRecord, type) {
+  const localSyncRecord = normalizeSyncRecord(localRecord, type);
+  const cloudSyncRecord = normalizeSyncRecord(cloudRecord, type);
+
+  if (!localSyncRecord && cloudSyncRecord) {
+    return { action: "add_local", reason: "missing_local" };
+  }
+
+  if (localSyncRecord && !cloudSyncRecord) {
+    return { action: "upload", reason: "missing_cloud" };
+  }
+
+  if (!localSyncRecord || !cloudSyncRecord) {
+    return { action: "conflict", reason: "timestamp_unclear" };
+  }
+
+  if (areSyncRecordsEqual(localSyncRecord, cloudSyncRecord, type)) {
+    return { action: "equal", reason: "same" };
+  }
+
+  const localUpdatedAt = getRecordUpdatedAt(localSyncRecord);
+  const cloudUpdatedAt = getRecordUpdatedAt(cloudSyncRecord);
+
+  if (!localUpdatedAt || !cloudUpdatedAt) {
+    return { action: "conflict", reason: "timestamp_unclear" };
+  }
+
+  if (localUpdatedAt > cloudUpdatedAt) {
+    return { action: "upload", reason: "local_newer" };
+  }
+
+  if (cloudUpdatedAt > localUpdatedAt) {
+    return { action: "use_cloud", reason: "cloud_newer" };
+  }
+
+  return { action: "conflict", reason: "both_changed" };
+}
+
+function createSyncConflict({ type, key, localRecord, cloudRecord, reason }) {
+  return {
+    type,
+    key,
+    localRecord,
+    cloudRecord,
+    localEntry: localRecord,
+    cloudEntry: cloudRecord,
+    duplicates: localRecord ? [localRecord] : [],
+    reason,
+  };
+}
+
+function mergeSyncCollection({ type, localRecords, cloudRecords, getKey = getSyncKey }) {
+  const localMap = new Map();
+  const cloudMap = new Map();
+  const mergedMap = new Map();
+  const conflicts = [];
+  const pendingUploads = [];
+  const localAdditions = [];
+  const cloudUpdates = [];
+
+  localRecords
+    .map((record) => normalizeSyncRecord(record, type))
+    .filter(Boolean)
+    .forEach((record) => {
+      const key = getKey(record);
+      if (key) {
+        localMap.set(key, record);
+        mergedMap.set(key, record);
+      }
+    });
+
+  cloudRecords
+    .map((record) => normalizeSyncRecord(record, type))
+    .filter(Boolean)
+    .forEach((record) => {
+      const key = getKey(record);
+      if (key) {
+        cloudMap.set(key, record);
+      }
+    });
+
+  cloudMap.forEach((cloudRecord, key) => {
+    const localRecord = localMap.get(key);
+
+    if (!localRecord && type === "time_entry") {
+      const duplicate = [...localMap.values()].find(
+        (record) => getCloudEntryDuplicateKey(record) === getCloudEntryDuplicateKey(cloudRecord),
+      );
+
+      if (duplicate) {
+        conflicts.push(createSyncConflict({
+          type,
+          key,
+          localRecord: duplicate,
+          cloudRecord,
+          reason: "duplicate_content",
+        }));
+        return;
+      }
+    }
+
+    const comparison = compareSyncRecord(localRecord, cloudRecord, type);
+
+    if (comparison.action === "add_local") {
+      localAdditions.push(cloudRecord);
+      mergedMap.set(key, cloudRecord);
+      return;
+    }
+
+    if (comparison.action === "use_cloud") {
+      cloudUpdates.push({ localRecord, cloudRecord, key, reason: comparison.reason });
+      mergedMap.set(key, cloudRecord);
+      return;
+    }
+
+    if (comparison.action === "upload") {
+      pendingUploads.push(localRecord);
+      return;
+    }
+
+    if (comparison.action === "conflict") {
+      conflicts.push(createSyncConflict({
+        type,
+        key,
+        localRecord,
+        cloudRecord,
+        reason: comparison.reason === "both_changed" ? "both_changed" : comparison.reason,
+      }));
+    }
+  });
+
+  localMap.forEach((localRecord, key) => {
+    if (!cloudMap.has(key)) {
+      pendingUploads.push(localRecord);
+    }
+  });
+
+  return {
+    mergedRecords: [...mergedMap.values()],
+    localAdditions,
+    cloudUpdates,
+    pendingUploads,
+    conflicts,
+  };
+}
+
+function getPendingUploadRecords(localRecords, cloudRecords, type) {
+  return mergeSyncCollection({ type, localRecords, cloudRecords }).pendingUploads;
+}
+
+function markRecordsAsCloudSaved(records) {
+  let changed = false;
+
+  records.forEach((record) => {
+    record.cloud_saved = true;
+    const localEntry = timeEntries.find((entry) => entry.id === record.id);
+
+    if (localEntry) {
+      localEntry.cloud_saved = true;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    persistEntries(timeEntries);
+  }
+}
+
+function mergeCloudEntriesIntoLocal(cloudEntries) {
+  const nextEntries = [...timeEntries];
+  let addedCount = 0;
+  let skippedCount = 0;
+
+  cloudEntries.forEach((cloudEntry) => {
+    const sameIdIndex = nextEntries.findIndex((entry) => entry.id === cloudEntry.id);
+
+    if (sameIdIndex >= 0) {
+      skippedCount += 1;
+      return;
+    }
+
+    const duplicate = nextEntries.find((entry) => getCloudEntryDuplicateKey(entry) === getCloudEntryDuplicateKey(cloudEntry));
+
+    if (!duplicate) {
+      nextEntries.push(cloudEntry);
+      addedCount += 1;
+      return;
+    }
+
+    skippedCount += 1;
+  });
+
+  if (addedCount) {
+    const sortedEntries = nextEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+    if (!persistEntries(sortedEntries)) {
+      return { addedCount: 0, skippedCount: 0, error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." } };
+    }
+
+    timeEntries.splice(0, timeEntries.length, ...sortedEntries);
+  }
+
+  return { addedCount, skippedCount, error: null };
+}
+
+function showStartupSyncMessage(message, type = "info") {
+  syncStatusMessage.textContent = message;
+  syncStatusMessage.dataset.type = type;
+  syncStatusMessage.hidden = false;
+
+  window.setTimeout(() => {
+    if (syncStatusMessage.textContent === message) {
+      syncStatusMessage.hidden = true;
+      syncStatusMessage.removeAttribute("data-type");
+    }
+  }, 5000);
+}
+
+async function loadCloudSyncSnapshot() {
+  const userResult = await fetchSupabaseUserRecords();
+
+  if (userResult.error) {
+    return { error: userResult.error };
+  }
+
+  const categoryResult = await fetchSupabaseCategoryRecords();
+
+  if (categoryResult.error) {
+    return { error: categoryResult.error };
+  }
+
+  const entryResult = await fetchSupabaseTimeEntryRecords();
+
+  if (entryResult.error) {
+    return { error: entryResult.error };
+  }
+
+  return {
+    error: null,
+    users: userResult.data || [],
+    categories: categoryResult.data || [],
+    entries: entryResult.data || [],
+  };
+}
+
+function getLocalSyncSnapshot() {
+  ensureLocalTimeEntriesHaveUserIds();
+
+  return {
+    users: users.map((user) => ({ ...user })),
+    categories: categories.map((category) => ({ ...category })),
+    entries: timeEntries.map((entry) => ({ ...entry, startedAt: new Date(entry.startedAt), endedAt: new Date(entry.endedAt) })),
+  };
+}
+
+function mergeCloudSnapshotIntoLocal(cloudSnapshot) {
+  const localSnapshot = getLocalSyncSnapshot();
+  const userMerge = mergeSyncCollection({
+    type: "user",
+    localRecords: localSnapshot.users,
+    cloudRecords: cloudSnapshot.users,
+  });
+  const categoryMerge = mergeSyncCollection({
+    type: "category",
+    localRecords: localSnapshot.categories,
+    cloudRecords: cloudSnapshot.categories,
+  });
+  const entryMerge = mergeSyncCollection({
+    type: "time_entry",
+    localRecords: localSnapshot.entries,
+    cloudRecords: cloudSnapshot.entries,
+  });
+  const conflicts = [
+    ...userMerge.conflicts,
+    ...categoryMerge.conflicts,
+    ...entryMerge.conflicts,
+  ];
+  const nextUsers = DEFAULT_USERS.map((defaultUser) => {
+    const mergedUser = userMerge.mergedRecords.find((user) => user.id === defaultUser.id);
+    return mergedUser || users.find((user) => user.id === defaultUser.id) || defaultUser;
+  });
+  const nextCategories = ensureDefaultCategoriesForAllUsers(categoryMerge.mergedRecords);
+  const nextEntries = entryMerge.mergedRecords.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  const usersChanged = nextUsers.some((user, index) => users[index]?.name !== user.name || users[index]?.updated_at !== user.updated_at);
+  const categoriesChanged =
+    nextCategories.length !== categories.length ||
+    nextCategories.some((category, index) => areCategoriesDifferent(category, categories[index] || {}));
+  const entriesChanged =
+    nextEntries.length !== timeEntries.length ||
+    nextEntries.some((entry, index) => areEntriesDifferent(entry, timeEntries[index] || {}) || entry.id !== timeEntries[index]?.id);
+
+  if (usersChanged) {
+    users = nextUsers;
+    saveUserProfiles();
+    renderUserProfileSettings();
+  }
+
+  if (categoriesChanged) {
+    categories = nextCategories;
+    saveCategories();
+    renderCategorySettings();
+  }
+
+  if (entriesChanged) {
+    if (!persistEntries(nextEntries)) {
+      return {
+        error: { message: "Synchronisierte Daten konnten nicht lokal gespeichert werden." },
+        conflicts,
+        pendingUploads: [],
+      };
+    }
+
+    timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  }
+
+  if (usersChanged || categoriesChanged || entriesChanged) {
+    refreshEntryViews();
+  }
+
+  return {
+    error: null,
+    conflicts,
+    pendingUploads: [
+      ...userMerge.pendingUploads.map((record) => ({ type: "user", record })),
+      ...categoryMerge.pendingUploads.map((record) => ({ type: "category", record })),
+      ...entryMerge.pendingUploads.map((record) => ({ type: "time_entry", record })),
+    ],
+    addedCount: userMerge.localAdditions.length + categoryMerge.localAdditions.length + entryMerge.localAdditions.length,
+  };
+}
+
+async function uploadPendingSyncRecords(pendingUploads = []) {
+  if (!getCloudWriteOwnerId()) {
+    return createCloudLoginRequiredResult();
+  }
+
+  const pendingUsers = pendingUploads.filter((item) => item.type === "user").map((item) => item.record);
+  const pendingCategories = pendingUploads.filter((item) => item.type === "category").map((item) => item.record);
+  const pendingEntries = pendingUploads.filter((item) => item.type === "time_entry").map((item) => item.record);
+
+  if (pendingUsers.length) {
+    const result = await supabaseClient
+      .from(SUPABASE_USERS_TABLE_NAME)
+      .upsert(pendingUsers.map(createSupabaseUserRecord), { onConflict: "owner_id,id" });
+
+    if (result.error) {
+      return result;
+    }
+  }
+
+  if (pendingCategories.length) {
+    const result = await supabaseClient
+      .from(SUPABASE_CATEGORIES_TABLE_NAME)
+      .upsert(pendingCategories.map(createSupabaseCategoryRecord), { onConflict: "owner_id,id" });
+
+    if (result.error) {
+      return result;
+    }
+  }
+
+  if (pendingEntries.length) {
+    const result = await upsertSupabaseTimeEntryRecords(pendingEntries.map(createSupabaseTimeEntryRecord));
+
+    if (result.error) {
+      return result;
+    }
+
+    markRecordsAsCloudSaved(pendingEntries);
+  }
+
+  return { error: null };
+}
+
+async function synchronizeWithSupabaseOnStartup() {
+  if (!(await beginCloudSync(showStartupSyncMessage))) {
+    return;
+  }
+
+  try {
+    const cloudSnapshot = await loadCloudSyncSnapshot();
+
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error, showStartupSyncMessage);
+      return;
+    }
+
+    const mergeResult = mergeCloudSnapshotIntoLocal(cloudSnapshot);
+
+    if (mergeResult.error) {
+      failCloudSync(mergeResult.error, showStartupSyncMessage);
+      return;
+    }
+
+    if (mergeResult.conflicts.length) {
+      cloudImportConflicts = mergeResult.conflicts;
+      renderCloudConflictPanel();
+      flagCloudConflicts(mergeResult.conflicts.length, showStartupSyncMessage);
+      return;
+    }
+
+    const uploadResult = await uploadPendingSyncRecords(mergeResult.pendingUploads);
+
+    if (uploadResult.error) {
+      failCloudSync(uploadResult.error, showStartupSyncMessage);
+      return;
+    }
+
+    markCloudSyncCompleted();
+    showStartupSyncMessage("Synchronisiert", "success");
   } catch (error) {
-    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    failCloudSync(error, showStartupSyncMessage);
   } finally {
-    renderSupabaseStatus();
+    finishCloudSync();
+  }
+}
+
+async function backupLocalEntriesToCloud() {
+  if (!(await beginCloudSync())) {
+    return;
+  }
+
+  try {
+    const cloudSnapshot = await loadCloudSyncSnapshot();
+
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error);
+      return;
+    }
+
+    const localSnapshot = getLocalSyncSnapshot();
+    const userMerge = mergeSyncCollection({ type: "user", localRecords: localSnapshot.users, cloudRecords: cloudSnapshot.users });
+    const categoryMerge = mergeSyncCollection({ type: "category", localRecords: localSnapshot.categories, cloudRecords: cloudSnapshot.categories });
+    const entryMerge = mergeSyncCollection({ type: "time_entry", localRecords: localSnapshot.entries, cloudRecords: cloudSnapshot.entries });
+    const conflicts = [
+      ...userMerge.conflicts,
+      ...categoryMerge.conflicts,
+      ...entryMerge.conflicts,
+      ...userMerge.cloudUpdates.map((item) => createSyncConflict({ type: "user", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+      ...categoryMerge.cloudUpdates.map((item) => createSyncConflict({ type: "category", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+      ...entryMerge.cloudUpdates.map((item) => createSyncConflict({ type: "time_entry", key: item.key, localRecord: item.localRecord, cloudRecord: item.cloudRecord, reason: "both_changed" })),
+    ];
+
+    if (conflicts.length) {
+      cloudImportConflicts = conflicts;
+      renderCloudConflictPanel();
+      flagCloudConflicts(conflicts.length);
+      return;
+    }
+
+    const uploadResult = await uploadPendingSyncRecords([
+      ...userMerge.pendingUploads.map((record) => ({ type: "user", record })),
+      ...categoryMerge.pendingUploads.map((record) => ({ type: "category", record })),
+      ...entryMerge.pendingUploads.map((record) => ({ type: "time_entry", record })),
+    ]);
+
+    if (uploadResult.error) {
+      failCloudSync(uploadResult.error);
+      return;
+    }
+
+    markCloudSyncCompleted();
+    showCloudStorageMessage("Gesichert", "success");
+  } catch (error) {
+    failCloudSync(error);
+  } finally {
+    finishCloudSync();
   }
 }
 
@@ -359,38 +2130,54 @@ function createLocalEntryFromSupabaseRecord(record) {
   const startedAt = new Date(record.started_at);
   const endedAt = new Date(record.ended_at);
 
-  if (!record.id || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+  if (
+    !record.id ||
+    !record.user_id ||
+    !record.activity ||
+    !record.category ||
+    Number.isNaN(startedAt.getTime()) ||
+    Number.isNaN(endedAt.getTime()) ||
+    endedAt <= startedAt
+  ) {
     return null;
   }
 
   return {
     id: record.id,
-    activity: record.activity || "",
-    category: record.category || "",
+    activity: record.activity,
+    category: record.category,
     startedAt,
     endedAt,
     note: record.note || "",
     edited: Boolean(record.edited),
     manual: Boolean(record.manual),
     uploaded: Boolean(record.uploaded),
+    user_id: getValidUserId(record.user_id),
+    created_at: record.created_at || startedAt.toISOString(),
+    updated_at: record.updated_at || endedAt.toISOString(),
     cloud_saved: true,
   };
 }
 
-function getEntryDuplicateKey(entry) {
+function getCloudEntryDuplicateKey(entry) {
   return [
+    getValidUserId(entry.user_id),
+    toDateInputValue(entry.startedAt),
+    toSupabaseTimeValue(entry.startedAt),
+    toSupabaseTimeValue(entry.endedAt),
     String(entry.activity || "").trim(),
     String(entry.category || "").trim(),
-    entry.startedAt.toISOString(),
-    entry.endedAt.toISOString(),
+    String(entry.note || "").trim(),
   ].join("|");
 }
 
 function findDuplicateLocalEntries(cloudEntry, localEntries = timeEntries) {
-  const cloudDuplicateKey = getEntryDuplicateKey(cloudEntry);
+  const cloudDetailedDuplicateKey = getCloudEntryDuplicateKey(cloudEntry);
 
   return localEntries.filter(
-    (localEntry) => localEntry.id === cloudEntry.id || getEntryDuplicateKey(localEntry) === cloudDuplicateKey,
+    (localEntry) =>
+      localEntry.id === cloudEntry.id ||
+      getCloudEntryDuplicateKey(localEntry) === cloudDetailedDuplicateKey,
   );
 }
 
@@ -403,7 +2190,44 @@ function cloneCloudEntryForLocalConflict(entry, forceNewId = false) {
   };
 }
 
-function renderCloudConflictEntry(entry, sourceLabel) {
+function renderCloudConflictEntry(entry, sourceLabel, type = "time_entry") {
+  if (!entry) {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <p>Nicht vorhanden.</p>
+      </article>
+    `;
+  }
+
+  if (type === "user") {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <dl>
+          <div><dt>ID</dt><dd>${escapeHtml(entry.id || "-")}</dd></div>
+          <div><dt>Name</dt><dd>${escapeHtml(entry.name || "-")}</dd></div>
+          <div><dt>Aktualisiert</dt><dd>${escapeHtml(entry.updated_at || entry.updatedAt || "-")}</dd></div>
+        </dl>
+      </article>
+    `;
+  }
+
+  if (type === "category") {
+    return `
+      <article class="cloud-conflict-entry">
+        <strong>${sourceLabel}</strong>
+        <dl>
+          <div><dt>ID</dt><dd>${escapeHtml(entry.id || "-")}</dd></div>
+          <div><dt>Nutzer</dt><dd>${escapeHtml(entry.user_id || "-")}</dd></div>
+          <div><dt>Name</dt><dd>${escapeHtml(entry.name || "-")}</dd></div>
+          <div><dt>Sortierung</dt><dd>${escapeHtml(entry.sort_order ?? "-")}</dd></div>
+          <div><dt>Aktualisiert</dt><dd>${escapeHtml(entry.updated_at || entry.updatedAt || "-")}</dd></div>
+        </dl>
+      </article>
+    `;
+  }
+
   const flags = [
     entry.edited ? "bearbeitet" : "nicht bearbeitet",
     entry.manual ? "nachgetragen" : "nicht nachgetragen",
@@ -438,10 +2262,10 @@ function renderCloudConflictPanel() {
       <h4>${cloudImportConflicts.length} Konflikte gefunden</h4>
       <div class="cloud-conflict-actions">
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local-all">
-          Für alle lokale Einträge behalten
+          Für alle lokale Versionen behalten
         </button>
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud-all">
-          Für alle Cloud-Einträge übernehmen
+          Für alle Cloud-Versionen übernehmen
         </button>
       </div>
     </div>
@@ -449,26 +2273,83 @@ function renderCloudConflictPanel() {
       .map(
         (conflict, index) => `
           <section class="cloud-conflict-card" data-conflict-index="${index}">
+            <p class="settings-helper">Grund: ${escapeHtml(conflict.reason || "Konflikt")}</p>
             <div class="cloud-conflict-versions">
-              ${renderCloudConflictEntry(conflict.localEntry, "Lokal")}
-              ${renderCloudConflictEntry(conflict.cloudEntry, "Cloud")}
+              ${renderCloudConflictEntry(conflict.localRecord || conflict.localEntry, "Lokal", conflict.type)}
+              ${renderCloudConflictEntry(conflict.cloudRecord || conflict.cloudEntry, "Cloud", conflict.type)}
             </div>
             <div class="cloud-conflict-actions">
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local" data-conflict-index="${index}">
-                Lokalen Eintrag behalten
+                Lokale Version behalten
               </button>
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud" data-conflict-index="${index}">
-                Cloud-Eintrag übernehmen
+                Cloud-Version übernehmen
               </button>
-              <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-both" data-conflict-index="${index}">
+              ${
+                conflict.type === "time_entry"
+                  ? `<button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-both" data-conflict-index="${index}">
                 Beide behalten
-              </button>
+              </button>`
+                  : ""
+              }
             </div>
           </section>
         `,
       )
       .join("")}
   `;
+}
+
+function getConflictLocalRecord(conflict) {
+  return conflict?.localRecord || conflict?.localEntry || null;
+}
+
+function getConflictCloudRecord(conflict) {
+  return conflict?.cloudRecord || conflict?.cloudEntry || null;
+}
+
+function getPendingUploadFromConflict(conflict) {
+  const localRecord = getConflictLocalRecord(conflict);
+
+  if (!localRecord) {
+    return null;
+  }
+
+  return {
+    type: conflict.type || "time_entry",
+    record: localRecord,
+  };
+}
+
+async function uploadLocalConflictVersions(conflicts) {
+  if (!(await beginCloudSync())) {
+    return { error: new Error(CLOUD_LOGIN_REQUIRED_MESSAGE) };
+  }
+
+  try {
+    const pendingUploads = conflicts
+      .map(getPendingUploadFromConflict)
+      .filter(Boolean);
+
+    if (!pendingUploads.length) {
+      return { error: new Error("Keine lokale Version zum Hochladen gefunden.") };
+    }
+
+    const result = await uploadPendingSyncRecords(pendingUploads);
+
+    if (result.error) {
+      failCloudSync(result.error);
+      return result;
+    }
+
+    markCloudSyncCompleted();
+    return { error: null };
+  } catch (error) {
+    failCloudSync(error);
+    return { error };
+  } finally {
+    finishCloudSync();
+  }
 }
 
 function saveCloudImportEntries(nextEntries, successMessage) {
@@ -481,28 +2362,99 @@ function saveCloudImportEntries(nextEntries, successMessage) {
 
   timeEntries.splice(0, timeEntries.length, ...sortedEntries);
   refreshEntryViews();
+  markCloudSyncCompleted();
+  renderSupabaseStatus();
   showCloudStorageMessage(successMessage, "success");
   return true;
 }
 
-function resolveCloudConflict(index, decision) {
+async function resolveCloudConflict(index, decision) {
   const conflict = cloudImportConflicts[index];
 
   if (!conflict) {
     return;
   }
 
-  let nextEntries = [...timeEntries];
+  if (decision === "keep-local") {
+    const uploadResult = await uploadLocalConflictVersions([conflict]);
 
-  if (decision === "use-cloud") {
-    const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
-    nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
-    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+    if (uploadResult.error) {
+      return;
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Lokale Version wurde in der Cloud gesichert.", "success");
+    return;
   }
 
-  if (decision === "keep-both") {
-    const hasSameId = nextEntries.some((entry) => entry.id === conflict.cloudEntry.id);
-    nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry, hasSameId));
+  if (conflict.type === "user") {
+    if (decision === "keep-both") {
+      showCloudStorageMessage("Beide behalten ist für Nutzer nicht verfügbar.", "info");
+      return;
+    }
+
+    const cloudUserRecord = getConflictCloudRecord(conflict);
+
+    if (decision === "use-cloud" && cloudUserRecord) {
+      users = users.map((user) => (user.id === cloudUserRecord.id ? normalizeSyncRecord(cloudUserRecord, "user") : user));
+      saveUserProfiles();
+      renderUserProfileSettings();
+      refreshEntryViews();
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Konflikt wurde bearbeitet.", "success");
+    return;
+  }
+
+  if (conflict.type === "category") {
+    if (decision === "keep-both") {
+      showCloudStorageMessage("Beide behalten ist für Kategorien nicht verfügbar.", "info");
+      return;
+    }
+
+    const cloudCategoryRecord = getConflictCloudRecord(conflict);
+
+    if (decision === "use-cloud" && cloudCategoryRecord) {
+      const cloudCategory = normalizeSyncRecord(cloudCategoryRecord, "category");
+      categories = ensureDefaultCategoriesForAllUsers([
+        ...categories.filter((category) => category.id !== cloudCategory.id),
+        cloudCategory,
+      ]);
+      saveCategories();
+      renderCategorySettings();
+      refreshEntryViews();
+    }
+
+    cloudImportConflicts.splice(index, 1);
+    renderCloudConflictPanel();
+    if (!cloudImportConflicts.length) {
+      setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    }
+    showCloudStorageMessage("Konflikt wurde bearbeitet.", "success");
+    return;
+  }
+
+  let nextEntries = [...timeEntries];
+  const cloudEntryRecord = getConflictCloudRecord(conflict);
+
+  if (decision === "use-cloud" && cloudEntryRecord) {
+    const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
+    nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
+    nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord));
+  }
+
+  if (decision === "keep-both" && cloudEntryRecord) {
+    const hasSameId = nextEntries.some((entry) => entry.id === cloudEntryRecord.id);
+    nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord, hasSameId));
   }
 
   if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
@@ -513,15 +2465,48 @@ function resolveCloudConflict(index, decision) {
   renderCloudConflictPanel();
 }
 
-function resolveAllCloudConflicts(decision) {
+async function resolveAllCloudConflicts(decision) {
   let nextEntries = [...timeEntries];
 
+  if (decision === "keep-local") {
+    const uploadResult = await uploadLocalConflictVersions(cloudImportConflicts);
+
+    if (uploadResult.error) {
+      return;
+    }
+
+    clearCloudConflictPanel();
+    setCloudSyncStatus(CLOUD_SYNC_STATUS.synced);
+    showCloudStorageMessage("Lokale Versionen wurden in der Cloud gesichert.", "success");
+    return;
+  }
+
   if (decision === "use-cloud") {
-    cloudImportConflicts.forEach((conflict) => {
-      const duplicateIds = new Set(conflict.duplicates.map((entry) => entry.id));
-      nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
-      nextEntries.push(cloneCloudEntryForLocalConflict(conflict.cloudEntry));
+    cloudImportConflicts.filter((conflict) => conflict.type === "user" && getConflictCloudRecord(conflict)).forEach((conflict) => {
+      const cloudUser = normalizeSyncRecord(getConflictCloudRecord(conflict), "user");
+      users = users.map((user) => (user.id === cloudUser.id ? cloudUser : user));
     });
+    cloudImportConflicts.filter((conflict) => conflict.type === "category" && getConflictCloudRecord(conflict)).forEach((conflict) => {
+      const cloudCategory = normalizeSyncRecord(getConflictCloudRecord(conflict), "category");
+      categories = [
+        ...categories.filter((category) => category.id !== cloudCategory.id),
+        cloudCategory,
+      ];
+    });
+    cloudImportConflicts.filter((conflict) => conflict.type === "time_entry").forEach((conflict) => {
+      const cloudEntryRecord = getConflictCloudRecord(conflict);
+      if (!cloudEntryRecord) {
+        return;
+      }
+      const duplicateIds = new Set((conflict.duplicates || []).map((entry) => entry.id));
+      nextEntries = nextEntries.filter((entry) => !duplicateIds.has(entry.id));
+      nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord));
+    });
+    categories = ensureDefaultCategoriesForAllUsers(categories);
+    saveUserProfiles();
+    saveCategories();
+    renderUserProfileSettings();
+    renderCategorySettings();
   }
 
   if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
@@ -532,79 +2517,40 @@ function resolveAllCloudConflicts(decision) {
 }
 
 async function importCloudEntriesToApp() {
-  const status = getSupabaseStatus();
-  renderSupabaseStatus();
-  clearCloudConflictPanel();
-
-  if (!status.connected) {
-    showCloudStorageMessage("Supabase ist nicht verbunden", "error");
+  if (!(await beginCloudSync())) {
     return;
   }
 
+  clearCloudConflictPanel();
+
   try {
-    const { data, error } = await supabaseClient
-      .from(SUPABASE_TABLE_NAME)
-      .select(SUPABASE_TIME_ENTRY_COLUMNS.join(","));
+    const cloudSnapshot = await loadCloudSyncSnapshot();
 
-    if (error) {
-      showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    if (cloudSnapshot.error) {
+      failCloudSync(cloudSnapshot.error);
       return;
     }
 
-    const cloudEntries = (data || []).map(createLocalEntryFromSupabaseRecord).filter(Boolean);
+    const mergeResult = mergeCloudSnapshotIntoLocal(cloudSnapshot);
 
-    if (!cloudEntries.length) {
-      showCloudStorageMessage("Keine Cloud-Einträge gefunden");
+    if (mergeResult.error) {
+      failCloudSync(mergeResult.error);
       return;
     }
 
-    const newEntries = [];
-    const conflicts = [];
-    const comparisonEntries = [...timeEntries];
-
-    cloudEntries.forEach((cloudEntry) => {
-      const duplicates = findDuplicateLocalEntries(cloudEntry, comparisonEntries);
-
-      if (duplicates.length) {
-        conflicts.push({
-          localEntry: duplicates[0],
-          cloudEntry,
-          duplicates,
-        });
-        return;
-      }
-
-      newEntries.push(cloudEntry);
-      comparisonEntries.push(cloudEntry);
-    });
-
-    if (newEntries.length) {
-      const imported = saveCloudImportEntries([...newEntries, ...timeEntries], `${newEntries.length} neue Einträge wurden geladen`);
-
-      if (!imported) {
-        return;
-      }
-    }
-
-    if (conflicts.length) {
-      cloudImportConflicts = conflicts;
+    if (mergeResult.conflicts.length) {
+      cloudImportConflicts = mergeResult.conflicts;
       renderCloudConflictPanel();
-      showCloudStorageMessage(
-        newEntries.length
-          ? `${newEntries.length} neue Einträge wurden geladen. ${conflicts.length} Konflikte gefunden`
-          : `${conflicts.length} Konflikte gefunden`,
-        "info",
-      );
+      flagCloudConflicts(mergeResult.conflicts.length);
       return;
     }
 
-    if (!newEntries.length) {
-      showCloudStorageMessage("Keine neuen Cloud-Einträge gefunden");
-    }
+    markCloudSyncCompleted();
+    showCloudStorageMessage(mergeResult.addedCount ? "Geladen" : "Nichts Neues", "success");
   } catch (error) {
-    showCloudStorageMessage(getSupabaseErrorMessage(error), "error");
+    failCloudSync(error);
   } finally {
-    renderSupabaseStatus();
+    finishCloudSync();
   }
 }
 
@@ -756,6 +2702,10 @@ function getEntryDurationMinutes(entry) {
   return formatDurationInMinutes(entry.endedAt.getTime() - entry.startedAt.getTime());
 }
 
+function getNowIsoString() {
+  return new Date().toISOString();
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -768,7 +2718,40 @@ function createEntryId() {
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now());
 }
 
+function getEntryUpdatedAtTime(entry) {
+  const updatedAt = new Date(entry.updated_at || entry.updatedAt || entry.endedAt || 0);
+  return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
+}
+
+function areEntriesDifferent(firstEntry, secondEntry) {
+  return [
+    "user_id",
+    "activity",
+    "category",
+    "note",
+    "edited",
+    "manual",
+    "uploaded",
+  ].some((key) => String(firstEntry[key] ?? "") !== String(secondEntry[key] ?? "")) ||
+    firstEntry.startedAt?.toISOString() !== secondEntry.startedAt?.toISOString() ||
+    firstEntry.endedAt?.toISOString() !== secondEntry.endedAt?.toISOString();
+}
+
+function isEntryForActiveUser(entry) {
+  return getValidUserId(entry.user_id) === activeUserId;
+}
+
+function getEntriesForActiveUser(entries = timeEntries) {
+  return entries.filter(isEntryForActiveUser);
+}
+
+function getExportEntries() {
+  return exportScopeSelect.value === "all" ? [...timeEntries] : getEntriesForActiveUser();
+}
+
 function serializeEntry(entry) {
+  const now = getNowIsoString();
+
   return {
     id: entry.id,
     activity: entry.activity,
@@ -779,6 +2762,9 @@ function serializeEntry(entry) {
     edited: entry.edited,
     manual: entry.manual,
     uploaded: entry.uploaded,
+    user_id: getValidUserId(entry.user_id),
+    created_at: entry.created_at || entry.createdAt || now,
+    updated_at: entry.updated_at || entry.updatedAt || now,
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -801,6 +2787,9 @@ function deserializeEntry(entry) {
     edited: Boolean(entry.edited),
     manual: Boolean(entry.manual),
     uploaded: Boolean(entry.uploaded),
+    user_id: getValidUserId(entry.user_id),
+    created_at: entry.created_at || entry.createdAt || entry.startedAt || new Date().toISOString(),
+    updated_at: entry.updated_at || entry.updatedAt || entry.endedAt || new Date().toISOString(),
     cloud_saved: Boolean(entry.cloud_saved || entry.cloudSaved),
   };
 }
@@ -823,8 +2812,12 @@ function loadPersistedEntries() {
       return;
     }
 
-    const entries = JSON.parse(storedEntries).map(deserializeEntry).filter(Boolean);
+    const parsedEntries = JSON.parse(storedEntries);
+    const entries = parsedEntries.map(deserializeEntry).filter(Boolean);
     timeEntries.splice(0, timeEntries.length, ...entries);
+    if (parsedEntries.some((entry) => !entry.user_id)) {
+      persistEntries(entries);
+    }
     clearStorageError();
   } catch (error) {
     showStorageError("Gespeicherte Einträge konnten nicht geladen werden.");
@@ -898,8 +2891,6 @@ function getPersistedActiveTimer() {
 
     if (
       activeTimer.status !== "running" ||
-      !activeTimer.activity ||
-      !activeTimer.category ||
       Number.isNaN(startedAt.getTime())
     ) {
       clearActiveTimer();
@@ -907,8 +2898,8 @@ function getPersistedActiveTimer() {
     }
 
     return {
-      activity: activeTimer.activity,
-      category: activeTimer.category,
+      activity: typeof activeTimer.activity === "string" ? activeTimer.activity : "",
+      category: typeof activeTimer.category === "string" ? activeTimer.category : "",
       startedAt,
     };
   } catch (error) {
@@ -949,6 +2940,7 @@ function refreshEntryViews() {
   renderHistory();
   renderAnalytics();
   renderWeekplan();
+  renderExportSummary();
   updateActivitySuggestions();
 
   if (getTodayTotalMinutes() >= getTargetWorkMinutes()) {
@@ -1010,10 +3002,10 @@ function setTimerState(state) {
   }
 
   if (state === "running") {
-    timerStateElement.textContent = activeActivity;
+    timerStateElement.textContent = activeActivity || "Timer läuft";
     elapsedTimeElement.hidden = false;
     completionPanel.hidden = true;
-    startButton.textContent = "Stop";
+    startButton.textContent = "Stoppen";
     startButton.classList.add("is-running");
     startButton.setAttribute("aria-pressed", "true");
     return;
@@ -1033,13 +3025,6 @@ function startTimer() {
       "Es läuft bereits eine Tätigkeit. Möchtest du diese beenden und eine neue starten?",
       "warning",
     );
-    return;
-  }
-
-  const validationMessage = getEntryValidationMessage();
-
-  if (validationMessage) {
-    showTimerMessage(validationMessage, "error");
     return;
   }
 
@@ -1091,6 +3076,7 @@ function resetTimerScreen(options = {}) {
   noteInput.value = "";
   activityInput.value = "";
   categorySelect.value = "";
+  renderCategoryDropdowns();
   activeActivity = "";
   activeCategory = "";
   if (!keepStoredActiveTimer) {
@@ -1100,7 +3086,67 @@ function resetTimerScreen(options = {}) {
   setTimerState("neutral");
 }
 
+function setActiveNavigation(viewName) {
+  menuPanel.querySelectorAll("[data-view-link]").forEach((link) => {
+    if (link.dataset.viewLink === viewName) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
+const navigationLayoutQuery = window.matchMedia("(max-width: 719px)");
+let isNavigationVisible = getStoredNavigationVisibility();
+
+function getStoredNavigationVisibility() {
+  try {
+    const storedValue = localStorage.getItem(NAVIGATION_VISIBLE_KEY);
+    return storedValue === null ? true : storedValue === "true";
+  } catch (error) {
+    return true;
+  }
+}
+
+function persistNavigationVisibility() {
+  try {
+    localStorage.setItem(NAVIGATION_VISIBLE_KEY, String(isNavigationVisible));
+  } catch (error) {
+    // Navigation visibility is a UI preference; storage failures should not block the app.
+  }
+}
+
+function usesPersistentNavigation() {
+  return isNavigationVisible;
+}
+
+function applyNavigationVisibility() {
+  document.documentElement.dataset.navigation = isNavigationVisible ? "visible" : "hidden";
+  document.documentElement.dataset.navigationLayout = navigationLayoutQuery.matches ? "mobile" : "desktop";
+  menuButton.hidden = false;
+  menuButton.textContent = isNavigationVisible ? "–" : "Menü";
+  menuButton.setAttribute("aria-expanded", String(isNavigationVisible));
+  menuButton.setAttribute("aria-label", isNavigationVisible ? "Navigation ausblenden" : "Navigation einblenden");
+  menuPanel.hidden = !isNavigationVisible;
+}
+
+function setNavigationVisibility(nextVisible, options = {}) {
+  const { persist = true } = options;
+  isNavigationVisible = Boolean(nextVisible);
+
+  if (persist) {
+    persistNavigationVisibility();
+  }
+
+  applyNavigationVisibility();
+}
+
+function closeNavigationMenu() {
+  applyNavigationVisibility();
+}
+
 function showTimerView() {
+  setActiveNavigation("timer");
   timerView.hidden = false;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -1108,9 +3154,11 @@ function showTimerView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
+  closeNavigationMenu();
 }
 
 function showHistoryView() {
+  setActiveNavigation("history");
   timerView.hidden = true;
   historyView.hidden = false;
   manualView.hidden = true;
@@ -1118,12 +3166,12 @@ function showHistoryView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "verlauf";
 }
 
 function showManualView() {
+  setActiveNavigation("timer");
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = false;
@@ -1133,12 +3181,12 @@ function showManualView() {
   weekplanView.hidden = true;
   manualMessage.hidden = true;
   manualForm.elements.date.value ||= toDateInputValue(new Date());
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "nachtragen";
 }
 
 function showAnalyticsView() {
+  setActiveNavigation("analytics");
   renderAnalytics();
   timerView.hidden = true;
   historyView.hidden = true;
@@ -1147,12 +3195,13 @@ function showAnalyticsView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "auswertungen";
 }
 
 function showExportView() {
+  setActiveNavigation("settings");
+  renderExportSummary();
   timerView.hidden = true;
   historyView.hidden = true;
   manualView.hidden = true;
@@ -1161,12 +3210,14 @@ function showExportView() {
   settingsView.hidden = true;
   weekplanView.hidden = true;
   exportMessage.hidden = true;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "exportieren";
 }
 
 function showSettingsView() {
+  setActiveNavigation("settings");
+  renderUserProfileSettings();
+  renderCategorySettings();
   renderReminderSettingsForm();
   renderSupabaseStatus();
   timerView.hidden = true;
@@ -1179,12 +3230,14 @@ function showSettingsView() {
   clearSettingsMessage();
   clearCloudStorageMessage();
   clearCloudConflictPanel();
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  clearUserProfileMessage();
+  clearCategorySettingsMessage();
+  closeNavigationMenu();
   window.location.hash = "einstellungen";
 }
 
 function showWeekplanView() {
+  setActiveNavigation("weekplan");
   renderWeekplan();
   timerView.hidden = true;
   historyView.hidden = true;
@@ -1193,8 +3246,7 @@ function showWeekplanView() {
   exportView.hidden = true;
   settingsView.hidden = true;
   weekplanView.hidden = false;
-  menuButton.setAttribute("aria-expanded", "false");
-  menuPanel.hidden = true;
+  closeNavigationMenu();
   window.location.hash = "wochenplan";
 }
 
@@ -1208,6 +3260,7 @@ function isDeveloperModeEnabled() {
 
 function setDeveloperMode(enabled) {
   reminderTestPanel.hidden = !enabled;
+  developerSettingsPanel.hidden = !enabled;
   developerModeToggle.checked = enabled;
 
   try {
@@ -1215,6 +3268,11 @@ function setDeveloperMode(enabled) {
   } catch (error) {
     // Developer mode is temporary and should not affect core app behavior.
   }
+
+  if (!enabled) {
+    clearUserProfileMessage();
+  }
+  renderUserProfileSettings();
 }
 
 function initializeDeveloperMode() {
@@ -1222,7 +3280,7 @@ function initializeDeveloperMode() {
 }
 
 function updateActivitySuggestions() {
-  const activities = [...new Set(timeEntries.map((entry) => entry.activity))];
+  const activities = [...new Set(getEntriesForActiveUser().map((entry) => entry.activity))];
   activitySuggestions.innerHTML = "";
 
   activities.forEach((activity) => {
@@ -1233,12 +3291,13 @@ function updateActivitySuggestions() {
 }
 
 function renderHistory() {
-  historyEmpty.hidden = timeEntries.length > 0;
+  const visibleEntries = getEntriesForActiveUser();
+  historyEmpty.hidden = visibleEntries.length > 0;
   historyList.innerHTML = "";
 
-  timeEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  visibleEntries.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
 
-  timeEntries.forEach((entry) => {
+  visibleEntries.forEach((entry) => {
     const item = document.createElement("li");
     item.className = "history-entry";
     item.dataset.entryId = entry.id;
@@ -1246,6 +3305,11 @@ function renderHistory() {
     const title = document.createElement("h3");
     title.textContent = entry.activity;
     item.append(title);
+
+    const userBadge = document.createElement("p");
+    userBadge.className = "history-badge history-badge-user";
+    userBadge.textContent = getUserName(entry.user_id);
+    item.append(userBadge);
 
     if (entry.edited) {
       const badge = document.createElement("p");
@@ -1304,48 +3368,636 @@ function renderHistory() {
   });
 }
 
-function getCurrentWeekEntries() {
-  const now = new Date();
-  const weekStart = getWeekStart(now);
-  const weekEnd = getWeekEnd(now);
+function getEntriesForWeek(date, entries = getEntriesForActiveUser()) {
+  const weekStart = getWeekStart(date);
+  const weekEnd = getWeekEnd(date);
 
-  return timeEntries.filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
+  return entries.filter((entry) => entry.startedAt >= weekStart && entry.startedAt < weekEnd);
 }
 
-function renderAnalytics() {
-  const weekEntries = getCurrentWeekEntries();
+function getPreviousWeekEntries(date = new Date(), entries = getEntriesForActiveUser()) {
+  return getEntriesForWeek(addDays(getWeekStart(date), -1), entries);
+}
+
+function getEntryMinutes(entry) {
+  return Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
+}
+
+function getTotalMinutes(entries) {
+  return entries.reduce((total, entry) => total + getEntryMinutes(entry), 0);
+}
+
+function getCategoryMinutes(entries) {
   const categoryMinutes = new Map();
-  const weekdayMinutes = new Map();
-  const weekdayCategoryMinutes = new Map();
-  const workdays = new Set();
-  let totalMinutes = 0;
 
-  weekEntries.forEach((entry) => {
-    const minutes = Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
-    const weekdayKey = toDateInputValue(entry.startedAt);
-    totalMinutes += minutes;
-    workdays.add(weekdayKey);
-    categoryMinutes.set(entry.category, (categoryMinutes.get(entry.category) || 0) + minutes);
-    weekdayMinutes.set(weekdayKey, (weekdayMinutes.get(weekdayKey) || 0) + minutes);
-
-    if (!weekdayCategoryMinutes.has(weekdayKey)) {
-      weekdayCategoryMinutes.set(weekdayKey, new Map());
-    }
-
-    const dayCategories = weekdayCategoryMinutes.get(weekdayKey);
-    dayCategories.set(entry.category, (dayCategories.get(entry.category) || 0) + minutes);
+  entries.forEach((entry) => {
+    const category = entry.category || "Ohne Kategorie";
+    categoryMinutes.set(category, (categoryMinutes.get(category) || 0) + getEntryMinutes(entry));
   });
 
-  const averageMinutes = workdays.size ? totalMinutes / workdays.size : 0;
-  weeklyTotalElement.textContent = formatAnalyticsDuration(totalMinutes);
-  dailyAverageElement.textContent = formatAnalyticsDuration(averageMinutes);
-  analyticsEmpty.hidden = categoryMinutes.size > 0;
-  categoryBars.innerHTML = "";
+  return categoryMinutes;
+}
 
-  const maxCategoryMinutes = Math.max(...categoryMinutes.values(), 0);
+function sortEntriesByStart(entries) {
+  return [...entries]
+    .filter((entry) => entry?.startedAt instanceof Date && entry?.endedAt instanceof Date)
+    .filter((entry) => !Number.isNaN(entry.startedAt.getTime()) && !Number.isNaN(entry.endedAt.getTime()))
+    .filter((entry) => entry.endedAt > entry.startedAt)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+}
+
+function getEntriesGroupedByDay(entries) {
+  const groupedEntries = new Map();
+
+  sortEntriesByStart(entries).forEach((entry) => {
+    const dayKey = toDateInputValue(entry.startedAt);
+
+    if (!groupedEntries.has(dayKey)) {
+      groupedEntries.set(dayKey, []);
+    }
+
+    groupedEntries.get(dayKey).push(entry);
+  });
+
+  return groupedEntries;
+}
+
+function getFocusEntries(entries) {
+  return entries.filter((entry) => getEntryMinutes(entry) >= 45);
+}
+
+function getFocusStats(entries) {
+  const focusEntries = getFocusEntries(entries);
+  const focusMinutes = getTotalMinutes(focusEntries);
+  const totalMinutes = getTotalMinutes(entries);
+  const longestSession = focusEntries.reduce((longest, entry) => Math.max(longest, getEntryMinutes(entry)), 0);
+  const dayMinutes = new Map();
+
+  focusEntries.forEach((entry) => {
+    const dayKey = toDateInputValue(entry.startedAt);
+    dayMinutes.set(dayKey, (dayMinutes.get(dayKey) || 0) + getEntryMinutes(entry));
+  });
+
+  const strongestDay = [...dayMinutes.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    focusEntries,
+    focusMinutes,
+    focusShare: totalMinutes ? (focusMinutes / totalMinutes) * 100 : 0,
+    longestSession,
+    sessionCount: focusEntries.length,
+    strongestDay: strongestDay ? new Date(`${strongestDay[0]}T00:00`) : null,
+  };
+}
+
+function getEntryGapMinutes(previousEntry, nextEntry) {
+  if (!previousEntry || !nextEntry || toDateInputValue(previousEntry.startedAt) !== toDateInputValue(nextEntry.startedAt)) {
+    return null;
+  }
+
+  const gapMinutes = (nextEntry.startedAt.getTime() - previousEntry.endedAt.getTime()) / 60000;
+
+  return gapMinutes > 0 ? gapMinutes : null;
+}
+
+function getDayGapStats(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const stats = {
+    short: 0,
+    medium: 0,
+    long: 0,
+  };
+
+  sortedEntries.forEach((entry, index) => {
+    if (index === 0) {
+      return;
+    }
+
+    const gapMinutes = getEntryGapMinutes(sortedEntries[index - 1], entry);
+
+    if (!gapMinutes) {
+      return;
+    }
+
+    if (gapMinutes <= 15) {
+      stats.short += 1;
+    } else if (gapMinutes <= 60) {
+      stats.medium += 1;
+    } else {
+      stats.long += 1;
+    }
+  });
+
+  return stats;
+}
+
+function getContextSwitchCount(entries) {
+  let switchCount = 0;
+
+  getEntriesGroupedByDay(entries).forEach((dayEntries) => {
+    const sortedEntries = sortEntriesByStart(dayEntries);
+
+    sortedEntries.forEach((entry, index) => {
+      if (index === 0) {
+        return;
+      }
+
+      const previousEntry = sortedEntries[index - 1];
+      const categoryChanged = String(previousEntry.category || "") !== String(entry.category || "");
+      const activityChanged = String(previousEntry.activity || "") !== String(entry.activity || "");
+
+      if (categoryChanged || activityChanged) {
+        switchCount += 1;
+      }
+    });
+  });
+
+  return switchCount;
+}
+
+function getShortSessionCount(entries, thresholdMinutes = 15) {
+  return entries.filter((entry) => getEntryMinutes(entry) < thresholdMinutes).length;
+}
+
+function getFocusSessionCount(entries, thresholdMinutes = 45) {
+  return entries.filter((entry) => getEntryMinutes(entry) >= thresholdMinutes).length;
+}
+
+function getLongestSessionMinutes(entries) {
+  return entries.reduce((longest, entry) => Math.max(longest, getEntryMinutes(entry)), 0);
+}
+
+function getAverageSessionMinutes(entries) {
+  return entries.length ? getTotalMinutes(entries) / entries.length : 0;
+}
+
+function getRawFragmentationScore(entries) {
+  const gapStats = getDayGapStats(entries);
+  const averageSessionMinutes = getAverageSessionMinutes(entries);
+  const shortAveragePenalty = entries.length && averageSessionMinutes < 25 ? 12 : 0;
+  const rawScore =
+    getShortSessionCount(entries) * 10 +
+    getContextSwitchCount(entries) * 8 +
+    gapStats.short * 4 +
+    gapStats.medium * 2 +
+    shortAveragePenalty -
+    getFocusSessionCount(entries) * 5;
+
+  return Math.min(100, Math.max(0, Math.round(rawScore)));
+}
+
+function getFragmentationScore(entries) {
+  const groupedEntries = getEntriesGroupedByDay(entries);
+
+  if (!groupedEntries.size) {
+    return 0;
+  }
+
+  const dayScores = [...groupedEntries.values()].map(getRawFragmentationScore);
+  return Math.round(dayScores.reduce((total, score) => total + score, 0) / dayScores.length);
+}
+
+function getFragmentationLabel(score) {
+  if (score <= 30) {
+    return "ruhig";
+  }
+
+  if (score <= 60) {
+    return "moderat fragmentiert";
+  }
+
+  return "stark fragmentiert";
+}
+
+function getFragmentationStatusClass(score) {
+  if (score <= 30) {
+    return "is-calm";
+  }
+
+  if (score <= 60) {
+    return "is-mixed";
+  }
+
+  return "is-fragmented";
+}
+
+function getFragmentationInsight(score, stats = {}) {
+  if (!stats.sessionCount) {
+    return "Noch keine Arbeitsmuster für diese Woche erkennbar.";
+  }
+
+  if (score <= 30) {
+    return "Diese Woche war überwiegend ruhig strukturiert.";
+  }
+
+  if (score <= 60) {
+    const dayText = stats.mostFragmentedDay ? ` Besonders viele Wechsel gab es am ${formatWeekdayName(stats.mostFragmentedDay.date)}.` : "";
+    return `Deine Woche war teilweise fragmentiert.${dayText}`;
+  }
+
+  return "Diese Woche war stark unterbrochen. Kurze Sessions und viele Kontextwechsel prägen die Auswertung.";
+}
+
+function getStrongestCategory(entries) {
+  const categoryMinutes = getCategoryMinutes(entries);
+  return [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Noch offen";
+}
+
+function getDayQualityStats(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const totalMinutes = getTotalMinutes(sortedEntries);
+  const focusMinutes = getTotalMinutes(getFocusEntries(sortedEntries));
+  const fragmentationScore = getRawFragmentationScore(sortedEntries);
+  let rating = "keine Einträge";
+
+  if (sortedEntries.length && totalMinutes < 120) {
+    rating = "kurzer Arbeitstag";
+  } else if (sortedEntries.length && fragmentationScore <= 30 && focusMinutes >= 120) {
+    rating = "ruhiger Fokus-Tag";
+  } else if (sortedEntries.length && fragmentationScore >= 61) {
+    rating = "stark fragmentierter Tag";
+  } else if (sortedEntries.length) {
+    rating = "gemischter Arbeitstag";
+  }
+
+  return {
+    entries: sortedEntries,
+    totalMinutes,
+    firstStart: sortedEntries[0]?.startedAt || null,
+    lastEnd: sortedEntries[sortedEntries.length - 1]?.endedAt || null,
+    sessionCount: sortedEntries.length,
+    longestSession: getLongestSessionMinutes(sortedEntries),
+    averageSession: getAverageSessionMinutes(sortedEntries),
+    focusMinutes,
+    strongestCategory: getStrongestCategory(sortedEntries),
+    contextSwitches: getContextSwitchCount(sortedEntries),
+    fragmentationScore,
+    fragmentationLabel: getFragmentationLabel(fragmentationScore),
+    rating,
+  };
+}
+
+function getWeekInterruptionStats(entries) {
+  const groupedEntries = getEntriesGroupedByDay(entries);
+  const dayStats = [];
+  const weekStart = getWeekStart(new Date());
+  const gapStats = {
+    short: 0,
+    medium: 0,
+    long: 0,
+  };
+
+  for (let index = 0; index < 7; index += 1) {
+    const date = addDays(weekStart, index);
+    const dayKey = toDateInputValue(date);
+    const dayEntries = groupedEntries.get(dayKey) || [];
+    const dayGapStats = getDayGapStats(dayEntries);
+    const qualityStats = getDayQualityStats(dayEntries);
+
+    gapStats.short += dayGapStats.short;
+    gapStats.medium += dayGapStats.medium;
+    gapStats.long += dayGapStats.long;
+
+    dayStats.push({
+      date,
+      dayKey,
+      entries: dayEntries,
+      sessionCount: dayEntries.length,
+      shortSessionCount: getShortSessionCount(dayEntries),
+      contextSwitchCount: getContextSwitchCount(dayEntries),
+      averageSession: getAverageSessionMinutes(dayEntries),
+      focusSessionCount: getFocusSessionCount(dayEntries),
+      fragmentationScore: qualityStats.fragmentationScore,
+      fragmentationLabel: qualityStats.fragmentationLabel,
+      strongestCategory: qualityStats.strongestCategory,
+      gapStats: dayGapStats,
+    });
+  }
+
+  const daysWithEntries = dayStats.filter((day) => day.sessionCount > 0);
+  const quietestDay = daysWithEntries
+    .slice()
+    .sort((a, b) => a.fragmentationScore - b.fragmentationScore || b.averageSession - a.averageSession)[0] || null;
+  const mostFragmentedDay = daysWithEntries
+    .slice()
+    .sort((a, b) => b.fragmentationScore - a.fragmentationScore || b.sessionCount - a.sessionCount)[0] || null;
+  const fragmentationScore = daysWithEntries.length
+    ? Math.round(daysWithEntries.reduce((total, day) => total + day.fragmentationScore, 0) / daysWithEntries.length)
+    : 0;
+
+  return {
+    dayStats,
+    quietestDay,
+    mostFragmentedDay,
+    sessionCount: entries.length,
+    averageSession: getAverageSessionMinutes(entries),
+    shortSessionCount: getShortSessionCount(entries),
+    contextSwitchCount: getContextSwitchCount(entries),
+    gapStats,
+    fragmentationScore,
+    fragmentationLabel: getFragmentationLabel(fragmentationScore),
+  };
+}
+
+function getLastEntryDay(entries) {
+  const sortedEntries = sortEntriesByStart(entries);
+  const lastEntry = sortedEntries[sortedEntries.length - 1];
+
+  return lastEntry ? startOfDay(lastEntry.startedAt) : null;
+}
+
+function getSelectedAnalyticsDay(entries = getCurrentWeekEntries()) {
+  const selectedDay = analyticsSelectedDay ? startOfDay(analyticsSelectedDay) : null;
+  const weekStart = getWeekStart(new Date());
+  const weekEnd = getWeekEnd(new Date());
+
+  if (selectedDay && selectedDay >= weekStart && selectedDay < weekEnd) {
+    return selectedDay;
+  }
+
+  const today = startOfDay(new Date());
+  const todayEntries = getEntriesForDay(today, entries);
+
+  if (todayEntries.length) {
+    analyticsSelectedDay = today;
+    return today;
+  }
+
+  const lastEntryDay = getLastEntryDay(entries);
+
+  if (lastEntryDay) {
+    analyticsSelectedDay = lastEntryDay;
+    return lastEntryDay;
+  }
+
+  analyticsSelectedDay = today >= weekStart && today < weekEnd ? today : weekStart;
+  return analyticsSelectedDay;
+}
+
+function setSelectedAnalyticsDay(date) {
+  analyticsSelectedDay = startOfDay(date);
+}
+
+function formatWeekdayName(date) {
+  return new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(date);
+}
+
+function formatDaySelectorLabel(date) {
+  return `${formatWeekdayName(date)}, ${formatDate(date)}`;
+}
+
+function getRemainingWorkdays(date = new Date()) {
+  const dayNumber = date.getDay() || 7;
+
+  if (dayNumber > 5) {
+    return 0;
+  }
+
+  return 6 - dayNumber;
+}
+
+function getCapacityStats(entries) {
+  const dailyTargetMinutes = getTargetWorkMinutes() || DEFAULT_REMINDER_SETTINGS.targetWorkHours * 60;
+  const weeklyTargetMinutes = dailyTargetMinutes * 5;
+  const trackedMinutes = getTotalMinutes(entries);
+  const remainingMinutes = Math.max(0, weeklyTargetMinutes - trackedMinutes);
+  const remainingWorkdays = getRemainingWorkdays();
+  const remainingPerWorkday = remainingMinutes && remainingWorkdays ? remainingMinutes / remainingWorkdays : remainingMinutes;
+  const progressPercent = weeklyTargetMinutes ? Math.min(100, (trackedMinutes / weeklyTargetMinutes) * 100) : 0;
+  const isReached = trackedMinutes >= weeklyTargetMinutes;
+  let statusKey = "plan";
+  let statusLabel = "Im Plan";
+
+  if (isReached) {
+    statusKey = "reached";
+    statusLabel = "Ziel erreicht";
+  } else if (!remainingWorkdays && remainingMinutes > 0) {
+    statusKey = "critical";
+    statusLabel = "Kritisch";
+  } else if (remainingPerWorkday > dailyTargetMinutes * 1.25) {
+    statusKey = "critical";
+    statusLabel = "Kritisch";
+  } else if (remainingPerWorkday > dailyTargetMinutes) {
+    statusKey = "tight";
+    statusLabel = "Knapp";
+  }
+
+  return {
+    dailyTargetMinutes,
+    weeklyTargetMinutes,
+    trackedMinutes,
+    remainingMinutes,
+    remainingWorkdays,
+    remainingPerWorkday: isReached ? 0 : remainingPerWorkday,
+    progressPercent,
+    statusKey,
+    statusLabel,
+  };
+}
+
+function getDominantCategory(categoryMinutes, totalMinutes) {
+  if (!totalMinutes) {
+    return null;
+  }
+
+  const entries = categoryMinutes instanceof Map ? [...categoryMinutes.entries()] : categoryMinutes;
+
+  return entries.find(([, minutes]) => minutes / totalMinutes > 0.4)?.[0] || null;
+}
+
+function formatSignedDurationDifference(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes === 0) {
+    return "stabil";
+  }
+
+  const sign = roundedMinutes > 0 ? "+" : "-";
+  return `${sign}${formatAnalyticsDuration(Math.abs(roundedMinutes))}`;
+}
+
+function formatPercent(value) {
+  return `${new Intl.NumberFormat("de-DE", {
+    maximumFractionDigits: value < 10 && value > 0 ? 1 : 0,
+  }).format(value)} %`;
+}
+
+function getWeekSummary(entries) {
+  const categoryMinutes = getCategoryMinutes(entries);
   const sortedCategories = [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1]);
 
+  return {
+    totalMinutes: getTotalMinutes(entries),
+    focusMinutes: getFocusStats(entries).focusMinutes,
+    sessionCount: entries.length,
+    mainCategory: sortedCategories[0]?.[0] || "Noch offen",
+    meetingMinutes: categoryMinutes.get("Meetings") || 0,
+    hasMeetings: categoryMinutes.has("Meetings") || getCategoriesForUser().some((category) => category.name === "Meetings"),
+  };
+}
+
+function getWeekComparisonStats(currentEntries, previousEntries) {
+  const current = getWeekSummary(currentEntries);
+  const previous = getWeekSummary(previousEntries);
+
+  return {
+    current,
+    previous,
+    hasPreviousData: previousEntries.length > 0,
+  };
+}
+
+function getCurrentWeekEntries() {
+  return getEntriesForWeek(new Date());
+}
+
+function createAnalyticsKpiCard(label, value, detail = "", className = "") {
+  const card = document.createElement("article");
+  card.className = ["analytics-kpi-card", className].filter(Boolean).join(" ");
+
+  const labelElement = document.createElement("p");
+  labelElement.textContent = label;
+  card.append(labelElement);
+
+  const valueElement = document.createElement("strong");
+  valueElement.textContent = value;
+  card.append(valueElement);
+
+  if (detail) {
+    const detailElement = document.createElement("span");
+    detailElement.textContent = detail;
+    card.append(detailElement);
+  }
+
+  return card;
+}
+
+function renderCapacityStats(stats) {
+  capacityStatus.textContent = stats.statusLabel;
+  capacityStatus.className = `analytics-status-badge is-${stats.statusKey}`;
+  capacityProgressFill.style.width = `${stats.progressPercent}%`;
+  capacityProgressPercent.textContent = formatPercent(stats.progressPercent);
+  capacityStats.innerHTML = "";
+
+  [
+    ["Wochenziel", formatAnalyticsDuration(stats.weeklyTargetMinutes), `${formatAnalyticsDuration(stats.dailyTargetMinutes)} pro Tag`],
+    ["Bisher erfasst", formatAnalyticsDuration(stats.trackedMinutes)],
+    ["Verbleibend", formatAnalyticsDuration(stats.remainingMinutes)],
+    [
+      "Rest pro Arbeitstag",
+      formatAnalyticsDuration(stats.remainingPerWorkday),
+      stats.remainingWorkdays ? `${stats.remainingWorkdays} Arbeitstage übrig` : "Keine Arbeitstage übrig",
+    ],
+    ["Status", stats.statusLabel],
+  ].forEach(([label, value, detail]) => {
+    capacityStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderFocusStats(stats, totalMinutes) {
+  focusStats.innerHTML = "";
+
+  if (!stats.sessionCount) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch keine Fokus-Session ab 45 Minuten in dieser Woche.";
+    focusStats.append(empty);
+    return;
+  }
+
+  const strongestDay = stats.strongestDay
+    ? new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(stats.strongestDay)
+    : "Noch offen";
+
+  [
+    ["Fokuszeit gesamt", formatAnalyticsDuration(stats.focusMinutes), `${formatPercent(stats.focusShare)} deiner erfassten Zeit`],
+    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["Fokus-Sessions", String(stats.sessionCount), "ab 45 Minuten"],
+    ["Stärkster Fokustag", strongestDay, totalMinutes ? "" : "Noch keine Wochenzeit"],
+  ].forEach(([label, value, detail]) => {
+    focusStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function getDurationTrendText(label, difference) {
+  if (Math.abs(difference) < 1) {
+    return `${label} stabil`;
+  }
+
+  return `${formatSignedDurationDifference(difference)} zur Vorwoche`;
+}
+
+function renderWeekComparisonStats(stats) {
+  weekComparisonStats.innerHTML = "";
+
+  if (!stats.hasPreviousData) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch keine Vergleichsdaten aus der Vorwoche.";
+    weekComparisonStats.append(empty);
+    return;
+  }
+
+  const totalDifference = stats.current.totalMinutes - stats.previous.totalMinutes;
+  const focusDifference = stats.current.focusMinutes - stats.previous.focusMinutes;
+  const sessionDifference = stats.current.sessionCount - stats.previous.sessionCount;
+  const sessionTrend = sessionDifference === 0 ? "Sessions stabil" : `${sessionDifference > 0 ? "+" : ""}${sessionDifference} Sessions`;
+  const categoryTrend =
+    stats.current.mainCategory === stats.previous.mainCategory
+      ? "Hauptkategorie stabil"
+      : `Vorwoche: ${stats.previous.mainCategory}`;
+
+  const cards = [
+    [
+      "Gesamtzeit",
+      formatAnalyticsDuration(stats.current.totalMinutes),
+      getDurationTrendText("Gesamtzeit", totalDifference),
+    ],
+    [
+      "Fokuszeit",
+      formatAnalyticsDuration(stats.current.focusMinutes),
+      getDurationTrendText("Fokuszeit", focusDifference),
+    ],
+    [
+      "Sessions",
+      String(stats.current.sessionCount),
+      sessionTrend,
+    ],
+    [
+      "Hauptkategorie",
+      stats.current.mainCategory,
+      categoryTrend,
+    ],
+  ];
+
+  if (stats.current.hasMeetings || stats.previous.hasMeetings) {
+    const meetingDifference = stats.current.meetingMinutes - stats.previous.meetingMinutes;
+    cards.push([
+      "Meetings",
+      formatAnalyticsDuration(stats.current.meetingMinutes),
+      getDurationTrendText("Meetings", meetingDifference),
+    ]);
+  }
+
+  cards.forEach(([label, value, detail]) => {
+    weekComparisonStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCategoryMinutes) {
+  const maxCategoryMinutes = Math.max(...categoryMinutes.values(), 0);
+  const sortedCategories = [...categoryMinutes.entries()]
+    .filter(([, minutes]) => minutes >= 1)
+    .sort((a, b) => b[1] - a[1]);
+  const dominantCategory = getDominantCategory(sortedCategories, totalMinutes);
+
+  analyticsEmpty.hidden = totalMinutes >= 1;
+  categoryBars.innerHTML = "";
+
   sortedCategories.forEach(([category, minutes]) => {
+    const percent = totalMinutes ? (minutes / totalMinutes) * 100 : 0;
+    const previousMinutes = previousCategoryMinutes.get(category) || 0;
+    const difference = minutes - previousMinutes;
     const row = document.createElement("div");
     row.className = "category-bar-row";
 
@@ -1357,7 +4009,7 @@ function renderAnalytics() {
     header.append(label);
 
     const value = document.createElement("span");
-    value.textContent = formatAnalyticsDuration(minutes);
+    value.textContent = `${formatAnalyticsDuration(minutes)} · ${formatPercent(percent)} · ${formatSignedDurationDifference(difference)} zur Vorwoche`;
     header.append(value);
     row.append(header);
 
@@ -1368,22 +4020,171 @@ function renderAnalytics() {
     fill.className = "category-bar-fill";
     fill.style.width = `${maxCategoryMinutes ? (minutes / maxCategoryMinutes) * 100 : 0}%`;
     fill.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+    fill.title = `${category}: ${formatAnalyticsDuration(minutes)}, ${formatPercent(percent)}`;
     track.append(fill);
     row.append(track);
 
+    if (category === dominantCategory) {
+      const hint = document.createElement("p");
+      hint.className = "category-dominance-hint";
+      hint.textContent = "Diese Kategorie prägt deine Woche.";
+      row.append(hint);
+    }
+
     categoryBars.append(row);
   });
+}
 
+function renderInterruptionStats(stats) {
+  interruptionStats.innerHTML = "";
+
+  const gapText = `${stats.gapStats.short} kurz · ${stats.gapStats.medium} mittel · ${stats.gapStats.long} lang`;
+  const quietestDay = stats.quietestDay ? formatWeekdayName(stats.quietestDay.date) : "Noch offen";
+  const mostFragmentedDay = stats.mostFragmentedDay ? formatWeekdayName(stats.mostFragmentedDay.date) : "Noch offen";
+
+  [
+    ["Sessions", String(stats.sessionCount), "Jeder Eintrag zählt als Session"],
+    ["Durchschnitt", formatAnalyticsDuration(stats.averageSession), "pro Session"],
+    ["Kurze Sessions", String(stats.shortSessionCount), "unter 15 Minuten"],
+    ["Kontextwechsel", String(stats.contextSwitchCount), "Kategorie oder Tätigkeit gewechselt"],
+    ["Lücken", gapText, "zwischen Sessions am selben Tag"],
+    ["Ruhigster Tag", quietestDay],
+    ["Fragmentiertester Tag", mostFragmentedDay],
+  ].forEach(([label, value, detail]) => {
+    interruptionStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+
+  renderFragmentationCard(stats);
+}
+
+function renderFragmentationCard(stats) {
+  const label = getFragmentationLabel(stats.fragmentationScore);
+  const statusClass = getFragmentationStatusClass(stats.fragmentationScore);
+
+  fragmentationCard.className = `fragmentation-card ${statusClass}`;
+  fragmentationCard.innerHTML = `
+    <div>
+      <p>Fragmentierungsgrad</p>
+      <strong>${stats.fragmentationScore}</strong>
+    </div>
+    <span class="fragmentation-badge ${statusClass}">${escapeHtml(label)}</span>
+    <p>${escapeHtml(getFragmentationInsight(stats.fragmentationScore, stats))}</p>
+  `;
+}
+
+function renderAnalyticsDaySelector(weekEntries) {
+  const selectedDay = getSelectedAnalyticsDay(weekEntries);
+  const weekStart = getWeekStart(new Date());
+  const currentValue = toDateInputValue(selectedDay);
+
+  analyticsDaySelect.innerHTML = "";
+
+  for (let index = 0; index < 7; index += 1) {
+    const day = addDays(weekStart, index);
+    const option = document.createElement("option");
+    option.value = toDateInputValue(day);
+    option.textContent = formatDaySelectorLabel(day);
+    analyticsDaySelect.append(option);
+  }
+
+  analyticsDaySelect.value = currentValue;
+  return selectedDay;
+}
+
+function renderDayTimeline(weekEntries) {
+  const selectedDay = renderAnalyticsDaySelector(weekEntries);
+  const dayEntries = getEntriesForDay(selectedDay, weekEntries);
+
+  dayTimelineTrack.innerHTML = "";
+  dayTimelineEmpty.hidden = dayEntries.length > 0;
+
+  const scale = document.createElement("div");
+  scale.className = "day-timeline-scale";
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const marker = document.createElement("span");
+    marker.textContent = `${String(hour).padStart(2, "0")}:00`;
+    marker.style.top = `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    scale.append(marker);
+  });
+  dayTimelineTrack.append(scale);
+
+  const lanes = document.createElement("div");
+  lanes.className = "day-timeline-lanes";
+
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const line = document.createElement("span");
+    line.className = "day-timeline-line";
+    line.style.top = `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    lanes.append(line);
+  });
+
+  sortEntriesByStart(dayEntries).forEach((entry) => {
+    const startMinute = Math.max(CALENDAR_VISIBLE_START, getMinuteOfDay(entry.startedAt));
+    const endMinute = Math.min(CALENDAR_VISIBLE_END, getMinuteOfDay(entry.endedAt));
+    const visibleDuration = Math.max(5, endMinute - startMinute);
+
+    if (endMinute <= CALENDAR_VISIBLE_START || startMinute >= CALENDAR_VISIBLE_END) {
+      return;
+    }
+
+    const block = document.createElement("article");
+    block.className = `day-timeline-entry${getEntryMinutes(entry) < 15 ? " is-short" : ""}`;
+    block.style.top = `${((startMinute - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`;
+    block.style.height = `${Math.max(2.4, (visibleDuration / CALENDAR_VISIBLE_MINUTES) * 100)}%`;
+    block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+    block.style.background = `color-mix(in srgb, ${CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges} 14%, var(--surface))`;
+    block.title = `${entry.activity || "Ohne Tätigkeit"} · ${entry.category || "Ohne Kategorie"} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${formatAnalyticsDuration(getEntryMinutes(entry))}`;
+
+    const title = document.createElement("strong");
+    title.textContent = entry.activity || "Ohne Tätigkeit";
+    block.append(title);
+
+    const meta = document.createElement("span");
+    meta.textContent = `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${entry.category || "Ohne Kategorie"}`;
+    block.append(meta);
+
+    lanes.append(block);
+  });
+
+  dayTimelineTrack.append(lanes);
+}
+
+function renderDayQuality(weekEntries) {
+  const selectedDay = getSelectedAnalyticsDay(weekEntries);
+  const dayEntries = getEntriesForDay(selectedDay, weekEntries);
+  const stats = getDayQualityStats(dayEntries);
+
+  dayQualityStats.innerHTML = "";
+
+  [
+    ["Bewertung", stats.rating],
+    ["Gesamtzeit", formatAnalyticsDuration(stats.totalMinutes)],
+    ["Erste Startzeit", stats.firstStart ? formatTime(stats.firstStart) : "-"],
+    ["Letzte Endzeit", stats.lastEnd ? formatTime(stats.lastEnd) : "-"],
+    ["Sessions", String(stats.sessionCount)],
+    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["Durchschnitt", formatAnalyticsDuration(stats.averageSession)],
+    ["Fokuszeit", formatAnalyticsDuration(stats.focusMinutes)],
+    ["Stärkste Kategorie", stats.strongestCategory],
+    ["Kontextwechsel", String(stats.contextSwitches)],
+    ["Fragmentierung", String(stats.fragmentationScore), stats.fragmentationLabel],
+  ].forEach(([label, value, detail]) => {
+    dayQualityStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategoryMinutes) {
   weekdayBars.innerHTML = "";
   const weekStart = getWeekStart(new Date());
   const maxWeekdayMinutes = Math.max(...weekdayMinutes.values(), 0);
+  const weekStats = getWeekInterruptionStats(weekEntries);
 
   for (let index = 0; index < 7; index += 1) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + index);
+    const day = addDays(weekStart, index);
     const dayKey = toDateInputValue(day);
     const minutes = weekdayMinutes.get(dayKey) || 0;
     const dayCategories = weekdayCategoryMinutes.get(dayKey) || new Map();
+    const dayStats = weekStats.dayStats.find((item) => item.dayKey === dayKey);
     const row = document.createElement("div");
     row.className = "weekday-bar-row";
 
@@ -1398,6 +4199,15 @@ function renderAnalytics() {
     value.textContent = formatAnalyticsDuration(minutes);
     header.append(value);
     row.append(header);
+
+    const meta = document.createElement("div");
+    meta.className = "weekday-bar-meta";
+    meta.innerHTML = `
+      <span>${dayStats?.sessionCount || 0} Sessions</span>
+      <span>${dayStats?.strongestCategory || "Noch offen"}</span>
+      <span class="fragmentation-badge ${getFragmentationStatusClass(dayStats?.fragmentationScore || 0)}">${escapeHtml(dayStats?.fragmentationLabel || "ruhig")} · ${dayStats?.fragmentationScore || 0}</span>
+    `;
+    row.append(meta);
 
     const track = document.createElement("div");
     track.className = "weekday-bar-track";
@@ -1415,9 +4225,48 @@ function renderAnalytics() {
     });
 
     row.append(track);
-
     weekdayBars.append(row);
   }
+}
+
+function renderAnalytics() {
+  const weekEntries = getCurrentWeekEntries();
+  const previousWeekEntries = getPreviousWeekEntries(new Date());
+  const categoryMinutes = getCategoryMinutes(weekEntries);
+  const previousCategoryMinutes = getCategoryMinutes(previousWeekEntries);
+  const weekdayMinutes = new Map();
+  const weekdayCategoryMinutes = new Map();
+  const totalMinutes = getTotalMinutes(weekEntries);
+
+  weekEntries.forEach((entry) => {
+    const minutes = getEntryMinutes(entry);
+    const weekdayKey = toDateInputValue(entry.startedAt);
+    const category = entry.category || "Ohne Kategorie";
+    weekdayMinutes.set(weekdayKey, (weekdayMinutes.get(weekdayKey) || 0) + minutes);
+
+    if (!weekdayCategoryMinutes.has(weekdayKey)) {
+      weekdayCategoryMinutes.set(weekdayKey, new Map());
+    }
+
+    const dayCategories = weekdayCategoryMinutes.get(weekdayKey);
+    dayCategories.set(category, (dayCategories.get(category) || 0) + minutes);
+  });
+
+  weeklyTotalElement.textContent = formatAnalyticsDuration(totalMinutes);
+  const hasVisibleWork = totalMinutes >= 1;
+  const sortedCategories = [...categoryMinutes.entries()]
+    .filter(([, minutes]) => minutes >= 1)
+    .sort((a, b) => b[1] - a[1]);
+  dailyAverageElement.textContent = hasVisibleWork ? sortedCategories[0]?.[0] || "Noch offen" : "Noch offen";
+
+  renderCapacityStats(getCapacityStats(weekEntries));
+  renderFocusStats(getFocusStats(weekEntries), totalMinutes);
+  renderWeekComparisonStats(getWeekComparisonStats(weekEntries, previousWeekEntries));
+  renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCategoryMinutes);
+  renderInterruptionStats(getWeekInterruptionStats(weekEntries));
+  renderDayTimeline(weekEntries);
+  renderDayQuality(weekEntries);
+  renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategoryMinutes);
 }
 
 function getMinutesSinceDayStart(date) {
@@ -1470,7 +4319,107 @@ function getCalendarRange() {
 }
 
 function getEntriesForRange(start, end) {
-  return timeEntries.filter((entry) => entry.startedAt >= start && entry.startedAt < end);
+  return getEntriesForActiveUser().filter((entry) => entry.startedAt >= start && entry.startedAt < end);
+}
+
+function getEntriesForDay(date, entries = getEntriesForActiveUser()) {
+  const dayKey = toDateInputValue(date);
+
+  return entries
+    .filter((entry) => toDateInputValue(entry.startedAt) === dayKey)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+}
+
+function getEntriesTotalMinutes(entries) {
+  return entries.reduce(
+    (total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000),
+    0,
+  );
+}
+
+function getDayCategoryMinutes(entries) {
+  const categoryMinutes = new Map();
+
+  entries.forEach((entry) => {
+    const minutes = Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000);
+    categoryMinutes.set(entry.category, (categoryMinutes.get(entry.category) || 0) + minutes);
+  });
+
+  return [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function formatCompactCalendarDuration(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes <= 0) {
+    return "";
+  }
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = roundedMinutes % 60;
+
+  if (!hours) {
+    return `${remainingMinutes}m`;
+  }
+
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function formatHeatmapDuration(minutes) {
+  const roundedMinutes = Math.round(minutes);
+
+  if (roundedMinutes <= 0) {
+    return "";
+  }
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = roundedMinutes % 60;
+
+  if (!hours) {
+    return `${remainingMinutes} m`;
+  }
+
+  return `${hours}:${String(remainingMinutes).padStart(2, "0")} h`;
+}
+
+function getHeatmapIntensityClass(minutes) {
+  if (minutes <= 0) {
+    return "heatmap-day-empty";
+  }
+
+  if (minutes < 240) {
+    return "heatmap-day-low";
+  }
+
+  if (minutes < 360) {
+    return "heatmap-day-medium";
+  }
+
+  if (minutes <= 480) {
+    return "heatmap-day-high";
+  }
+
+  return "heatmap-day-over";
+}
+
+function renderDayCategoryStrip(entries) {
+  const strip = document.createElement("span");
+  strip.className = "calendar-day-category-strip";
+  const totalMinutes = getEntriesTotalMinutes(entries);
+
+  if (!totalMinutes) {
+    return strip;
+  }
+
+  getDayCategoryMinutes(entries).forEach(([category, minutes]) => {
+    const segment = document.createElement("i");
+    segment.style.width = `${Math.max(8, (minutes / totalMinutes) * 100)}%`;
+    segment.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
+    segment.title = `${category}: ${formatAnalyticsDuration(minutes)}`;
+    strip.append(segment);
+  });
+
+  return strip;
 }
 
 function formatCalendarPeriod(start, end) {
@@ -1500,12 +4449,73 @@ function updateCalendarToolbar(start, end) {
   calendarPeriodLabel.textContent = formatCalendarPeriod(start, end);
 }
 
+function getMinuteOfDay(date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function getVisibleEntryRange(entry, day) {
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = addDays(dayStart, 1);
+  const rawStart = entry.startedAt < dayStart ? 0 : getMinuteOfDay(entry.startedAt);
+  const rawEnd = entry.endedAt >= dayEnd ? 24 * 60 : getMinuteOfDay(entry.endedAt);
+  const endMinute = Math.max(rawEnd, rawStart + 1);
+  const startMinute = Math.max(rawStart, CALENDAR_VISIBLE_START);
+  const visibleEndMinute = Math.min(endMinute, CALENDAR_VISIBLE_END);
+
+  if (visibleEndMinute <= CALENDAR_VISIBLE_START || startMinute >= CALENDAR_VISIBLE_END) {
+    return null;
+  }
+
+  return {
+    start: startMinute,
+    end: Math.max(visibleEndMinute, startMinute + 1),
+    clippedStart: rawStart < CALENDAR_VISIBLE_START,
+    clippedEnd: endMinute > CALENDAR_VISIBLE_END,
+  };
+}
+
+function getPositionedDayEntries(dayEntries, day) {
+  const lanes = [];
+
+  return dayEntries
+    .map((entry) => {
+      const range = getVisibleEntryRange(entry, day);
+      return range ? { entry, range } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.range.start - b.range.start || b.range.end - a.range.end)
+    .map((positionedEntry) => {
+      const laneIndex = lanes.findIndex((laneEnd) => laneEnd <= positionedEntry.range.start);
+      const nextLane = laneIndex === -1 ? lanes.length : laneIndex;
+      lanes[nextLane] = positionedEntry.range.end;
+
+      return {
+        ...positionedEntry,
+        lane: nextLane,
+        lanes,
+      };
+    })
+    .map((positionedEntry) => ({
+      ...positionedEntry,
+      laneCount: Math.max(1, positionedEntry.lanes.length),
+    }));
+}
+
+function renderWeekplanHours() {
+  weekplanHours.innerHTML = "";
+
+  CALENDAR_HOUR_MARKERS.forEach((hour) => {
+    const marker = document.createElement("span");
+    marker.textContent = `${String(hour).padStart(2, "0")}:00`;
+    marker.style.setProperty("--hour-top", `${((hour * 60 - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+    weekplanHours.append(marker);
+  });
+}
+
 function renderWeekplan() {
   const { start, end } = getCalendarRange();
   const dayCount = calendarViewMode === "month" ? 0 : Math.round((end - start) / 86400000);
-  const visibleStart = 6 * 60;
-  const visibleEnd = 24 * 60;
-  const visibleMinutes = visibleEnd - visibleStart;
   const calendarEntries = getEntriesForRange(start, end);
   updateCalendarToolbar(start, end);
   weekplanDays.innerHTML = "";
@@ -1519,47 +4529,69 @@ function renderWeekplan() {
     return;
   }
 
+  renderWeekplanHours();
+
   for (let index = 0; index < dayCount; index += 1) {
     const day = addDays(start, index);
     const dayKey = toDateInputValue(day);
-    const dayEntries = calendarEntries
-      .filter((entry) => toDateInputValue(entry.startedAt) === dayKey)
-      .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+    const dayEntries = getEntriesForDay(day, calendarEntries);
+    const positionedEntries = getPositionedDayEntries(dayEntries, day);
+    const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayColumn = document.createElement("section");
     dayColumn.className = "weekplan-day";
+    dayColumn.dataset.calendarDate = dayKey;
+    dayColumn.dataset.entryCount = String(dayEntries.length);
+    dayColumn.tabIndex = 0;
+
+    if (dayKey === toDateInputValue(new Date())) {
+      dayColumn.classList.add("is-today");
+    }
+
+    if (calendarDetailDate && dayKey === toDateInputValue(calendarDetailDate)) {
+      dayColumn.classList.add("is-selected");
+    }
 
     const title = document.createElement("h3");
-    title.textContent = new Intl.DateTimeFormat("de-DE", {
+    const dayLabel = new Intl.DateTimeFormat("de-DE", {
       weekday: "short",
       day: "2-digit",
       month: "2-digit",
     }).format(day);
+    title.innerHTML = `
+      <span>${dayLabel}</span>
+      <strong>${formatCompactCalendarDuration(totalMinutes) || "0m"}</strong>
+    `;
     dayColumn.append(title);
+    dayColumn.append(renderDayCategoryStrip(dayEntries));
 
     const timeline = document.createElement("div");
     timeline.className = "weekplan-timeline";
 
-    if (!dayEntries.length) {
+    if (!positionedEntries.length) {
       const empty = document.createElement("p");
       empty.className = "weekplan-empty";
-      empty.textContent = "Keine Einträge";
+      empty.textContent = dayEntries.length ? "Keine Einträge zwischen 06:00 und 24:00" : "Keine Einträge";
       timeline.append(empty);
     }
 
-    dayEntries.forEach((entry) => {
-      const startMinute = Math.max(visibleStart, getMinutesSinceDayStart(entry.startedAt));
-      const endMinute = Math.min(visibleEnd, getMinutesSinceDayStart(entry.endedAt));
-
-      if (endMinute <= visibleStart || startMinute >= visibleEnd || endMinute <= startMinute) {
-        return;
-      }
-
+    positionedEntries.forEach(({ entry, range, lane, laneCount }) => {
       const block = document.createElement("article");
       block.className = `weekplan-entry weekplan-entry-${calendarViewMode}`;
-      block.style.top = `${((startMinute - visibleStart) / visibleMinutes) * 100}%`;
-      block.style.height = `${((endMinute - startMinute) / visibleMinutes) * 100}%`;
-      block.style.background = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+      block.style.setProperty("--entry-top", `${((range.start - CALENDAR_VISIBLE_START) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+      block.style.setProperty("--entry-height", `${((range.end - range.start) / CALENDAR_VISIBLE_MINUTES) * 100}%`);
+      block.style.setProperty("--entry-lane", String(lane));
+      block.style.setProperty("--entry-lanes", String(laneCount));
+      block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
       block.title = `${entry.activity} · ${entry.category} · ${formatTime(entry.startedAt)} bis ${formatTime(entry.endedAt)}`;
+      block.dataset.entryId = entry.id;
+
+      if (range.clippedStart) {
+        block.classList.add("is-clipped-start");
+      }
+
+      if (range.clippedEnd) {
+        block.classList.add("is-clipped-end");
+      }
 
       const label = document.createElement("strong");
       label.textContent = entry.activity;
@@ -1567,9 +4599,7 @@ function renderWeekplan() {
 
       const time = document.createElement("span");
       time.textContent =
-        calendarViewMode === "day"
-          ? `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`
-          : `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)}`;
+        `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`;
       block.append(time);
       timeline.append(block);
     });
@@ -1577,6 +4607,8 @@ function renderWeekplan() {
     dayColumn.append(timeline);
     weekplanDays.append(dayColumn);
   }
+
+  renderCalendarDayDetail();
 }
 
 function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
@@ -1587,19 +4619,30 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
   for (let day = new Date(gridStart); day < gridEnd; day = addDays(day, 1)) {
     const currentDay = new Date(day);
     const dayKey = toDateInputValue(currentDay);
-    const dayEntries = monthEntries.filter((entry) => toDateInputValue(entry.startedAt) === dayKey);
-    const totalMinutes = dayEntries.reduce(
-      (total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000),
-      0,
-    );
-    const categorySet = [...new Set(dayEntries.map((entry) => entry.category))].slice(0, 4);
+    const dayEntries = getEntriesForDay(currentDay, monthEntries);
+    const totalMinutes = getEntriesTotalMinutes(dayEntries);
     const dayButton = document.createElement("button");
     dayButton.type = "button";
-    dayButton.className = "calendar-month-day";
-    dayButton.dataset.date = dayKey;
+    dayButton.className = `calendar-month-day heatmap-day ${getHeatmapIntensityClass(totalMinutes)}`;
+    dayButton.dataset.calendarDate = dayKey;
+    dayButton.setAttribute("aria-label", `${formatDate(currentDay)}, ${formatAnalyticsDuration(totalMinutes)}, ${dayEntries.length} Einträge`);
 
     if (currentDay.getMonth() !== monthStart.getMonth()) {
       dayButton.classList.add("is-outside-month");
+    }
+
+    if (currentDay.getDay() === 0 || currentDay.getDay() === 6) {
+      dayButton.classList.add("heatmap-day-weekend");
+    }
+
+    if (dayKey === toDateInputValue(new Date())) {
+      dayButton.classList.add("is-today");
+      dayButton.classList.add("heatmap-day-today");
+    }
+
+    if (calendarDetailDate && dayKey === toDateInputValue(calendarDetailDate)) {
+      dayButton.classList.add("is-selected");
+      dayButton.classList.add("heatmap-day-selected");
     }
 
     const dayNumber = document.createElement("strong");
@@ -1607,20 +4650,67 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
     dayButton.append(dayNumber);
 
     const total = document.createElement("span");
-    total.textContent = totalMinutes ? formatAnalyticsDuration(totalMinutes) : "";
+    total.textContent = formatHeatmapDuration(totalMinutes);
     dayButton.append(total);
 
-    const indicators = document.createElement("span");
-    indicators.className = "calendar-category-indicators";
-    categorySet.forEach((category) => {
-      const indicator = document.createElement("i");
-      indicator.style.background = CATEGORY_COLORS[category] || CATEGORY_COLORS.Sonstiges;
-      indicators.append(indicator);
-    });
-    dayButton.append(indicators);
+    if (dayEntries.length) {
+      const count = document.createElement("em");
+      count.textContent = `${dayEntries.length}`;
+      dayButton.append(count);
+    }
 
     weekplanDays.append(dayButton);
   }
+
+  renderCalendarDayDetail();
+}
+
+function renderCalendarDayDetail(entries = getEntriesForActiveUser()) {
+  if (!calendarDetailDate) {
+    calendarDayDetail.hidden = true;
+    return;
+  }
+
+  const dayEntries = getEntriesForDay(calendarDetailDate, entries);
+  const totalMinutes = getEntriesTotalMinutes(dayEntries);
+
+  calendarDayDetail.hidden = false;
+  calendarDayDetail.dataset.date = toDateInputValue(calendarDetailDate);
+  calendarDayDetailDate.textContent = new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(calendarDetailDate);
+  calendarDayDetailTotal.textContent = formatAnalyticsDuration(totalMinutes);
+  calendarDayDetailList.innerHTML = "";
+
+  if (!dayEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "calendar-day-detail-empty";
+    empty.textContent = "Für diesen Tag gibt es noch keine Einträge.";
+    calendarDayDetailList.append(empty);
+    return;
+  }
+
+  dayEntries.forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "calendar-day-detail-entry";
+    item.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
+    item.innerHTML = `
+      <div>
+        <strong>${escapeHtml(entry.activity || "Zeiteintrag")}</strong>
+        <span>${escapeHtml(entry.category || "Ohne Kategorie")}</span>
+      </div>
+      <p>${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.</p>
+      ${entry.note ? `<p class="calendar-day-detail-note">${escapeHtml(entry.note)}</p>` : ""}
+      <div class="calendar-day-detail-actions">
+        <button class="settings-secondary-button" type="button" data-calendar-detail-action="edit" data-entry-id="${escapeHtml(entry.id)}">Bearbeiten</button>
+        <button class="settings-danger-button" type="button" data-calendar-detail-action="delete" data-entry-id="${escapeHtml(entry.id)}">Löschen</button>
+      </div>
+    `;
+    calendarDayDetailList.append(item);
+  });
 }
 
 function shiftCalendarPeriod(direction) {
@@ -1663,10 +4753,21 @@ function openCalendarDay(dateValue) {
     return;
   }
 
-  calendarViewMode = "day";
+  calendarDetailDate = selectedDate;
   calendarSelectedDate = selectedDate;
   saveCalendarState();
   renderWeekplan();
+}
+
+function closeCalendarDayDetail() {
+  calendarDetailDate = null;
+  renderWeekplan();
+}
+
+function addEntryForCalendarDetailDay() {
+  const selectedDate = calendarDetailDate ? toDateInputValue(calendarDetailDate) : toDateInputValue(calendarSelectedDate);
+  showManualView();
+  manualForm.elements.date.value = selectedDate;
 }
 
 function escapeCsvValue(value) {
@@ -1675,8 +4776,20 @@ function escapeCsvValue(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function createCsvExport() {
+function renderExportSummary() {
+  const activeCount = getEntriesForActiveUser().length;
+  const totalCount = timeEntries.length;
+
+  exportSummary.textContent =
+    exportScopeSelect.value === "all"
+      ? `${totalCount} Einträge von allen Nutzern werden als CSV exportiert.`
+      : `${activeCount} Einträge von ${getUserName(activeUserId)} werden als CSV exportiert.`;
+}
+
+function createCsvExport(entries = getExportEntries()) {
   const header = [
+    "Nutzer-ID",
+    "Nutzername",
     "Datum",
     "Tätigkeit",
     "Kategorie",
@@ -1687,9 +4800,11 @@ function createCsvExport() {
     "bearbeitet",
     "nachgetragen",
   ];
-  const rows = [...timeEntries]
+  const rows = [...entries]
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
     .map((entry) => [
+      getValidUserId(entry.user_id),
+      getUserName(entry.user_id),
       formatDate(entry.startedAt),
       entry.activity,
       entry.category,
@@ -1705,13 +4820,18 @@ function createCsvExport() {
 }
 
 function downloadCsvExport() {
-  if (!timeEntries.length) {
-    exportMessage.textContent = "Es gibt noch keine Zeiteinträge für den Export.";
+  const exportEntries = getExportEntries();
+
+  if (!exportEntries.length) {
+    exportMessage.textContent =
+      exportScopeSelect.value === "all"
+        ? "Es gibt noch keine Zeiteinträge für den Export."
+        : `Es gibt noch keine Zeiteinträge für ${getUserName(activeUserId)}.`;
     exportMessage.hidden = false;
     return;
   }
 
-  const csv = `\uFEFF${createCsvExport()}`;
+  const csv = `\uFEFF${createCsvExport(exportEntries)}`;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1757,6 +4877,7 @@ function collectReminderSettingsFromForm() {
 
 function saveReminderSettingsFromForm() {
   saveReminderSettings(collectReminderSettingsFromForm());
+  renderTimerContext();
 
   if (!getReminderSettings().enabled || getTodayTotalMinutes() >= getTargetWorkMinutes()) {
     hideInAppReminder();
@@ -1766,6 +4887,7 @@ function saveReminderSettingsFromForm() {
 function restoreDefaultReminderSettings() {
   saveReminderSettings(DEFAULT_REMINDER_SETTINGS);
   renderReminderSettingsForm();
+  renderTimerContext();
   hideInAppReminder();
   showSettingsMessage("Erinnerungen wurden auf Standardwerte zurückgesetzt.", "success");
 }
@@ -1816,6 +4938,10 @@ function parseCsvRows(text) {
     rows.push(row);
   }
 
+  if (isQuoted) {
+    throw new Error("Die CSV-Datei enthält ein nicht geschlossenes Anführungszeichen.");
+  }
+
   return rows.filter((currentRow) => currentRow.some((value) => value.trim()));
 }
 
@@ -1832,6 +4958,12 @@ function getCsvValue(row, headerMap, headerName) {
   const columnIndex = headerMap.get(headerName);
 
   return columnIndex === undefined ? "" : (row[columnIndex] || "").trim();
+}
+
+function getCsvUserId(row, headerMap) {
+  const userId = getCsvValue(row, headerMap, "nutzer-id");
+
+  return userId && getValidUserId(userId) === userId ? userId : activeUserId;
 }
 
 function parseCsvBoolean(value) {
@@ -1905,11 +5037,19 @@ function entriesFromCsvText(text) {
   const rows = parseCsvRows(text);
 
   if (rows.length < 2) {
-    return [];
+    throw new Error("Die CSV-Datei enthält keine importierbaren Zeiteinträge.");
   }
 
   const headerMap = new Map(rows[0].map((header, index) => [normalizeCsvHeader(header), index]));
+  const requiredHeaders = ["datum", "tatigkeit", "kategorie", "arbeitsbeginn", "arbeitsende"];
+  const missingHeaders = requiredHeaders.filter((header) => !headerMap.has(header));
+
+  if (missingHeaders.length) {
+    throw new Error("Die CSV-Datei hat nicht das erwartete TimeKeeper-Format.");
+  }
+
   const importedEntries = [];
+  let invalidRowCount = 0;
 
   rows.slice(1).forEach((row, index) => {
     const activity = getCsvValue(row, headerMap, "tatigkeit");
@@ -1921,6 +5061,7 @@ function entriesFromCsvText(text) {
     const endedAt = createDateFromCsvParts(dateParts, endParts);
 
     if (!activity || !category || !startedAt || !endedAt || endedAt <= startedAt) {
+      invalidRowCount += 1;
       return;
     }
 
@@ -1934,28 +5075,307 @@ function entriesFromCsvText(text) {
       edited: parseCsvBoolean(getCsvValue(row, headerMap, "bearbeitet")),
       manual: parseCsvBoolean(getCsvValue(row, headerMap, "nachgetragen")),
       uploaded: true,
+      user_id: getCsvUserId(row, headerMap),
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     });
   });
+
+  if (!importedEntries.length) {
+    throw new Error("Keine gültigen Zeiteinträge gefunden. Bitte Datum, Zeiten, Tätigkeit und Kategorie prüfen.");
+  }
+
+  if (invalidRowCount) {
+    throw new Error(`${invalidRowCount} CSV-Zeile(n) sind ungültig. Es wurde nichts importiert.`);
+  }
 
   return importedEntries;
 }
 
-function deleteAllEntries() {
-  const shouldDelete = window.confirm("Alle lokal gespeicherten Zeiteinträge wirklich löschen?");
+function getDefaultUserProfile(userId) {
+  const validUserId = getValidUserId(userId);
+  const defaultUser = DEFAULT_USERS.find((user) => user.id === validUserId) || DEFAULT_USERS[0];
 
-  if (!shouldDelete) {
-    showSettingsMessage("Löschen abgebrochen.");
+  return { ...defaultUser };
+}
+
+function getDefaultUserProfiles() {
+  return DEFAULT_USERS.map((user) => ({ ...user }));
+}
+
+function getDefaultCategoriesForUsers(userIds) {
+  return userIds.flatMap((userId) => createDefaultCategoriesForUser(userId));
+}
+
+function getAuditLogEntries() {
+  try {
+    const entries = JSON.parse(localStorage.getItem(AUDIT_LOG_KEY) || "[]");
+    return Array.isArray(entries) ? entries : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function appendAuditLog(action, { userId = null, details = "" } = {}) {
+  const entry = {
+    id: createEntryId(),
+    action,
+    user_id: userId,
+    created_at: getNowIsoString(),
+    details,
+  };
+
+  try {
+    const entries = getAuditLogEntries();
+    entries.push(entry);
+    localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(entries.slice(-250)));
+  } catch (error) {
+    // The audit log is helpful for local traceability, but must not block the user's action.
+  }
+}
+
+function clearSafetyDialogMessage() {
+  safetyDialogMessage.textContent = "";
+  safetyDialogMessage.removeAttribute("data-type");
+  safetyDialogMessage.hidden = true;
+}
+
+function closeSafetyDialog(result = false) {
+  if (!pendingSafetyConfirmation) {
     return;
   }
 
-  if (!persistEntries([])) {
-    showSettingsMessage("Daten konnten nicht gelöscht werden. Bitte Browser-Speicher prüfen.", "error");
+  const { resolve } = pendingSafetyConfirmation;
+  pendingSafetyConfirmation = null;
+  clearSafetyDialogMessage();
+
+  if (safetyDialog.open) {
+    safetyDialog.close();
+  } else {
+    safetyDialog.hidden = true;
+  }
+
+  resolve(result);
+}
+
+function requestSafetyConfirmation({
+  title,
+  message,
+  confirmLabel = "Bestätigen",
+  requiredText = "",
+  inputLabel = "",
+}) {
+  if (!safetyDialog) {
+    return Promise.resolve(false);
+  }
+
+  if (pendingSafetyConfirmation) {
+    closeSafetyDialog(false);
+  }
+
+  safetyDialogTitle.textContent = title;
+  safetyDialogText.textContent = message;
+  safetyDialogConfirm.textContent = confirmLabel;
+  safetyDialogInput.value = "";
+  safetyDialogInputLabel.hidden = !requiredText;
+  safetyDialogInputHelp.textContent = inputLabel || (requiredText ? `Bitte "${requiredText}" eingeben.` : "");
+  clearSafetyDialogMessage();
+
+  return new Promise((resolve) => {
+    pendingSafetyConfirmation = { resolve, requiredText };
+
+    if (typeof safetyDialog.showModal === "function") {
+      safetyDialog.showModal();
+    } else {
+      safetyDialog.hidden = false;
+    }
+
+    if (requiredText) {
+      safetyDialogInput.focus();
+    } else {
+      safetyDialogConfirm.focus();
+    }
+  });
+}
+
+function confirmSafetyDialog() {
+  if (!pendingSafetyConfirmation) {
     return;
+  }
+
+  const { requiredText } = pendingSafetyConfirmation;
+
+  if (requiredText && safetyDialogInput.value !== requiredText) {
+    safetyDialogMessage.textContent = "Die Bestätigung stimmt nicht überein.";
+    safetyDialogMessage.dataset.type = "error";
+    safetyDialogMessage.hidden = false;
+    return;
+  }
+
+  closeSafetyDialog(true);
+}
+
+function renderAfterDataReset() {
+  renderTimerContext();
+  renderCategoryDropdowns();
+  renderCategorySettings();
+  renderUserProfileSettings();
+  refreshEntryViews();
+  renderSupabaseStatus();
+}
+
+function resetSelectedUserLocalData({ showSuccess = true } = {}) {
+  const selectedUserId = activeUserId;
+  const nextEntries = timeEntries.filter((entry) => getValidUserId(entry.user_id) !== selectedUserId);
+  const nextCategories = [
+    ...categories.filter((category) => getValidUserId(category.user_id) !== selectedUserId),
+    ...createDefaultCategoriesForUser(selectedUserId),
+  ];
+  const defaultUser = getDefaultUserProfile(selectedUserId);
+  const nextUsers = users.map((user) => (user.id === selectedUserId ? defaultUser : user));
+
+  if (!persistEntries(nextEntries)) {
+    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  categories = nextCategories;
+  if (!saveCategories()) {
+    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  users = nextUsers;
+  if (!saveUserProfiles()) {
+    showSettingsMessage("Nutzerprofil konnte nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  timeEntries.splice(0, timeEntries.length, ...nextEntries);
+  if (isTimerRunning()) {
+    resetTimerScreen();
+  }
+  renderAfterDataReset();
+
+  if (showSuccess) {
+    showSettingsMessage(`${defaultUser.name} wurde lokal zurückgesetzt.`, "success");
+  }
+
+  appendAuditLog("reset_selected_user_local", {
+    userId: selectedUserId,
+    details: `Lokale Daten fuer ${defaultUser.name} zurueckgesetzt. Cloud-Daten blieben unveraendert.`,
+  });
+
+  return true;
+}
+
+function resetAllLocalData({ showSuccess = true } = {}) {
+  const nextUsers = getDefaultUserProfiles();
+  const nextCategories = getDefaultCategoriesForUsers(DEFAULT_USERS.map((user) => user.id));
+
+  if (!persistEntries([])) {
+    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  categories = nextCategories;
+  if (!saveCategories()) {
+    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  users = nextUsers;
+  activeUserId = DEFAULT_USERS[0].id;
+  if (!saveUserProfiles()) {
+    showSettingsMessage("Nutzerprofile konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    return false;
+  }
+
+  try {
+    localStorage.removeItem(REMINDER_FIRED_KEY);
+  } catch (error) {
+    showSettingsMessage("Reminder-Status konnte nicht vollständig zurückgesetzt werden.", "error");
+    return false;
   }
 
   timeEntries.splice(0, timeEntries.length);
-  refreshEntryViews();
-  showSettingsMessage("Alle Zeiteinträge wurden gelöscht.", "success");
+  resetTimerScreen();
+  renderAfterDataReset();
+
+  if (showSuccess) {
+    showSettingsMessage("Alle lokalen Nutzerdaten wurden zurückgesetzt.", "success");
+  }
+
+  appendAuditLog("reset_all_local", {
+    userId: null,
+    details: "Alle lokalen Nutzerdaten auf diesem Geraet zurueckgesetzt. Cloud-Daten blieben unveraendert.",
+  });
+
+  return true;
+}
+
+function ensureCloudResetAvailable() {
+  showSettingsMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  showCloudStorageMessage(CLOUD_RESET_DISABLED_MESSAGE, "error");
+  appendAuditLog("cloud_reset_blocked", {
+    userId: activeUserId,
+    details: CLOUD_RESET_DISABLED_MESSAGE,
+  });
+  return false;
+}
+
+async function resetSelectedUserCloudData(userId = activeUserId) {
+  if (!ensureCloudResetAvailable()) {
+    return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
+  }
+  return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
+}
+
+async function resetAllCloudData() {
+  if (!ensureCloudResetAvailable()) {
+    return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
+  }
+  return { error: new Error(CLOUD_RESET_DISABLED_MESSAGE) };
+}
+
+async function handleResetSelectedUserLocal() {
+  const confirmed = await requestSafetyConfirmation({
+    title: "Ausgewählten Nutzer lokal zurücksetzen",
+    message: "Dadurch werden alle lokalen Zeiteinträge der aktuell ausgewählten Person auf diesem Gerät gelöscht. Cloud-Daten bleiben unverändert.",
+    confirmLabel: "Lokal zurücksetzen",
+  });
+
+  if (!confirmed) {
+    showSettingsMessage("Zurücksetzen abgebrochen.");
+    return;
+  }
+
+  resetSelectedUserLocalData();
+}
+
+async function handleResetSelectedUserCloud() {
+  ensureCloudResetAvailable();
+}
+
+async function handleResetAllLocal() {
+  const confirmed = await requestSafetyConfirmation({
+    title: "Alle Nutzer lokal zurücksetzen",
+    message: "Dadurch werden alle lokalen Zeiteinträge aller Personen auf diesem Gerät gelöscht. Cloud-Daten bleiben unverändert.",
+    confirmLabel: "Alle lokal löschen",
+    requiredText: "LOKAL LÖSCHEN",
+    inputLabel: "Zur Bestätigung exakt LOKAL LÖSCHEN eingeben.",
+  });
+
+  if (!confirmed) {
+    showSettingsMessage("Zurücksetzen abgebrochen.");
+    return;
+  }
+
+  resetAllLocalData();
+}
+
+async function handleResetAllCloud() {
+  ensureCloudResetAvailable();
 }
 
 function importCsvEntries(event) {
@@ -1968,10 +5388,12 @@ function importCsvEntries(event) {
   const reader = new FileReader();
 
   reader.addEventListener("load", () => {
-    const importedEntries = entriesFromCsvText(String(reader.result || ""));
+    let importedEntries = [];
 
-    if (!importedEntries.length) {
-      showSettingsMessage("Keine gültigen Zeiteinträge in der CSV gefunden.", "error");
+    try {
+      importedEntries = entriesFromCsvText(String(reader.result || ""));
+    } catch (error) {
+      showSettingsMessage(error.message || "CSV-Datei konnte nicht importiert werden.", "error");
       csvImportInput.value = "";
       return;
     }
@@ -1988,7 +5410,7 @@ function importCsvEntries(event) {
 
     timeEntries.splice(0, timeEntries.length, ...nextEntries);
     refreshEntryViews();
-    showSettingsMessage(`${importedEntries.length} Einträge wurden hochgeladen und markiert.`, "success");
+    showSettingsMessage(`${importedEntries.length} Einträge wurden importiert.`, "success");
     csvImportInput.value = "";
   });
 
@@ -1999,11 +5421,10 @@ function importCsvEntries(event) {
 
   reader.readAsText(file, "utf-8");
 }
-
 function getTodayTotalMinutes() {
   const today = toDateInputValue(new Date());
 
-  return timeEntries
+  return getEntriesForActiveUser()
     .filter((entry) => toDateInputValue(entry.startedAt) === today)
     .reduce((total, entry) => total + Math.max(0, (entry.endedAt.getTime() - entry.startedAt.getTime()) / 60000), 0);
 }
@@ -2231,7 +5652,7 @@ function renderEditForm(entry) {
     <label>
       Kategorie
       <select name="category" required>
-        ${categoryOptions
+        ${getCategoryNamesForActiveUserWithCurrent(entry.category)
           .map(
             (category) =>
               `<option value="${escapeHtml(category)}" ${category === entry.category ? "selected" : ""}>${escapeHtml(category)}</option>`,
@@ -2302,6 +5723,7 @@ function updateHistoryEntry(form) {
           endedAt,
           note: formData.get("note").trim(),
           edited: true,
+          updated_at: getNowIsoString(),
         }
       : item,
   );
@@ -2320,14 +5742,19 @@ function updateHistoryEntry(form) {
   updateActivitySuggestions();
 }
 
-function deleteHistoryEntry(entryId) {
+async function deleteHistoryEntry(entryId, { afterDelete } = {}) {
   const entryIndex = timeEntries.findIndex((entry) => entry.id === entryId);
 
   if (entryIndex === -1) {
     return;
   }
 
-  const shouldDelete = window.confirm("Diesen Eintrag wirklich löschen?");
+  const entry = timeEntries[entryIndex];
+  const shouldDelete = await requestSafetyConfirmation({
+    title: "Lokalen Eintrag löschen",
+    message: "Diesen lokalen Eintrag löschen? Cloud-Daten bleiben unverändert, bis erneut synchronisiert wird.",
+    confirmLabel: "Lokal löschen",
+  });
 
   if (!shouldDelete) {
     return;
@@ -2347,6 +5774,14 @@ function deleteHistoryEntry(entryId) {
     hideInAppReminder();
   }
   updateActivitySuggestions();
+  appendAuditLog("delete_local_entry", {
+    userId: getValidUserId(entry.user_id),
+    details: `Lokaler Eintrag ${entry.id} geloescht. Cloud-Daten blieben unveraendert.`,
+  });
+  showStorageError(currentAuthUser ? "Lokal gelöscht. Cloud bleibt unverändert." : "Lokal gelöscht.");
+  if (typeof afterDelete === "function") {
+    afterDelete();
+  }
 }
 
 function saveCurrentEntry() {
@@ -2355,17 +5790,30 @@ function saveCurrentEntry() {
     return;
   }
 
+  const activity = activityInput.value.trim();
+  const category = categorySelect.value;
+  const validationMessage = getEntryValidationMessage();
+
+  if (validationMessage) {
+    showTimerMessage("Bitte Tätigkeit und Kategorie vor dem Speichern ergänzen.", "error");
+    completionPanel.hidden = false;
+    return;
+  }
+
   const nextEntries = [
     {
       id: createEntryId(),
-      activity: activeActivity,
-      category: activeCategory,
+      activity,
+      category,
       startedAt: timerStartedDate,
       endedAt: timerStoppedDate,
       note: noteInput.value.trim(),
       edited: false,
       manual: false,
       uploaded: false,
+      user_id: activeUserId,
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     },
     ...timeEntries,
   ];
@@ -2439,6 +5887,9 @@ function saveManualEntry(event) {
       edited: false,
       manual: true,
       uploaded: false,
+      user_id: activeUserId,
+      created_at: getNowIsoString(),
+      updated_at: getNowIsoString(),
     },
     ...timeEntries,
   ];
@@ -2461,35 +5912,25 @@ function saveManualEntry(event) {
   showHistoryView();
 }
 
-function warnIfRunningEntryChanges() {
+function syncActiveTimerDraft() {
   if (!isTimerRunning()) {
-    clearTimerMessage();
     return;
   }
 
-  const activityChanged = activityInput.value.trim() !== activeActivity;
-  const categoryChanged = categorySelect.value !== activeCategory;
-
-  if (activityChanged || categoryChanged) {
-    showTimerMessage(
-      "Es läuft bereits eine Tätigkeit. Möchtest du diese beenden und eine neue starten?",
-      "warning",
-    );
-    return;
-  }
-
-  clearTimerMessage();
+  activeActivity = activityInput.value.trim();
+  activeCategory = categorySelect.value;
+  timerStateElement.textContent = activeActivity || "Timer läuft";
+  persistActiveTimer();
 }
 
 updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
 
 menuButton.addEventListener("click", () => {
-  const isOpen = menuButton.getAttribute("aria-expanded") === "true";
-
-  menuButton.setAttribute("aria-expanded", String(!isOpen));
-  menuPanel.hidden = isOpen;
+  setNavigationVisibility(!isNavigationVisible);
 });
+
+navigationLayoutQuery.addEventListener("change", closeNavigationMenu);
 
 startButton.addEventListener("click", () => {
   if (isTimerRunning()) {
@@ -2500,8 +5941,8 @@ startButton.addEventListener("click", () => {
   startTimer();
 });
 
-activityInput.addEventListener("input", warnIfRunningEntryChanges);
-categorySelect.addEventListener("change", warnIfRunningEntryChanges);
+activityInput.addEventListener("input", syncActiveTimerDraft);
+categorySelect.addEventListener("change", syncActiveTimerDraft);
 saveButton.addEventListener("click", saveCurrentEntry);
 discardButton.addEventListener("click", resetTimerScreen);
 historyLink.addEventListener("click", (event) => {
@@ -2511,6 +5952,11 @@ historyLink.addEventListener("click", (event) => {
 analyticsLink.addEventListener("click", (event) => {
   event.preventDefault();
   showAnalyticsView();
+});
+analyticsDaySelect.addEventListener("change", () => {
+  setSelectedAnalyticsDay(new Date(`${analyticsDaySelect.value}T00:00`));
+  renderDayTimeline(getCurrentWeekEntries());
+  renderDayQuality(getCurrentWeekEntries());
 });
 weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();
@@ -2538,10 +5984,46 @@ calendarNextButton.addEventListener("click", () => {
   shiftCalendarPeriod(1);
 });
 weekplanDays.addEventListener("click", (event) => {
-  const monthDay = event.target.closest(".calendar-month-day");
+  const calendarDay = event.target.closest("[data-calendar-date]");
 
-  if (monthDay) {
-    openCalendarDay(monthDay.dataset.date);
+  if (calendarDay) {
+    openCalendarDay(calendarDay.dataset.calendarDate);
+  }
+});
+weekplanDays.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  const calendarDay = event.target.closest("[data-calendar-date]");
+
+  if (calendarDay) {
+    event.preventDefault();
+    openCalendarDay(calendarDay.dataset.calendarDate);
+  }
+});
+calendarDayDetailClose.addEventListener("click", closeCalendarDayDetail);
+calendarDayDetailAdd.addEventListener("click", addEntryForCalendarDetailDay);
+calendarDayDetail.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("[data-calendar-detail-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const entry = timeEntries.find((item) => item.id === actionButton.dataset.entryId);
+
+  if (!entry) {
+    return;
+  }
+
+  if (actionButton.dataset.calendarDetailAction === "edit") {
+    showHistoryView();
+    renderEditForm(entry);
+  }
+
+  if (actionButton.dataset.calendarDetailAction === "delete") {
+    void deleteHistoryEntry(entry.id, { afterDelete: renderCalendarDayDetail });
   }
 });
 exportLink.addEventListener("click", (event) => {
@@ -2571,7 +6053,7 @@ historyList.addEventListener("click", (event) => {
   }
 
   if (actionButton.dataset.action === "delete") {
-    deleteHistoryEntry(actionButton.dataset.entryId);
+    void deleteHistoryEntry(actionButton.dataset.entryId);
     return;
   }
 
@@ -2589,8 +6071,16 @@ backButton.addEventListener("click", () => {
 });
 manualForm.addEventListener("submit", saveManualEntry);
 exportCsvButton.addEventListener("click", downloadCsvExport);
+exportScopeSelect.addEventListener("change", () => {
+  renderExportSummary();
+  exportMessage.hidden = true;
+});
+categorySettingsForm.addEventListener("submit", addCategory);
+categorySettingsList.addEventListener("click", handleCategorySettingsAction);
 cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 cloudImportButton.addEventListener("click", importCloudEntriesToApp);
+cloudLoginLinkButton.addEventListener("click", sendSupabaseLoginLink);
+cloudLogoutButton.addEventListener("click", signOutSupabaseUser);
 cloudConflictPanel.addEventListener("click", (event) => {
   const actionButton = event.target.closest("button[data-cloud-conflict-action]");
 
@@ -2601,12 +6091,12 @@ cloudConflictPanel.addEventListener("click", (event) => {
   const action = actionButton.dataset.cloudConflictAction;
 
   if (action === "keep-local-all") {
-    resolveAllCloudConflicts("keep-local");
+    void resolveAllCloudConflicts("keep-local");
     return;
   }
 
   if (action === "use-cloud-all") {
-    resolveAllCloudConflicts("use-cloud");
+    void resolveAllCloudConflicts("use-cloud");
     return;
   }
 
@@ -2617,18 +6107,27 @@ cloudConflictPanel.addEventListener("click", (event) => {
   }
 
   if (action === "keep-local") {
-    resolveCloudConflict(conflictIndex, "keep-local");
+    void resolveCloudConflict(conflictIndex, "keep-local");
   }
 
   if (action === "use-cloud") {
-    resolveCloudConflict(conflictIndex, "use-cloud");
+    void resolveCloudConflict(conflictIndex, "use-cloud");
   }
 
   if (action === "keep-both") {
-    resolveCloudConflict(conflictIndex, "keep-both");
+    void resolveCloudConflict(conflictIndex, "keep-both");
   }
 });
-deleteAllDataButton.addEventListener("click", deleteAllEntries);
+resetSelectedUserLocalButton.addEventListener("click", handleResetSelectedUserLocal);
+resetSelectedUserCloudButton.addEventListener("click", handleResetSelectedUserCloud);
+resetAllLocalButton.addEventListener("click", handleResetAllLocal);
+resetAllCloudButton.addEventListener("click", handleResetAllCloud);
+safetyDialogCancel.addEventListener("click", () => closeSafetyDialog(false));
+safetyDialogConfirm.addEventListener("click", confirmSafetyDialog);
+safetyDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeSafetyDialog(false);
+});
 csvImportInput.addEventListener("change", importCsvEntries);
 reminderSettingsForm.addEventListener("input", saveReminderSettingsFromForm);
 reminderSettingsForm.addEventListener("change", saveReminderSettingsFromForm);
@@ -2641,8 +6140,11 @@ reminderPopupManual.addEventListener("click", () => {
 });
 developerModeToggle.addEventListener("change", () => {
   setDeveloperMode(developerModeToggle.checked);
-  window.location.reload();
 });
+activeUserSelect.addEventListener("change", saveActiveUserFromSettings);
+timerUserSelect.addEventListener("change", saveActiveUserFromStartscreen);
+userSettingsForm.addEventListener("input", () => saveUserNamesFromSettings());
+userSettingsForm.addEventListener("change", () => saveUserNamesFromSettings({ showMessage: true }));
 testReminderNowButton.addEventListener("click", () => runReminderTest());
 testReminderUnderButton.addEventListener("click", () => runReminderTest(Math.max(0, getTargetWorkMinutes() - 1)));
 testReminderFullButton.addEventListener("click", () => runReminderTest(getTargetWorkMinutes()));
@@ -2653,21 +6155,30 @@ document.querySelectorAll('[data-view-link="timer"]').forEach((link) => {
     window.location.hash = "";
   });
 });
+loadUserProfiles();
+loadCategories();
 loadPersistedEntries();
 initializeSupabaseClient();
+initializeSupabaseAuth();
 loadCalendarState();
 renderHistory();
 renderAnalytics();
 renderWeekplan();
 updateActivitySuggestions();
+renderUserProfileSettings();
+renderCategorySettings();
 renderReminderSettingsForm();
 renderSupabaseStatus();
+renderExportSummary();
 restoreActiveTimer();
 registerServiceWorker();
 initializeDeveloperMode();
 initializeNotificationPermissionState();
 checkReminders();
+synchronizeWithSupabaseOnStartup();
 setInterval(checkReminders, 30000);
+setActiveNavigation("timer");
+closeNavigationMenu();
 
 if (window.location.hash === "#verlauf") {
   showHistoryView();
