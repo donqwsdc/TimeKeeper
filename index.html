@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=31" />
+    <link rel="stylesheet" href="styles.css?v=32" />
   </head>
   <body>
     <div class="app-shell">
@@ -188,6 +188,56 @@
             <strong id="dailyAverage">Noch offen</strong>
           </section>
         </div>
+
+        <section class="longterm-analytics" aria-label="Langzeitauswertung">
+          <div class="analytics-section-header">
+            <h3>Langzeitauswertung</h3>
+            <div class="analytics-filter-group" aria-label="Auswertungsfilter">
+              <label for="analyticsRangeSelect">
+                Zeitraum
+                <select id="analyticsRangeSelect">
+                  <option value="current_week">Aktuelle Woche</option>
+                  <option value="current_month">Aktueller Monat</option>
+                  <option value="last_3_months">Letzte 3 Monate</option>
+                  <option value="current_year">Aktuelles Jahr</option>
+                  <option value="all">Alle Daten</option>
+                </select>
+              </label>
+              <label for="analyticsUserScopeSelect">
+                Nutzer
+                <select id="analyticsUserScopeSelect">
+                  <option value="active">Aktiver Nutzer</option>
+                  <option value="visible">Alle sichtbaren Nutzer</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <p class="analytics-empty" id="longtermAnalyticsEmpty" hidden>Für diesen Zeitraum liegen noch keine Einträge vor.</p>
+
+          <div class="analytics-kpi-grid" id="longtermOverviewStats" aria-label="Monatsübersicht"></div>
+
+          <section class="longterm-subsection" aria-label="Soll-Ist-Auswertung">
+            <h4>Soll/Ist</h4>
+            <div class="analytics-kpi-grid" id="longtermTargetStats"></div>
+          </section>
+
+          <section class="longterm-subsection" aria-label="Kategorieentwicklung">
+            <h4>Kategorieentwicklung</h4>
+            <div class="longterm-bars" id="longtermCategoryTrend"></div>
+          </section>
+
+          <section class="longterm-subsection" aria-label="Nutzervergleich">
+            <h4>Nutzervergleich</h4>
+            <p class="analytics-empty" id="longtermUserComparisonEmpty" hidden>Nur ein Nutzer hat im gewählten Zeitraum Daten.</p>
+            <div class="analytics-kpi-grid" id="longtermUserComparison"></div>
+          </section>
+
+          <section class="longterm-subsection" aria-label="Monatsverlauf">
+            <h4>Monatsverlauf</h4>
+            <div class="longterm-month-list" id="longtermMonthlyTotals"></div>
+          </section>
+        </section>
 
         <section class="capacity-stats" aria-label="Kapazitätsübersicht">
           <div class="analytics-section-header">
@@ -515,8 +565,13 @@
     </dialog>
 
     <script src="supabase-config.js?v=2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=34"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+      async
+      onload="window.dispatchEvent(new Event('timekeeper:supabase-ready'))"
+      onerror="window.dispatchEvent(new Event('timekeeper:supabase-unavailable'))"
+    ></script>
+    <script src="app.js?v=35"></script>
   </body>
 </html>
 

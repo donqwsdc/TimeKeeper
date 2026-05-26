@@ -1053,6 +1053,7 @@ textarea:focus {
 .focus-stats,
 .week-comparison-stats,
 .interruption-stats,
+.longterm-analytics,
 .day-timeline-section,
 .day-quality-section {
   display: grid;
@@ -1071,11 +1072,93 @@ textarea:focus {
 .focus-stats h3,
 .week-comparison-stats h3,
 .interruption-stats h3,
+.longterm-analytics h3,
 .day-timeline-section h3,
 .day-quality-section h3 {
   margin: 0;
   color: var(--text);
   font-size: 0.82rem;
+}
+
+.longterm-analytics {
+  padding-bottom: 4px;
+}
+
+.analytics-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.analytics-filter-group label {
+  display: grid;
+  gap: 4px;
+  min-width: min(160px, 100%);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.analytics-filter-group select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 0.78rem;
+}
+
+.longterm-subsection {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.longterm-subsection h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.longterm-bars,
+.longterm-month-list {
+  display: grid;
+  gap: 8px;
+}
+
+.longterm-bar-row {
+  display: grid;
+  gap: 7px;
+}
+
+.longterm-month-row {
+  display: grid;
+  grid-template-columns: minmax(74px, auto) 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
+  color: var(--text);
+}
+
+.longterm-month-row span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.longterm-month-row strong {
+  min-width: 0;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.longterm-month-row small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .analytics-status-badge {
@@ -1430,6 +1513,24 @@ textarea:focus {
   .analytics-day-selector {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .analytics-filter-group {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .analytics-filter-group label {
+    flex: 1 1 100%;
+  }
+
+  .longterm-month-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .longterm-month-row small {
+    white-space: normal;
   }
 
   .analytics-day-selector select {

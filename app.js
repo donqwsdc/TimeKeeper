@@ -56,6 +56,15 @@ const analyticsDaySelect = document.querySelector("#analyticsDaySelect");
 const dayTimelineTrack = document.querySelector("#dayTimelineTrack");
 const dayTimelineEmpty = document.querySelector("#dayTimelineEmpty");
 const dayQualityStats = document.querySelector("#dayQualityStats");
+const analyticsRangeSelect = document.querySelector("#analyticsRangeSelect");
+const analyticsUserScopeSelect = document.querySelector("#analyticsUserScopeSelect");
+const longtermAnalyticsEmpty = document.querySelector("#longtermAnalyticsEmpty");
+const longtermOverviewStats = document.querySelector("#longtermOverviewStats");
+const longtermTargetStats = document.querySelector("#longtermTargetStats");
+const longtermCategoryTrend = document.querySelector("#longtermCategoryTrend");
+const longtermUserComparisonEmpty = document.querySelector("#longtermUserComparisonEmpty");
+const longtermUserComparison = document.querySelector("#longtermUserComparison");
+const longtermMonthlyTotals = document.querySelector("#longtermMonthlyTotals");
 const weekplanHours = document.querySelector("#weekplanHours");
 const weekplanDays = document.querySelector("#weekplanDays");
 const calendarDayDetail = document.querySelector("#calendarDayDetail");
@@ -146,7 +155,7 @@ const REMINDER_SETTINGS_KEY = "timekeeper.reminderSettings.v1";
 const CALENDAR_VIEW_MODE_KEY = "timekeeper.calendar.viewMode.v1";
 const CALENDAR_SELECTED_DATE_KEY = "timekeeper.calendar.selectedDate.v1";
 const NAVIGATION_VISIBLE_KEY = "timekeeper.navigation.visible.v1";
-const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus Sicherheitsgründen deaktiviert.";
+const CLOUD_RESET_DISABLED_MESSAGE = "Cloud-Reset ist aus SicherheitsgrÃ¼nden deaktiviert.";
 const CLOUD_LOGIN_REQUIRED_MESSAGE = "Bitte zuerst im Cloud-Bereich anmelden.";
 const CLOUD_SYNC_STATUS = {
   offline: "offline",
@@ -202,7 +211,7 @@ const DEFAULT_CATEGORY_NAMES = [
   "Eventplanung",
   "Administration",
   "Netzwerk",
-  "Fläche",
+  "FlÃ¤che",
   "Sonstiges",
 ];
 const CALENDAR_VIEW_MODES = {
@@ -225,6 +234,8 @@ let supabaseAuthLoaded = false;
 let cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
 let cloudSyncStatusDetail = "";
 let isCloudSyncRunning = false;
+let appBootstrapCompleted = false;
+let pendingSupabaseLibraryReady = false;
 let timerStartedAt = null;
 let timerStartedDate = null;
 let timerStoppedDate = null;
@@ -247,9 +258,12 @@ const CATEGORY_COLORS = {
   Eventplanung: "#6d5fa8",
   Administration: "#59706f",
   Netzwerk: "#4c8a6a",
-  Fläche: "#8f6b3d",
+  "Fl\u00e4che": "#8f6b3d",
+  "Fl\u00c3\u00a4che": "#8f6b3d",
   Sonstiges: "#6b7280",
 };
+
+window.addEventListener("timekeeper:supabase-ready", handleSupabaseLibraryReady);
 
 function isValidReminderTime(value) {
   return /^\d{2}:\d{2}$/.test(value);
@@ -548,7 +562,7 @@ function saveUserNamesFromSettings({ showMessage = false } = {}) {
   });
 
   if (!saveUserProfiles()) {
-    showUserProfileMessage("Nutzernamen konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    showUserProfileMessage("Nutzernamen konnten nicht gespeichert werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return;
   }
 
@@ -632,7 +646,7 @@ function saveCategories() {
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
     return true;
   } catch (error) {
-    showStorageError("Kategorien konnten nicht gespeichert werden. Bitte Browser-Speicher prüfen.");
+    showStorageError("Kategorien konnten nicht gespeichert werden. Bitte Browser-Speicher prÃ¼fen.");
     return false;
   }
 }
@@ -688,7 +702,7 @@ function renderCategorySelect(select, selectedValue = "") {
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Kategorie auswählen";
+  placeholder.textContent = "Kategorie auswÃ¤hlen";
   select.append(placeholder);
 
   getCategoriesForUser(activeUserId).forEach((category) => {
@@ -729,9 +743,9 @@ function renderCategorySettings() {
     item.innerHTML = `
       <span>${escapeHtml(category.name)}</span>
       <div class="category-settings-actions">
-        <button class="settings-secondary-button" type="button" data-category-action="up" aria-label="${escapeHtml(category.name)} nach oben" ${index === 0 ? "disabled" : ""}>↑</button>
-        <button class="settings-secondary-button" type="button" data-category-action="down" aria-label="${escapeHtml(category.name)} nach unten" ${index === userCategories.length - 1 ? "disabled" : ""}>↓</button>
-        <button class="settings-secondary-button" type="button" data-category-action="rename">Ändern</button>
+        <button class="settings-secondary-button" type="button" data-category-action="up" aria-label="${escapeHtml(category.name)} nach oben" ${index === 0 ? "disabled" : ""}>â†‘</button>
+        <button class="settings-secondary-button" type="button" data-category-action="down" aria-label="${escapeHtml(category.name)} nach unten" ${index === userCategories.length - 1 ? "disabled" : ""}>â†“</button>
+        <button class="settings-secondary-button" type="button" data-category-action="rename">Ã„ndern</button>
         <button class="settings-danger-button" type="button" data-category-action="delete">Entfernen</button>
       </div>
     `;
@@ -779,11 +793,11 @@ function addCategory(event) {
 
   newCategoryNameInput.value = "";
   refreshCategoryViews();
-  showCategorySettingsMessage("Kategorie wurde hinzugefügt.", "success");
+  showCategorySettingsMessage("Kategorie wurde hinzugefÃ¼gt.", "success");
 }
 
 function updateEntriesForRenamedCategory(oldName, newName) {
-  const shouldUpdateEntries = window.confirm("Bestehende Einträge mit dieser Kategorie ebenfalls umbenennen?");
+  const shouldUpdateEntries = window.confirm("Bestehende EintrÃ¤ge mit dieser Kategorie ebenfalls umbenennen?");
 
   if (!shouldUpdateEntries) {
     return true;
@@ -823,7 +837,7 @@ function renameCategory(category) {
   if (!updateEntriesForRenamedCategory(oldName, nextName)) {
     category.name = oldName;
     category.updated_at = oldUpdatedAt;
-    showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+    showCategorySettingsMessage("EintrÃ¤ge konnten nicht aktualisiert werden.", "error");
     return;
   }
 
@@ -846,13 +860,13 @@ function deleteCategory(category) {
 
   if (usedEntries.length) {
     const choice = window.prompt(
-      `Diese Kategorie wird in ${usedEntries.length} Einträgen verwendet.\n1 = Kategorie löschen und alte Einträge behalten\n2 = Einträge auf andere Kategorie umstellen\n3 = Abbrechen`,
+      `Diese Kategorie wird in ${usedEntries.length} EintrÃ¤gen verwendet.\n1 = Kategorie lÃ¶schen und alte EintrÃ¤ge behalten\n2 = EintrÃ¤ge auf andere Kategorie umstellen\n3 = Abbrechen`,
       "3",
     );
 
     if (choice === "2") {
       const replacement = window.prompt(
-        `Neue Kategorie für bestehende Einträge:\n${getCategoryNamesForActiveUser()
+        `Neue Kategorie fÃ¼r bestehende EintrÃ¤ge:\n${getCategoryNamesForActiveUser()
           .filter((name) => name !== category.name)
           .join(", ")}`,
       )?.trim();
@@ -873,7 +887,7 @@ function deleteCategory(category) {
       );
 
       if (!persistEntries(nextEntries)) {
-        showCategorySettingsMessage("Einträge konnten nicht aktualisiert werden.", "error");
+        showCategorySettingsMessage("EintrÃ¤ge konnten nicht aktualisiert werden.", "error");
         return;
       }
 
@@ -881,7 +895,7 @@ function deleteCategory(category) {
     } else if (choice !== "1") {
       return;
     }
-  } else if (!window.confirm("Kategorie wirklich löschen?")) {
+  } else if (!window.confirm("Kategorie wirklich lÃ¶schen?")) {
     return;
   }
 
@@ -889,13 +903,13 @@ function deleteCategory(category) {
   normalizeCategorySortOrders(activeUserId);
 
   if (!saveCategories()) {
-    showCategorySettingsMessage("Kategorie konnte nicht gelöscht werden.", "error");
+    showCategorySettingsMessage("Kategorie konnte nicht gelÃ¶scht werden.", "error");
     return;
   }
 
   refreshEntryViews();
   refreshCategoryViews();
-  showCategorySettingsMessage("Kategorie wurde gelöscht.", "success");
+  showCategorySettingsMessage("Kategorie wurde gelÃ¶scht.", "success");
 }
 
 function normalizeCategorySortOrders(userId = activeUserId) {
@@ -1184,6 +1198,25 @@ function initializeSupabaseAuth() {
   refreshSupabaseAuthUser();
 }
 
+function handleSupabaseLibraryReady() {
+  if (!appBootstrapCompleted) {
+    pendingSupabaseLibraryReady = true;
+    return;
+  }
+
+  pendingSupabaseLibraryReady = false;
+
+  if (supabaseClient || !globalThis.supabase?.createClient) {
+    return;
+  }
+
+  supabaseAuthLoaded = false;
+  initializeSupabaseClient();
+  initializeSupabaseAuth();
+  renderSupabaseStatus();
+  void synchronizeWithSupabaseOnStartup();
+}
+
 async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessage) {
   if (!supabaseClient) {
     messageTarget("Cloudspeicherung ist nicht eingerichtet.", "error");
@@ -1210,7 +1243,7 @@ async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessag
 
 async function beginCloudSync(messageTarget = showCloudStorageMessage) {
   if (isCloudSyncRunning) {
-    messageTarget("Synchronisierung läuft bereits.", "info");
+    messageTarget("Synchronisierung lÃ¤uft bereits.", "info");
     renderSupabaseStatus();
     return false;
   }
@@ -1248,7 +1281,7 @@ function flagCloudConflicts(count, messageTarget = showCloudStorageMessage) {
 
 async function sendSupabaseLoginLink() {
   if (!supabaseClient?.auth?.signInWithOtp) {
-    showCloudStorageMessage("Cloud-Login ist nicht verfügbar.", "error");
+    showCloudStorageMessage("Cloud-Login ist nicht verfÃ¼gbar.", "error");
     return;
   }
 
@@ -2293,7 +2326,7 @@ function renderCloudConflictEntry(entry, sourceLabel, type = "time_entry") {
     <article class="cloud-conflict-entry">
       <strong>${sourceLabel}</strong>
       <dl>
-        <div><dt>Tätigkeit</dt><dd>${escapeHtml(entry.activity || "-")}</dd></div>
+        <div><dt>TÃ¤tigkeit</dt><dd>${escapeHtml(entry.activity || "-")}</dd></div>
         <div><dt>Kategorie</dt><dd>${escapeHtml(entry.category || "-")}</dd></div>
         <div><dt>Arbeitsbeginn</dt><dd>${formatDate(entry.startedAt)} ${formatTime(entry.startedAt)}</dd></div>
         <div><dt>Arbeitsende</dt><dd>${formatDate(entry.endedAt)} ${formatTime(entry.endedAt)}</dd></div>
@@ -2318,10 +2351,10 @@ function renderCloudConflictPanel() {
       <h4>${cloudImportConflicts.length} Konflikte gefunden</h4>
       <div class="cloud-conflict-actions">
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="keep-local-all">
-          Für alle lokale Versionen behalten
+          FÃ¼r alle lokale Versionen behalten
         </button>
         <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud-all">
-          Für alle Cloud-Versionen übernehmen
+          FÃ¼r alle Cloud-Versionen Ã¼bernehmen
         </button>
       </div>
     </div>
@@ -2339,7 +2372,7 @@ function renderCloudConflictPanel() {
                 Lokale Version behalten
               </button>
               <button class="settings-secondary-button" type="button" data-cloud-conflict-action="use-cloud" data-conflict-index="${index}">
-                Cloud-Version übernehmen
+                Cloud-Version Ã¼bernehmen
               </button>
               ${
                 conflict.type === "time_entry"
@@ -2412,7 +2445,7 @@ function saveCloudImportEntries(nextEntries, successMessage) {
   const sortedEntries = [...nextEntries].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
 
   if (!persistEntries(sortedEntries)) {
-    showCloudStorageMessage("Cloud-Daten konnten nicht lokal gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    showCloudStorageMessage("Cloud-Daten konnten nicht lokal gespeichert werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
@@ -2449,7 +2482,7 @@ async function resolveCloudConflict(index, decision) {
 
   if (conflict.type === "user") {
     if (decision === "keep-both") {
-      showCloudStorageMessage("Beide behalten ist für Nutzer nicht verfügbar.", "info");
+      showCloudStorageMessage("Beide behalten ist fÃ¼r Nutzer nicht verfÃ¼gbar.", "info");
       return;
     }
 
@@ -2473,7 +2506,7 @@ async function resolveCloudConflict(index, decision) {
 
   if (conflict.type === "category") {
     if (decision === "keep-both") {
-      showCloudStorageMessage("Beide behalten ist für Kategorien nicht verfügbar.", "info");
+      showCloudStorageMessage("Beide behalten ist fÃ¼r Kategorien nicht verfÃ¼gbar.", "info");
       return;
     }
 
@@ -2513,7 +2546,7 @@ async function resolveCloudConflict(index, decision) {
     nextEntries.push(cloneCloudEntryForLocalConflict(cloudEntryRecord, hasSameId));
   }
 
-  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
+  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden Ã¼bernommen")) {
     return;
   }
 
@@ -2565,7 +2598,7 @@ async function resolveAllCloudConflicts(decision) {
     renderCategorySettings();
   }
 
-  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden übernommen")) {
+  if (!saveCloudImportEntries(nextEntries, "Cloud-Daten wurden Ã¼bernommen")) {
     return;
   }
 
@@ -2876,7 +2909,7 @@ function loadPersistedEntries() {
     }
     clearStorageError();
   } catch (error) {
-    showStorageError("Gespeicherte Einträge konnten nicht geladen werden.");
+    showStorageError("Gespeicherte EintrÃ¤ge konnten nicht geladen werden.");
   }
 }
 
@@ -2886,7 +2919,7 @@ function persistEntries(entries = timeEntries) {
     clearStorageError();
     return true;
   } catch (error) {
-    showStorageError("Einträge konnten nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prüfen.");
+    showStorageError("EintrÃ¤ge konnten nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prÃ¼fen.");
     return false;
   }
 }
@@ -2920,7 +2953,7 @@ function persistActiveTimer() {
     clearStorageError();
     return true;
   } catch (error) {
-    showStorageError("Laufender Timer konnte nicht gesichert werden. Bitte Browser-Speicher prüfen.");
+    showStorageError("Laufender Timer konnte nicht gesichert werden. Bitte Browser-Speicher prÃ¼fen.");
     return false;
   }
 }
@@ -2930,7 +2963,7 @@ function clearActiveTimer() {
     localStorage.removeItem(ACTIVE_TIMER_KEY);
     clearStorageError();
   } catch (error) {
-    showStorageError("Laufender Timer konnte nicht vollständig entfernt werden.");
+    showStorageError("Laufender Timer konnte nicht vollstÃ¤ndig entfernt werden.");
   }
 }
 
@@ -3030,15 +3063,15 @@ function getEntryValidationMessage() {
   const category = categorySelect.value;
 
   if (!activity && !category) {
-    return "Bitte Tätigkeit und Kategorie eingeben oder auswählen.";
+    return "Bitte TÃ¤tigkeit und Kategorie eingeben oder auswÃ¤hlen.";
   }
 
   if (!activity) {
-    return "Bitte eine Tätigkeit eingeben.";
+    return "Bitte eine TÃ¤tigkeit eingeben.";
   }
 
   if (!category) {
-    return "Bitte eine Kategorie auswählen.";
+    return "Bitte eine Kategorie auswÃ¤hlen.";
   }
 
   return "";
@@ -3058,7 +3091,7 @@ function setTimerState(state) {
   }
 
   if (state === "running") {
-    timerStateElement.textContent = activeActivity || "Timer läuft";
+    timerStateElement.textContent = activeActivity || "Timer lÃ¤uft";
     elapsedTimeElement.hidden = false;
     completionPanel.hidden = true;
     startButton.textContent = "Stoppen";
@@ -3067,7 +3100,7 @@ function setTimerState(state) {
     return;
   }
 
-  timerStateElement.textContent = "Tätigkeit beendet";
+  timerStateElement.textContent = "TÃ¤tigkeit beendet";
   elapsedTimeElement.hidden = false;
   completionPanel.hidden = false;
   startButton.textContent = "Start";
@@ -3078,7 +3111,7 @@ function setTimerState(state) {
 function startTimer() {
   if (isTimerRunning()) {
     showTimerMessage(
-      "Es läuft bereits eine Tätigkeit. Möchtest du diese beenden und eine neue starten?",
+      "Es lÃ¤uft bereits eine TÃ¤tigkeit. MÃ¶chtest du diese beenden und eine neue starten?",
       "warning",
     );
     return;
@@ -3098,7 +3131,7 @@ function startTimer() {
     timerStartedDate = null;
     activeActivity = "";
     activeCategory = "";
-    showTimerMessage("Timer konnte nicht dauerhaft gestartet werden. Bitte Browser-Speicher prüfen.", "error");
+    showTimerMessage("Timer konnte nicht dauerhaft gestartet werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     setTimerState("neutral");
     return;
   }
@@ -3180,7 +3213,7 @@ function applyNavigationVisibility() {
   document.documentElement.dataset.navigation = isNavigationVisible ? "visible" : "hidden";
   document.documentElement.dataset.navigationLayout = navigationLayoutQuery.matches ? "mobile" : "desktop";
   menuButton.hidden = false;
-  menuButton.textContent = isNavigationVisible ? "–" : "Menü";
+  menuButton.textContent = isNavigationVisible ? "â€“" : "MenÃ¼";
   menuButton.setAttribute("aria-expanded", String(isNavigationVisible));
   menuButton.setAttribute("aria-label", isNavigationVisible ? "Navigation ausblenden" : "Navigation einblenden");
   menuPanel.hidden = !isNavigationVisible;
@@ -3390,7 +3423,7 @@ function renderHistory() {
 
     const meta = document.createElement("p");
     meta.className = "history-meta";
-    meta.textContent = `Datum: ${formatDate(entry.startedAt)} · Kategorie: ${entry.category} · Beginn: ${formatTime(entry.startedAt)} · Ende: ${formatTime(entry.endedAt)} · Dauer: ${getEntryDurationMinutes(entry)} Min.`;
+    meta.textContent = `Datum: ${formatDate(entry.startedAt)} Â· Kategorie: ${entry.category} Â· Beginn: ${formatTime(entry.startedAt)} Â· Ende: ${formatTime(entry.endedAt)} Â· Dauer: ${getEntryDurationMinutes(entry)} Min.`;
     item.append(meta);
 
     if (entry.note) {
@@ -3414,7 +3447,7 @@ function renderHistory() {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "history-delete-button";
-    deleteButton.textContent = "Löschen";
+    deleteButton.textContent = "LÃ¶schen";
     deleteButton.dataset.action = "delete";
     deleteButton.dataset.entryId = entry.id;
     actions.append(deleteButton);
@@ -3639,11 +3672,11 @@ function getFragmentationStatusClass(score) {
 
 function getFragmentationInsight(score, stats = {}) {
   if (!stats.sessionCount) {
-    return "Noch keine Arbeitsmuster für diese Woche erkennbar.";
+    return "Noch keine Arbeitsmuster fÃ¼r diese Woche erkennbar.";
   }
 
   if (score <= 30) {
-    return "Diese Woche war überwiegend ruhig strukturiert.";
+    return "Diese Woche war Ã¼berwiegend ruhig strukturiert.";
   }
 
   if (score <= 60) {
@@ -3651,7 +3684,7 @@ function getFragmentationInsight(score, stats = {}) {
     return `Deine Woche war teilweise fragmentiert.${dayText}`;
   }
 
-  return "Diese Woche war stark unterbrochen. Kurze Sessions und viele Kontextwechsel prägen die Auswertung.";
+  return "Diese Woche war stark unterbrochen. Kurze Sessions und viele Kontextwechsel prÃ¤gen die Auswertung.";
 }
 
 function getStrongestCategory(entries) {
@@ -3664,7 +3697,7 @@ function getDayQualityStats(entries) {
   const totalMinutes = getTotalMinutes(sortedEntries);
   const focusMinutes = getTotalMinutes(getFocusEntries(sortedEntries));
   const fragmentationScore = getRawFragmentationScore(sortedEntries);
-  let rating = "keine Einträge";
+  let rating = "keine EintrÃ¤ge";
 
   if (sortedEntries.length && totalMinutes < 120) {
     rating = "kurzer Arbeitstag";
@@ -3907,6 +3940,232 @@ function getCurrentWeekEntries() {
   return getEntriesForWeek(new Date());
 }
 
+function getAnalyticsScopeUserIds(scopeKey = "active") {
+  if (scopeKey === "visible") {
+    return new Set(getVisibleUsers().map((user) => user.id));
+  }
+
+  return new Set([activeUserId]);
+}
+
+function getMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getYearKey(date) {
+  return String(date.getFullYear());
+}
+
+function getAnalyticsRangeBounds(rangeKey, entries = []) {
+  const now = new Date();
+
+  if (rangeKey === "current_month") {
+    return {
+      start: getMonthStart(now),
+      end: getMonthEnd(now),
+    };
+  }
+
+  if (rangeKey === "last_3_months") {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth() - 2, 1),
+      end: getMonthEnd(now),
+    };
+  }
+
+  if (rangeKey === "current_year") {
+    return {
+      start: new Date(now.getFullYear(), 0, 1),
+      end: new Date(now.getFullYear() + 1, 0, 1),
+    };
+  }
+
+  if (rangeKey === "all") {
+    const sortedEntries = sortEntriesByStart(entries);
+
+    if (!sortedEntries.length) {
+      return {
+        start: null,
+        end: null,
+      };
+    }
+
+    return {
+      start: startOfDay(sortedEntries[0].startedAt),
+      end: addDays(startOfDay(sortedEntries[sortedEntries.length - 1].startedAt), 1),
+    };
+  }
+
+  return {
+    start: getWeekStart(now),
+    end: getWeekEnd(now),
+  };
+}
+
+function getEntriesForAnalyticsRange(rangeKey = "current_week", scopeKey = "active") {
+  const scopeUserIds = getAnalyticsScopeUserIds(scopeKey);
+  const scopedEntries = sortEntriesByStart(
+    timeEntries.filter((entry) => scopeUserIds.has(getValidUserId(entry.user_id))),
+  );
+  const { start, end } = getAnalyticsRangeBounds(rangeKey, scopedEntries);
+
+  if (!start || !end) {
+    return scopedEntries;
+  }
+
+  return scopedEntries.filter((entry) => entry.startedAt >= start && entry.startedAt < end);
+}
+
+function groupEntriesByMonth(entries) {
+  const groupedEntries = new Map();
+
+  entries.forEach((entry) => {
+    const monthKey = getMonthKey(entry.startedAt);
+
+    if (!groupedEntries.has(monthKey)) {
+      groupedEntries.set(monthKey, []);
+    }
+
+    groupedEntries.get(monthKey).push(entry);
+  });
+
+  return groupedEntries;
+}
+
+function groupEntriesByCategory(entries) {
+  const groupedEntries = new Map();
+
+  entries.forEach((entry) => {
+    const category = entry.category || "Ohne Kategorie";
+
+    if (!groupedEntries.has(category)) {
+      groupedEntries.set(category, []);
+    }
+
+    groupedEntries.get(category).push(entry);
+  });
+
+  return groupedEntries;
+}
+
+function groupEntriesByUser(entries) {
+  const groupedEntries = new Map();
+
+  entries.forEach((entry) => {
+    const userId = getValidUserId(entry.user_id);
+
+    if (!groupedEntries.has(userId)) {
+      groupedEntries.set(userId, []);
+    }
+
+    groupedEntries.get(userId).push(entry);
+  });
+
+  return groupedEntries;
+}
+
+function getMonthlyTotals(entries) {
+  return [...groupEntriesByMonth(entries).entries()]
+    .map(([monthKey, monthEntries]) => ({
+      monthKey,
+      minutes: getTotalMinutes(monthEntries),
+      entryCount: monthEntries.length,
+    }))
+    .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+}
+
+function getCategoryTrend(entries) {
+  const totalMinutes = getTotalMinutes(entries);
+
+  return [...groupEntriesByCategory(entries).entries()]
+    .map(([category, categoryEntries]) => ({
+      category,
+      minutes: getTotalMinutes(categoryEntries),
+      percent: totalMinutes ? (getTotalMinutes(categoryEntries) / totalMinutes) * 100 : 0,
+      entryCount: categoryEntries.length,
+    }))
+    .filter((item) => item.minutes >= 1)
+    .sort((a, b) => b.minutes - a.minutes || a.category.localeCompare(b.category));
+}
+
+function getUserComparison(entries) {
+  return [...groupEntriesByUser(entries).entries()]
+    .map(([userId, userEntries]) => {
+      const categoryMinutes = getCategoryMinutes(userEntries);
+      const strongestCategory = [...categoryMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Noch offen";
+      const totalMinutes = getTotalMinutes(userEntries);
+
+      return {
+        userId,
+        userName: getUserName(userId),
+        totalMinutes,
+        entryCount: userEntries.length,
+        averageEntryMinutes: userEntries.length ? totalMinutes / userEntries.length : 0,
+        strongestCategory,
+      };
+    })
+    .filter((item) => item.entryCount > 0)
+    .sort((a, b) => b.totalMinutes - a.totalMinutes || a.userName.localeCompare(b.userName));
+}
+
+function getWorkingDaysBetween(start, end) {
+  if (!start || !end || end <= start) {
+    return 0;
+  }
+
+  let workdays = 0;
+  let currentDay = startOfDay(start);
+
+  while (currentDay < end) {
+    const dayNumber = currentDay.getDay();
+
+    if (dayNumber >= 1 && dayNumber <= 5) {
+      workdays += 1;
+    }
+
+    currentDay = addDays(currentDay, 1);
+  }
+
+  return workdays;
+}
+
+function getAnalyticsCapturedDays(entries) {
+  return new Set(entries.map((entry) => toDateInputValue(entry.startedAt)));
+}
+
+function getLongtermAnalyticsStats(rangeKey, scopeKey) {
+  const scopeUserIds = getAnalyticsScopeUserIds(scopeKey);
+  const scopedEntries = sortEntriesByStart(
+    timeEntries.filter((entry) => scopeUserIds.has(getValidUserId(entry.user_id))),
+  );
+  const bounds = getAnalyticsRangeBounds(rangeKey, scopedEntries);
+  const entries = getEntriesForAnalyticsRange(rangeKey, scopeKey);
+  const totalMinutes = getTotalMinutes(entries);
+  const capturedDays = getAnalyticsCapturedDays(entries);
+  const categoryTrend = getCategoryTrend(entries);
+  const userComparison = getUserComparison(entries);
+  const workingDays = getWorkingDaysBetween(bounds.start, bounds.end);
+  const targetMinutes = workingDays * getTargetWorkMinutes();
+
+  return {
+    entries,
+    bounds,
+    totalMinutes,
+    entryCount: entries.length,
+    capturedDayCount: capturedDays.size,
+    averagePerCapturedDay: capturedDays.size ? totalMinutes / capturedDays.size : 0,
+    strongestCategory: categoryTrend[0]?.category || "Noch offen",
+    activeUser: userComparison[0]?.userName || "Noch offen",
+    monthlyTotals: getMonthlyTotals(entries),
+    categoryTrend,
+    userComparison,
+    targetMinutes,
+    actualMinutes: totalMinutes,
+    targetDifference: totalMinutes - targetMinutes,
+    workingDays,
+  };
+}
+
 function createAnalyticsKpiCard(label, value, detail = "", className = "") {
   const card = document.createElement("article");
   card.className = ["analytics-kpi-card", className].filter(Boolean).join(" ");
@@ -3942,7 +4201,7 @@ function renderCapacityStats(stats) {
     [
       "Rest pro Arbeitstag",
       formatAnalyticsDuration(stats.remainingPerWorkday),
-      stats.remainingWorkdays ? `${stats.remainingWorkdays} Arbeitstage übrig` : "Keine Arbeitstage übrig",
+      stats.remainingWorkdays ? `${stats.remainingWorkdays} Arbeitstage Ã¼brig` : "Keine Arbeitstage Ã¼brig",
     ],
     ["Status", stats.statusLabel],
   ].forEach(([label, value, detail]) => {
@@ -3967,9 +4226,9 @@ function renderFocusStats(stats, totalMinutes) {
 
   [
     ["Fokuszeit gesamt", formatAnalyticsDuration(stats.focusMinutes), `${formatPercent(stats.focusShare)} deiner erfassten Zeit`],
-    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["LÃ¤ngste Session", formatAnalyticsDuration(stats.longestSession)],
     ["Fokus-Sessions", String(stats.sessionCount), "ab 45 Minuten"],
-    ["Stärkster Fokustag", strongestDay, totalMinutes ? "" : "Noch keine Wochenzeit"],
+    ["StÃ¤rkster Fokustag", strongestDay, totalMinutes ? "" : "Noch keine Wochenzeit"],
   ].forEach(([label, value, detail]) => {
     focusStats.append(createAnalyticsKpiCard(label, value, detail));
   });
@@ -4065,7 +4324,7 @@ function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCate
     header.append(label);
 
     const value = document.createElement("span");
-    value.textContent = `${formatAnalyticsDuration(minutes)} · ${formatPercent(percent)} · ${formatSignedDurationDifference(difference)} zur Vorwoche`;
+    value.textContent = `${formatAnalyticsDuration(minutes)} Â· ${formatPercent(percent)} Â· ${formatSignedDurationDifference(difference)} zur Vorwoche`;
     header.append(value);
     row.append(header);
 
@@ -4083,7 +4342,7 @@ function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCate
     if (category === dominantCategory) {
       const hint = document.createElement("p");
       hint.className = "category-dominance-hint";
-      hint.textContent = "Diese Kategorie prägt deine Woche.";
+      hint.textContent = "Diese Kategorie prÃ¤gt deine Woche.";
       row.append(hint);
     }
 
@@ -4094,16 +4353,16 @@ function renderEnhancedCategoryStats(categoryMinutes, totalMinutes, previousCate
 function renderInterruptionStats(stats) {
   interruptionStats.innerHTML = "";
 
-  const gapText = `${stats.gapStats.short} kurz · ${stats.gapStats.medium} mittel · ${stats.gapStats.long} lang`;
+  const gapText = `${stats.gapStats.short} kurz Â· ${stats.gapStats.medium} mittel Â· ${stats.gapStats.long} lang`;
   const quietestDay = stats.quietestDay ? formatWeekdayName(stats.quietestDay.date) : "Noch offen";
   const mostFragmentedDay = stats.mostFragmentedDay ? formatWeekdayName(stats.mostFragmentedDay.date) : "Noch offen";
 
   [
-    ["Sessions", String(stats.sessionCount), "Jeder Eintrag zählt als Session"],
+    ["Sessions", String(stats.sessionCount), "Jeder Eintrag zÃ¤hlt als Session"],
     ["Durchschnitt", formatAnalyticsDuration(stats.averageSession), "pro Session"],
     ["Kurze Sessions", String(stats.shortSessionCount), "unter 15 Minuten"],
-    ["Kontextwechsel", String(stats.contextSwitchCount), "Kategorie oder Tätigkeit gewechselt"],
-    ["Lücken", gapText, "zwischen Sessions am selben Tag"],
+    ["Kontextwechsel", String(stats.contextSwitchCount), "Kategorie oder TÃ¤tigkeit gewechselt"],
+    ["LÃ¼cken", gapText, "zwischen Sessions am selben Tag"],
     ["Ruhigster Tag", quietestDay],
     ["Fragmentiertester Tag", mostFragmentedDay],
   ].forEach(([label, value, detail]) => {
@@ -4189,14 +4448,14 @@ function renderDayTimeline(weekEntries) {
     block.style.height = `${Math.max(2.4, (visibleDuration / CALENDAR_VISIBLE_MINUTES) * 100)}%`;
     block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
     block.style.background = `color-mix(in srgb, ${CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges} 14%, var(--surface))`;
-    block.title = `${entry.activity || "Ohne Tätigkeit"} · ${entry.category || "Ohne Kategorie"} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${formatAnalyticsDuration(getEntryMinutes(entry))}`;
+    block.title = `${entry.activity || "Ohne TÃ¤tigkeit"} Â· ${entry.category || "Ohne Kategorie"} Â· ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} Â· ${formatAnalyticsDuration(getEntryMinutes(entry))}`;
 
     const title = document.createElement("strong");
-    title.textContent = entry.activity || "Ohne Tätigkeit";
+    title.textContent = entry.activity || "Ohne TÃ¤tigkeit";
     block.append(title);
 
     const meta = document.createElement("span");
-    meta.textContent = `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${entry.category || "Ohne Kategorie"}`;
+    meta.textContent = `${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} Â· ${entry.category || "Ohne Kategorie"}`;
     block.append(meta);
 
     lanes.append(block);
@@ -4218,10 +4477,10 @@ function renderDayQuality(weekEntries) {
     ["Erste Startzeit", stats.firstStart ? formatTime(stats.firstStart) : "-"],
     ["Letzte Endzeit", stats.lastEnd ? formatTime(stats.lastEnd) : "-"],
     ["Sessions", String(stats.sessionCount)],
-    ["Längste Session", formatAnalyticsDuration(stats.longestSession)],
+    ["LÃ¤ngste Session", formatAnalyticsDuration(stats.longestSession)],
     ["Durchschnitt", formatAnalyticsDuration(stats.averageSession)],
     ["Fokuszeit", formatAnalyticsDuration(stats.focusMinutes)],
-    ["Stärkste Kategorie", stats.strongestCategory],
+    ["StÃ¤rkste Kategorie", stats.strongestCategory],
     ["Kontextwechsel", String(stats.contextSwitches)],
     ["Fragmentierung", String(stats.fragmentationScore), stats.fragmentationLabel],
   ].forEach(([label, value, detail]) => {
@@ -4261,7 +4520,7 @@ function renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategory
     meta.innerHTML = `
       <span>${dayStats?.sessionCount || 0} Sessions</span>
       <span>${dayStats?.strongestCategory || "Noch offen"}</span>
-      <span class="fragmentation-badge ${getFragmentationStatusClass(dayStats?.fragmentationScore || 0)}">${escapeHtml(dayStats?.fragmentationLabel || "ruhig")} · ${dayStats?.fragmentationScore || 0}</span>
+      <span class="fragmentation-badge ${getFragmentationStatusClass(dayStats?.fragmentationScore || 0)}">${escapeHtml(dayStats?.fragmentationLabel || "ruhig")} Â· ${dayStats?.fragmentationScore || 0}</span>
     `;
     row.append(meta);
 
@@ -4283,6 +4542,144 @@ function renderEnhancedWeekdayStats(weekEntries, weekdayMinutes, weekdayCategory
     row.append(track);
     weekdayBars.append(row);
   }
+}
+
+function renderLongtermOverview(stats) {
+  longtermOverviewStats.innerHTML = "";
+
+  [
+    ["Gesamtzeit", formatAnalyticsDuration(stats.totalMinutes)],
+    ["Eintr\u00e4ge", String(stats.entryCount)],
+    ["Durchschnitt pro erfasstem Tag", formatAnalyticsDuration(stats.averagePerCapturedDay), `${stats.capturedDayCount} erfasste Tage`],
+    ["St\u00e4rkste Kategorie", stats.strongestCategory],
+    ["Aktivster Nutzer", stats.activeUser],
+    ["Erfasste Tage", String(stats.capturedDayCount)],
+  ].forEach(([label, value, detail]) => {
+    longtermOverviewStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderLongtermTargetStats(stats) {
+  longtermTargetStats.innerHTML = "";
+
+  [
+    ["Sollzeit", formatAnalyticsDuration(stats.targetMinutes), `${stats.workingDays} Arbeitstage`],
+    ["Istzeit", formatAnalyticsDuration(stats.actualMinutes)],
+    [
+      "Differenz",
+      formatSignedDurationDifference(stats.targetDifference),
+      stats.targetDifference >= 0 ? "\u00fcber Soll" : "unter Soll",
+    ],
+    ["Hinweis", "Ohne Feiertage", "Sollzeit ohne Feiertage berechnet."],
+  ].forEach(([label, value, detail]) => {
+    longtermTargetStats.append(createAnalyticsKpiCard(label, value, detail));
+  });
+}
+
+function renderLongtermCategoryTrend(stats) {
+  longtermCategoryTrend.innerHTML = "";
+  const maxMinutes = Math.max(...stats.categoryTrend.map((item) => item.minutes), 0);
+
+  if (!stats.categoryTrend.length) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch keine Kategorien im gew\u00e4hlten Zeitraum.";
+    longtermCategoryTrend.append(empty);
+    return;
+  }
+
+  stats.categoryTrend.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "longterm-bar-row";
+
+    const header = document.createElement("div");
+    header.className = "category-bar-header";
+
+    const label = document.createElement("span");
+    label.textContent = item.category;
+    header.append(label);
+
+    const value = document.createElement("span");
+    value.textContent = `${formatAnalyticsDuration(item.minutes)} \u00b7 ${formatPercent(item.percent)} \u00b7 ${item.entryCount} Eintr\u00e4ge`;
+    header.append(value);
+    row.append(header);
+
+    const track = document.createElement("div");
+    track.className = "category-bar-track";
+
+    const fill = document.createElement("div");
+    fill.className = "category-bar-fill";
+    fill.style.width = `${maxMinutes ? (item.minutes / maxMinutes) * 100 : 0}%`;
+    fill.style.background = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Sonstiges;
+    track.append(fill);
+    row.append(track);
+
+    longtermCategoryTrend.append(row);
+  });
+}
+
+function renderLongtermUserComparison(stats) {
+  longtermUserComparison.innerHTML = "";
+  longtermUserComparisonEmpty.hidden = stats.userComparison.length > 1;
+
+  if (stats.userComparison.length <= 1) {
+    return;
+  }
+
+  stats.userComparison.forEach((item) => {
+    longtermUserComparison.append(
+      createAnalyticsKpiCard(
+        item.userName,
+        formatAnalyticsDuration(item.totalMinutes),
+        `${item.entryCount} Eintr\u00e4ge \u00b7 Durchschnitt ${formatAnalyticsDuration(item.averageEntryMinutes)} \u00b7 ${item.strongestCategory}`,
+      ),
+    );
+  });
+}
+
+function renderLongtermMonthlyTotals(stats) {
+  longtermMonthlyTotals.innerHTML = "";
+
+  if (!stats.monthlyTotals.length) {
+    const empty = document.createElement("p");
+    empty.className = "analytics-empty";
+    empty.textContent = "Noch kein Monatsverlauf vorhanden.";
+    longtermMonthlyTotals.append(empty);
+    return;
+  }
+
+  stats.monthlyTotals.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "longterm-month-row";
+
+    const label = document.createElement("span");
+    label.textContent = item.monthKey;
+    row.append(label);
+
+    const value = document.createElement("strong");
+    value.textContent = formatAnalyticsDuration(item.minutes);
+    row.append(value);
+
+    const detail = document.createElement("small");
+    detail.textContent = `${item.entryCount} Eintr\u00e4ge`;
+    row.append(detail);
+
+    longtermMonthlyTotals.append(row);
+  });
+}
+
+function renderLongtermAnalytics() {
+  const rangeKey = analyticsRangeSelect.value || "current_week";
+  const scopeKey = analyticsUserScopeSelect.value || "active";
+  const stats = getLongtermAnalyticsStats(rangeKey, scopeKey);
+  const hasEntries = stats.entryCount > 0;
+
+  longtermAnalyticsEmpty.hidden = hasEntries;
+  renderLongtermOverview(stats);
+  renderLongtermTargetStats(stats);
+  renderLongtermCategoryTrend(stats);
+  renderLongtermUserComparison(stats);
+  renderLongtermMonthlyTotals(stats);
 }
 
 function renderAnalytics() {
@@ -4315,6 +4712,7 @@ function renderAnalytics() {
     .sort((a, b) => b[1] - a[1]);
   dailyAverageElement.textContent = hasVisibleWork ? sortedCategories[0]?.[0] || "Noch offen" : "Noch offen";
 
+  renderLongtermAnalytics();
   renderCapacityStats(getCapacityStats(weekEntries));
   renderFocusStats(getFocusStats(weekEntries), totalMinutes);
   renderWeekComparisonStats(getWeekComparisonStats(weekEntries, previousWeekEntries));
@@ -4626,7 +5024,7 @@ function renderWeekplan() {
     if (!positionedEntries.length) {
       const empty = document.createElement("p");
       empty.className = "weekplan-empty";
-      empty.textContent = dayEntries.length ? "Keine Einträge zwischen 06:00 und 24:00" : "Keine Einträge";
+      empty.textContent = dayEntries.length ? "Keine EintrÃ¤ge zwischen 06:00 und 24:00" : "Keine EintrÃ¤ge";
       timeline.append(empty);
     }
 
@@ -4638,7 +5036,7 @@ function renderWeekplan() {
       block.style.setProperty("--entry-lane", String(lane));
       block.style.setProperty("--entry-lanes", String(laneCount));
       block.style.borderColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Sonstiges;
-      block.title = `${entry.activity} · ${entry.category} · ${formatTime(entry.startedAt)} bis ${formatTime(entry.endedAt)}`;
+      block.title = `${entry.activity} Â· ${entry.category} Â· ${formatTime(entry.startedAt)} bis ${formatTime(entry.endedAt)}`;
       block.dataset.entryId = entry.id;
 
       if (range.clippedStart) {
@@ -4655,7 +5053,7 @@ function renderWeekplan() {
 
       const time = document.createElement("span");
       time.textContent =
-        `${entry.category} · ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.`;
+        `${entry.category} Â· ${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} Â· ${getEntryDurationMinutes(entry)} Min.`;
       block.append(time);
       timeline.append(block);
     });
@@ -4681,7 +5079,7 @@ function renderMonthCalendar(monthStart, monthEnd, monthEntries) {
     dayButton.type = "button";
     dayButton.className = `calendar-month-day heatmap-day ${getHeatmapIntensityClass(totalMinutes)}`;
     dayButton.dataset.calendarDate = dayKey;
-    dayButton.setAttribute("aria-label", `${formatDate(currentDay)}, ${formatAnalyticsDuration(totalMinutes)}, ${dayEntries.length} Einträge`);
+    dayButton.setAttribute("aria-label", `${formatDate(currentDay)}, ${formatAnalyticsDuration(totalMinutes)}, ${dayEntries.length} EintrÃ¤ge`);
 
     if (currentDay.getMonth() !== monthStart.getMonth()) {
       dayButton.classList.add("is-outside-month");
@@ -4744,7 +5142,7 @@ function renderCalendarDayDetail(entries = getEntriesForActiveUser()) {
   if (!dayEntries.length) {
     const empty = document.createElement("p");
     empty.className = "calendar-day-detail-empty";
-    empty.textContent = "Für diesen Tag gibt es noch keine Einträge.";
+    empty.textContent = "FÃ¼r diesen Tag gibt es noch keine EintrÃ¤ge.";
     calendarDayDetailList.append(empty);
     return;
   }
@@ -4758,11 +5156,11 @@ function renderCalendarDayDetail(entries = getEntriesForActiveUser()) {
         <strong>${escapeHtml(entry.activity || "Zeiteintrag")}</strong>
         <span>${escapeHtml(entry.category || "Ohne Kategorie")}</span>
       </div>
-      <p>${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} · ${getEntryDurationMinutes(entry)} Min.</p>
+      <p>${formatTime(entry.startedAt)}-${formatTime(entry.endedAt)} Â· ${getEntryDurationMinutes(entry)} Min.</p>
       ${entry.note ? `<p class="calendar-day-detail-note">${escapeHtml(entry.note)}</p>` : ""}
       <div class="calendar-day-detail-actions">
         <button class="settings-secondary-button" type="button" data-calendar-detail-action="edit" data-entry-id="${escapeHtml(entry.id)}">Bearbeiten</button>
-        <button class="settings-danger-button" type="button" data-calendar-detail-action="delete" data-entry-id="${escapeHtml(entry.id)}">Löschen</button>
+        <button class="settings-danger-button" type="button" data-calendar-detail-action="delete" data-entry-id="${escapeHtml(entry.id)}">LÃ¶schen</button>
       </div>
     `;
     calendarDayDetailList.append(item);
@@ -4838,8 +5236,8 @@ function renderExportSummary() {
 
   exportSummary.textContent =
     exportScopeSelect.value === "all"
-      ? `${totalCount} Einträge von allen Nutzern werden als CSV exportiert.`
-      : `${activeCount} Einträge von ${getUserName(activeUserId)} werden als CSV exportiert.`;
+      ? `${totalCount} EintrÃ¤ge von allen Nutzern werden als CSV exportiert.`
+      : `${activeCount} EintrÃ¤ge von ${getUserName(activeUserId)} werden als CSV exportiert.`;
 }
 
 function createCsvExport(entries = getExportEntries()) {
@@ -4847,7 +5245,7 @@ function createCsvExport(entries = getExportEntries()) {
     "Nutzer-ID",
     "Nutzername",
     "Datum",
-    "Tätigkeit",
+    "TÃ¤tigkeit",
     "Kategorie",
     "Arbeitsbeginn",
     "Arbeitsende",
@@ -4881,8 +5279,8 @@ function downloadCsvExport() {
   if (!exportEntries.length) {
     exportMessage.textContent =
       exportScopeSelect.value === "all"
-        ? "Es gibt noch keine Zeiteinträge für den Export."
-        : `Es gibt noch keine Zeiteinträge für ${getUserName(activeUserId)}.`;
+        ? "Es gibt noch keine ZeiteintrÃ¤ge fÃ¼r den Export."
+        : `Es gibt noch keine ZeiteintrÃ¤ge fÃ¼r ${getUserName(activeUserId)}.`;
     exportMessage.hidden = false;
     return;
   }
@@ -4945,7 +5343,7 @@ function restoreDefaultReminderSettings() {
   renderReminderSettingsForm();
   renderTimerContext();
   hideInAppReminder();
-  showSettingsMessage("Erinnerungen wurden auf Standardwerte zurückgesetzt.", "success");
+  showSettingsMessage("Erinnerungen wurden auf Standardwerte zurÃ¼ckgesetzt.", "success");
 }
 
 function parseCsvRows(text) {
@@ -4995,7 +5393,7 @@ function parseCsvRows(text) {
   }
 
   if (isQuoted) {
-    throw new Error("Die CSV-Datei enthält ein nicht geschlossenes Anführungszeichen.");
+    throw new Error("Die CSV-Datei enthÃ¤lt ein nicht geschlossenes AnfÃ¼hrungszeichen.");
   }
 
   return rows.filter((currentRow) => currentRow.some((value) => value.trim()));
@@ -5093,7 +5491,7 @@ function entriesFromCsvText(text) {
   const rows = parseCsvRows(text);
 
   if (rows.length < 2) {
-    throw new Error("Die CSV-Datei enthält keine importierbaren Zeiteinträge.");
+    throw new Error("Die CSV-Datei enthÃ¤lt keine importierbaren ZeiteintrÃ¤ge.");
   }
 
   const headerMap = new Map(rows[0].map((header, index) => [normalizeCsvHeader(header), index]));
@@ -5138,11 +5536,11 @@ function entriesFromCsvText(text) {
   });
 
   if (!importedEntries.length) {
-    throw new Error("Keine gültigen Zeiteinträge gefunden. Bitte Datum, Zeiten, Tätigkeit und Kategorie prüfen.");
+    throw new Error("Keine gÃ¼ltigen ZeiteintrÃ¤ge gefunden. Bitte Datum, Zeiten, TÃ¤tigkeit und Kategorie prÃ¼fen.");
   }
 
   if (invalidRowCount) {
-    throw new Error(`${invalidRowCount} CSV-Zeile(n) sind ungültig. Es wurde nichts importiert.`);
+    throw new Error(`${invalidRowCount} CSV-Zeile(n) sind ungÃ¼ltig. Es wurde nichts importiert.`);
   }
 
   return importedEntries;
@@ -5217,7 +5615,7 @@ function closeSafetyDialog(result = false) {
 function requestSafetyConfirmation({
   title,
   message,
-  confirmLabel = "Bestätigen",
+  confirmLabel = "BestÃ¤tigen",
   requiredText = "",
   inputLabel = "",
 }) {
@@ -5262,7 +5660,7 @@ function confirmSafetyDialog() {
   const { requiredText } = pendingSafetyConfirmation;
 
   if (requiredText && safetyDialogInput.value !== requiredText) {
-    safetyDialogMessage.textContent = "Die Bestätigung stimmt nicht überein.";
+    safetyDialogMessage.textContent = "Die BestÃ¤tigung stimmt nicht Ã¼berein.";
     safetyDialogMessage.dataset.type = "error";
     safetyDialogMessage.hidden = false;
     return;
@@ -5291,19 +5689,19 @@ function resetSelectedUserLocalData({ showSuccess = true } = {}) {
   const nextUsers = users.map((user) => (user.id === selectedUserId ? defaultUser : user));
 
   if (!persistEntries(nextEntries)) {
-    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Lokale EintrÃ¤ge konnten nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
   categories = nextCategories;
   if (!saveCategories()) {
-    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Kategorien konnten nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
   users = nextUsers;
   if (!saveUserProfiles()) {
-    showSettingsMessage("Nutzerprofil konnte nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Nutzerprofil konnte nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
@@ -5314,7 +5712,7 @@ function resetSelectedUserLocalData({ showSuccess = true } = {}) {
   renderAfterDataReset();
 
   if (showSuccess) {
-    showSettingsMessage(`${defaultUser.name} wurde lokal zurückgesetzt.`, "success");
+    showSettingsMessage(`${defaultUser.name} wurde lokal zurÃ¼ckgesetzt.`, "success");
   }
 
   appendAuditLog("reset_selected_user_local", {
@@ -5330,27 +5728,27 @@ function resetAllLocalData({ showSuccess = true } = {}) {
   const nextCategories = getDefaultCategoriesForUsers(DEFAULT_USERS.map((user) => user.id));
 
   if (!persistEntries([])) {
-    showSettingsMessage("Lokale Einträge konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Lokale EintrÃ¤ge konnten nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
   categories = nextCategories;
   if (!saveCategories()) {
-    showSettingsMessage("Kategorien konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Kategorien konnten nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
   users = nextUsers;
   activeUserId = DEFAULT_USERS[0].id;
   if (!saveUserProfiles()) {
-    showSettingsMessage("Nutzerprofile konnten nicht zurückgesetzt werden. Bitte Browser-Speicher prüfen.", "error");
+    showSettingsMessage("Nutzerprofile konnten nicht zurÃ¼ckgesetzt werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return false;
   }
 
   try {
     localStorage.removeItem(REMINDER_FIRED_KEY);
   } catch (error) {
-    showSettingsMessage("Reminder-Status konnte nicht vollständig zurückgesetzt werden.", "error");
+    showSettingsMessage("Reminder-Status konnte nicht vollstÃ¤ndig zurÃ¼ckgesetzt werden.", "error");
     return false;
   }
 
@@ -5359,7 +5757,7 @@ function resetAllLocalData({ showSuccess = true } = {}) {
   renderAfterDataReset();
 
   if (showSuccess) {
-    showSettingsMessage("Alle lokalen Nutzerdaten wurden zurückgesetzt.", "success");
+    showSettingsMessage("Alle lokalen Nutzerdaten wurden zurÃ¼ckgesetzt.", "success");
   }
 
   appendAuditLog("reset_all_local", {
@@ -5396,13 +5794,13 @@ async function resetAllCloudData() {
 
 async function handleResetSelectedUserLocal() {
   const confirmed = await requestSafetyConfirmation({
-    title: "Ausgewählten Nutzer lokal zurücksetzen",
-    message: "Dadurch werden alle lokalen Zeiteinträge der aktuell ausgewählten Person auf diesem Gerät gelöscht. Cloud-Daten bleiben unverändert.",
-    confirmLabel: "Lokal zurücksetzen",
+    title: "AusgewÃ¤hlten Nutzer lokal zurÃ¼cksetzen",
+    message: "Dadurch werden alle lokalen ZeiteintrÃ¤ge der aktuell ausgewÃ¤hlten Person auf diesem GerÃ¤t gelÃ¶scht. Cloud-Daten bleiben unverÃ¤ndert.",
+    confirmLabel: "Lokal zurÃ¼cksetzen",
   });
 
   if (!confirmed) {
-    showSettingsMessage("Zurücksetzen abgebrochen.");
+    showSettingsMessage("ZurÃ¼cksetzen abgebrochen.");
     return;
   }
 
@@ -5415,15 +5813,15 @@ async function handleResetSelectedUserCloud() {
 
 async function handleResetAllLocal() {
   const confirmed = await requestSafetyConfirmation({
-    title: "Alle Nutzer lokal zurücksetzen",
-    message: "Dadurch werden alle lokalen Zeiteinträge aller Personen auf diesem Gerät gelöscht. Cloud-Daten bleiben unverändert.",
-    confirmLabel: "Alle lokal löschen",
-    requiredText: "LOKAL LÖSCHEN",
-    inputLabel: "Zur Bestätigung exakt LOKAL LÖSCHEN eingeben.",
+    title: "Alle Nutzer lokal zurÃ¼cksetzen",
+    message: "Dadurch werden alle lokalen ZeiteintrÃ¤ge aller Personen auf diesem GerÃ¤t gelÃ¶scht. Cloud-Daten bleiben unverÃ¤ndert.",
+    confirmLabel: "Alle lokal lÃ¶schen",
+    requiredText: "LOKAL LÃ–SCHEN",
+    inputLabel: "Zur BestÃ¤tigung exakt LOKAL LÃ–SCHEN eingeben.",
   });
 
   if (!confirmed) {
-    showSettingsMessage("Zurücksetzen abgebrochen.");
+    showSettingsMessage("ZurÃ¼cksetzen abgebrochen.");
     return;
   }
 
@@ -5459,14 +5857,14 @@ function importCsvEntries(event) {
     );
 
     if (!persistEntries(nextEntries)) {
-      showSettingsMessage("CSV konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+      showSettingsMessage("CSV konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prÃ¼fen.", "error");
       csvImportInput.value = "";
       return;
     }
 
     timeEntries.splice(0, timeEntries.length, ...nextEntries);
     refreshEntryViews();
-    showSettingsMessage(`${importedEntries.length} Einträge wurden importiert.`, "success");
+    showSettingsMessage(`${importedEntries.length} EintrÃ¤ge wurden importiert.`, "success");
     csvImportInput.value = "";
   });
 
@@ -5570,7 +5968,7 @@ function initializeNotificationPermissionState() {
 async function requestNotificationPermission() {
   if (!canUseBrowserNotifications()) {
     saveNotificationPermissionState("unavailable");
-    showInAppReminder(`Browser-Benachrichtigungen sind hier nicht möglich. ${getReminderSettings().text}`);
+    showInAppReminder(`Browser-Benachrichtigungen sind hier nicht mÃ¶glich. ${getReminderSettings().text}`);
     return;
   }
 
@@ -5650,11 +6048,11 @@ function updateReminderTestOutput(result) {
   }
 
   if (result === "suppressed") {
-    reminderTestOutput.textContent = "Reminder unterdrückt wegen erreichter Ziel-Arbeitszeit";
+    reminderTestOutput.textContent = "Reminder unterdrÃ¼ckt wegen erreichter Ziel-Arbeitszeit";
     return;
   }
 
-  reminderTestOutput.textContent = "Reminder ausgelöst";
+  reminderTestOutput.textContent = "Reminder ausgelÃ¶st";
   showReminderPopup(getReminderSettings().text);
 }
 
@@ -5665,7 +6063,7 @@ function runReminderTest(totalMinutes = getTodayTotalMinutes()) {
 
 function scheduleReminderTest() {
   const scheduledAt = new Date(Date.now() + 60000);
-  reminderTestOutput.textContent = `Reminder-Test geplant für ${formatReminderTime(scheduledAt)}.`;
+  reminderTestOutput.textContent = `Reminder-Test geplant fÃ¼r ${formatReminderTime(scheduledAt)}.`;
 
   setTimeout(() => {
     runReminderTest();
@@ -5702,7 +6100,7 @@ function renderEditForm(entry) {
 
   form.innerHTML = `
     <label>
-      Tätigkeit
+      TÃ¤tigkeit
       <input name="activity" type="text" value="${escapeHtml(entry.activity)}" required />
     </label>
     <label>
@@ -5726,11 +6124,11 @@ function renderEditForm(entry) {
     </label>
     <label>
       Notiz
-      <textarea name="note" rows="3" placeholder="Notiz ergänzen">${escapeHtml(entry.note)}</textarea>
+      <textarea name="note" rows="3" placeholder="Notiz ergÃ¤nzen">${escapeHtml(entry.note)}</textarea>
     </label>
     <p class="history-edit-message" hidden></p>
     <div class="history-actions">
-      <button class="history-save-edit-button" type="submit">Änderung speichern</button>
+      <button class="history-save-edit-button" type="submit">Ã„nderung speichern</button>
       <button class="history-cancel-edit-button" type="button" data-action="cancel-edit">Abbrechen</button>
     </div>
   `;
@@ -5752,13 +6150,13 @@ function updateHistoryEntry(form) {
   const message = form.querySelector(".history-edit-message");
 
   if (!activity) {
-    message.textContent = "Bitte eine Tätigkeit eingeben.";
+    message.textContent = "Bitte eine TÃ¤tigkeit eingeben.";
     message.hidden = false;
     return;
   }
 
   if (Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
-    message.textContent = "Bitte Arbeitsbeginn und Arbeitsende vollständig eingeben.";
+    message.textContent = "Bitte Arbeitsbeginn und Arbeitsende vollstÃ¤ndig eingeben.";
     message.hidden = false;
     return;
   }
@@ -5807,9 +6205,9 @@ async function deleteHistoryEntry(entryId, { afterDelete } = {}) {
 
   const entry = timeEntries[entryIndex];
   const shouldDelete = await requestSafetyConfirmation({
-    title: "Lokalen Eintrag löschen",
-    message: "Diesen lokalen Eintrag löschen? Cloud-Daten bleiben unverändert, bis erneut synchronisiert wird.",
-    confirmLabel: "Lokal löschen",
+    title: "Lokalen Eintrag lÃ¶schen",
+    message: "Diesen lokalen Eintrag lÃ¶schen? Cloud-Daten bleiben unverÃ¤ndert, bis erneut synchronisiert wird.",
+    confirmLabel: "Lokal lÃ¶schen",
   });
 
   if (!shouldDelete) {
@@ -5834,7 +6232,7 @@ async function deleteHistoryEntry(entryId, { afterDelete } = {}) {
     userId: getValidUserId(entry.user_id),
     details: `Lokaler Eintrag ${entry.id} geloescht. Cloud-Daten blieben unveraendert.`,
   });
-  showStorageError(currentAuthUser ? "Lokal gelöscht. Cloud bleibt unverändert." : "Lokal gelöscht.");
+  showStorageError(currentAuthUser ? "Lokal gelÃ¶scht. Cloud bleibt unverÃ¤ndert." : "Lokal gelÃ¶scht.");
   if (typeof afterDelete === "function") {
     afterDelete();
   }
@@ -5851,7 +6249,7 @@ function saveCurrentEntry() {
   const validationMessage = getEntryValidationMessage();
 
   if (validationMessage) {
-    showTimerMessage("Bitte Tätigkeit und Kategorie vor dem Speichern ergänzen.", "error");
+    showTimerMessage("Bitte TÃ¤tigkeit und Kategorie vor dem Speichern ergÃ¤nzen.", "error");
     completionPanel.hidden = false;
     return;
   }
@@ -5875,7 +6273,7 @@ function saveCurrentEntry() {
   ];
 
   if (!persistEntries(nextEntries)) {
-    showTimerMessage("Eintrag konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prüfen.", "error");
+    showTimerMessage("Eintrag konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prÃ¼fen.", "error");
     return;
   }
 
@@ -5915,7 +6313,7 @@ function saveManualEntry(event) {
   const note = formData.get("note").trim();
 
   if (!activity || !category || !date || !start || !end) {
-    showManualMessage("Bitte Tätigkeit, Kategorie, Datum, Arbeitsbeginn und Arbeitsende ausfüllen.");
+    showManualMessage("Bitte TÃ¤tigkeit, Kategorie, Datum, Arbeitsbeginn und Arbeitsende ausfÃ¼llen.");
     return;
   }
 
@@ -5923,7 +6321,7 @@ function saveManualEntry(event) {
   const endedAt = new Date(`${date}T${end}`);
 
   if (Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
-    showManualMessage("Bitte Datum, Arbeitsbeginn und Arbeitsende vollständig eingeben.");
+    showManualMessage("Bitte Datum, Arbeitsbeginn und Arbeitsende vollstÃ¤ndig eingeben.");
     return;
   }
 
@@ -5951,7 +6349,7 @@ function saveManualEntry(event) {
   ];
 
   if (!persistEntries(nextEntries)) {
-    showManualMessage("Eintrag konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prüfen.");
+    showManualMessage("Eintrag konnte nicht dauerhaft gespeichert werden. Bitte Browser-Speicher prÃ¼fen.");
     return;
   }
 
@@ -5975,7 +6373,7 @@ function syncActiveTimerDraft() {
 
   activeActivity = activityInput.value.trim();
   activeCategory = categorySelect.value;
-  timerStateElement.textContent = activeActivity || "Timer läuft";
+  timerStateElement.textContent = activeActivity || "Timer lÃ¤uft";
   persistActiveTimer();
 }
 
@@ -6014,6 +6412,8 @@ analyticsDaySelect.addEventListener("change", () => {
   renderDayTimeline(getCurrentWeekEntries());
   renderDayQuality(getCurrentWeekEntries());
 });
+analyticsRangeSelect.addEventListener("change", renderAnalytics);
+analyticsUserScopeSelect.addEventListener("change", renderAnalytics);
 weekplanLink.addEventListener("click", (event) => {
   event.preventDefault();
   showWeekplanView();
@@ -6232,6 +6632,10 @@ initializeDeveloperMode();
 initializeNotificationPermissionState();
 checkReminders();
 synchronizeWithSupabaseOnStartup();
+appBootstrapCompleted = true;
+if (pendingSupabaseLibraryReady || (!supabaseClient && globalThis.supabase?.createClient)) {
+  handleSupabaseLibraryReady();
+}
 setInterval(checkReminders, 30000);
 setActiveNavigation("timer");
 closeNavigationMenu();
