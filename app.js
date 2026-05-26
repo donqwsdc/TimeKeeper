@@ -341,6 +341,55 @@ function getDefaultUserName(userId) {
   return DEFAULT_USERS.find((user) => user.id === validUserId)?.name || DEFAULT_USERS[0].name;
 }
 
+function isDefaultUserName(userId, name) {
+  return String(name || "").trim() === getDefaultUserName(userId);
+}
+
+function userHasEntries(userId) {
+  const validUserId = getValidUserId(userId);
+  return timeEntries.some((entry) => getValidUserId(entry.user_id) === validUserId);
+}
+
+function isConfiguredUser(user) {
+  if (!user || getValidUserId(user.id) !== user.id) {
+    return false;
+  }
+
+  const name = String(user.name || "").trim();
+  return Boolean(name) && !isDefaultUserName(user.id, name);
+}
+
+function getConfiguredUsers() {
+  return users.filter(isConfiguredUser);
+}
+
+function getVisibleUsers() {
+  const visibleUsers = users.filter(
+    (user) =>
+      isConfiguredUser(user) ||
+      userHasEntries(user.id) ||
+      user.id === activeUserId,
+  );
+
+  if (visibleUsers.length) {
+    return visibleUsers;
+  }
+
+  return [users.find((user) => user.id === DEFAULT_USERS[0].id) || DEFAULT_USERS[0]];
+}
+
+function ensureActiveUserIsVisible() {
+  const visibleUsers = getVisibleUsers();
+
+  if (visibleUsers.some((user) => user.id === activeUserId)) {
+    return false;
+  }
+
+  activeUserId = visibleUsers[0]?.id || DEFAULT_USERS[0].id;
+  saveUserProfiles();
+  return true;
+}
+
 function getUserUpdatedAtTime(user) {
   const updatedAt = new Date(user?.updated_at || user?.updatedAt || 0);
   return Number.isNaN(updatedAt.getTime()) ? 0 : updatedAt.getTime();
@@ -381,9 +430,10 @@ function clearUserProfileMessage() {
 }
 
 function renderTimerContext() {
+  ensureActiveUserIsVisible();
   timerUserSelect.innerHTML = "";
 
-  users.forEach((user) => {
+  getVisibleUsers().forEach((user) => {
     const option = document.createElement("option");
     option.value = user.id;
     option.textContent = user.name;
@@ -401,16 +451,25 @@ function renderTimerContext() {
   timerReminderStatus.dataset.status = reminderSettings.enabled ? "active" : "inactive";
 }
 
-function renderUserProfileSettings() {
+function renderActiveUserOptions() {
+  ensureActiveUserIsVisible();
   activeUserSelect.innerHTML = "";
-  userSettingsList.innerHTML = "";
 
-  users.forEach((user) => {
+  getVisibleUsers().forEach((user) => {
     const option = document.createElement("option");
     option.value = user.id;
     option.textContent = user.name;
     activeUserSelect.append(option);
+  });
 
+  activeUserSelect.value = activeUserId;
+}
+
+function renderUserProfileSettings() {
+  renderActiveUserOptions();
+  userSettingsList.innerHTML = "";
+
+  users.forEach((user) => {
     const defaultUser = DEFAULT_USERS.find((item) => item.id === user.id);
     const label = document.createElement("label");
     label.className = "user-settings-item";
@@ -433,7 +492,6 @@ function renderUserProfileSettings() {
     userSettingsList.append(label);
   });
 
-  activeUserSelect.value = activeUserId;
   renderTimerContext();
   userSettingsForm.hidden = false;
   userSettingsForm.removeAttribute("aria-hidden");
@@ -441,6 +499,7 @@ function renderUserProfileSettings() {
 
 function setActiveUserProfile(userId, { showMessage = false } = {}) {
   activeUserId = getValidUserId(userId);
+  ensureActiveUserIsVisible();
   analyticsSelectedDay = null;
 
   if (!saveUserProfiles()) {
@@ -493,10 +552,7 @@ function saveUserNamesFromSettings({ showMessage = false } = {}) {
     return;
   }
 
-  Array.from(activeUserSelect.options).forEach((option) => {
-    option.textContent = getUserName(option.value);
-  });
-  activeUserSelect.value = activeUserId;
+  renderActiveUserOptions();
   renderTimerContext();
   refreshEntryViews();
   if (showMessage) {
