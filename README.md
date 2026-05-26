@@ -1,2 +1,0 @@
-# TimeKeeper
-Zeitmanagement tool
