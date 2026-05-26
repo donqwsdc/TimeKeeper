@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F5F4EF" />
+    <title>TimeKeeper</title>
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="app_icon_light_192.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css?v=31" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header" aria-label="App-Navigation">
+        <div class="app-brand" aria-label="TimeKeeper">
+          <span class="brand-name">TimeKeeper</span>
+        </div>
+      </header>
+
+      <nav class="menu-panel" id="mainMenu" aria-label="Bereiche">
+        <a href="#" data-view-link="timer" data-brand-icon="timer">Timer</a>
+        <a href="#verlauf" data-view-link="history" data-brand-icon="verlauf">Verlauf</a>
+        <a href="#auswertungen" data-view-link="analytics" data-brand-icon="analyse">Statistik</a>
+        <a href="#wochenplan" data-view-link="weekplan" data-brand-icon="kalender">Kalender</a>
+        <a class="menu-panel-secondary" href="#einstellungen" data-view-link="settings" data-brand-icon="einstellungen" aria-label="Einstellungen">Setup</a>
+      </nav>
+      <button class="menu-button" type="button" aria-label="Navigation ausblenden" aria-expanded="true" aria-controls="mainMenu">
+        –
+      </button>
+
+      <main class="timer-screen app-view" id="timerView" data-state="neutral">
+        <section class="time-card" aria-label="Aktuelle Zeit">
+          <p class="weekday" id="weekday">--</p>
+          <p class="date-line" id="dateLine">--</p>
+          <p class="clock" id="clock">--:--</p>
+          <p class="calendar-week" id="calendarWeek">KW --</p>
+        </section>
+
+        <section class="timer-context" aria-label="Aktueller Kontext">
+          <label class="timer-user-field" for="timerUserSelect">
+            <span>Nutzer</span>
+            <select id="timerUserSelect"></select>
+          </label>
+          <div class="timer-status-stack" aria-live="polite">
+            <span class="timer-context-status" id="timerSyncStatus">Nur lokal</span>
+            <span class="timer-context-status timer-context-status-muted" id="timerReminderStatus">Reminder aus</span>
+          </div>
+        </section>
+
+        <section class="timer-action" aria-label="Timer steuern">
+          <p class="timer-state" id="timerState">Bereit zum Starten</p>
+          <p class="elapsed-time" id="elapsedTime" aria-live="polite" hidden>00:00:00</p>
+          <button class="start-button" type="button" aria-pressed="false">Start</button>
+        </section>
+
+        <p class="timer-message" id="timerMessage" role="status" aria-live="polite" hidden></p>
+        <p class="sync-status-message" id="syncStatusMessage" role="status" aria-live="polite" hidden></p>
+
+        <section class="reminder-panel" id="reminderPanel" aria-label="Feierabend-Erinnerung" hidden>
+          <p id="reminderMessage">Was hast du mit deiner Zeit gemacht?</p>
+          <button class="notification-permission-button" id="notificationPermissionButton" type="button">
+            Benachrichtigungen erlauben
+          </button>
+        </section>
+
+        <section class="reminder-test-panel" aria-label="Temporärer Reminder-Testmodus" hidden>
+          <h2>Temporärer Reminder-Testmodus</h2>
+          <p>Nur für Entwicklung. Später leicht entfernbar.</p>
+          <div class="reminder-test-actions">
+            <button id="testReminderNowButton" type="button">Jetzt testen</button>
+            <button id="testReminderUnderButton" type="button">Test &lt; 8h</button>
+            <button id="testReminderFullButton" type="button">Test >= 8h</button>
+            <button id="scheduleReminderTestButton" type="button">In 1 Min. testen</button>
+          </div>
+          <p class="reminder-test-output" id="reminderTestOutput" role="status" aria-live="polite">
+            Noch kein Reminder-Test ausgeführt.
+          </p>
+        </section>
+
+        <form class="entry-form" aria-label="Tätigkeit vorbereiten">
+          <label for="activity">Tätigkeit</label>
+          <input
+            id="activity"
+            name="activity"
+            type="text"
+            list="activitySuggestions"
+            placeholder="Tätigkeit eingeben"
+            autocomplete="off"
+            aria-describedby="timerMessage"
+          />
+
+          <label for="category">Kategorie</label>
+          <select id="category" name="category" aria-describedby="timerMessage">
+            <option value="">Kategorie auswählen</option>
+            <option>Organisation</option>
+            <option>Meetings</option>
+            <option>Marketing Zentral</option>
+            <option>Filialmarketing</option>
+            <option>Eventplanung</option>
+            <option>Administration</option>
+            <option>Netzwerk</option>
+            <option>Fläche</option>
+            <option>Sonstiges</option>
+          </select>
+        </form>
+
+        <a class="timer-secondary-link" href="#nachtragen" data-view-link="manual">Zeit nachtragen</a>
+
+        <section class="completion-panel" id="completionPanel" aria-label="Eintrag abschließen" hidden>
+          <label for="note">Optionale Notiz</label>
+          <textarea id="note" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+
+          <div class="completion-actions">
+            <button class="save-button" type="button">Speichern</button>
+            <button class="discard-button" type="button">Verwerfen</button>
+          </div>
+        </section>
+
+      </main>
+
+      <section class="history-screen app-view" id="historyView" aria-label="Verlauf" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button">Zurück</button>
+          <h2>Verlauf</h2>
+        </div>
+        <p class="history-empty" id="historyEmpty">Noch keine gespeicherten Einträge.</p>
+        <p class="storage-message" id="storageMessage" role="status" aria-live="polite" hidden></p>
+        <ol class="history-list" id="historyList"></ol>
+      </section>
+
+      <section class="manual-screen app-view" id="manualView" aria-label="Zeit nachtragen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Nachtragen</h2>
+        </div>
+
+        <form class="manual-form" id="manualForm" aria-describedby="manualMessage">
+          <label for="manualActivity">Tätigkeit</label>
+          <input id="manualActivity" name="activity" type="text" list="activitySuggestions" placeholder="Tätigkeit eingeben" autocomplete="off" />
+          <datalist id="activitySuggestions"></datalist>
+
+          <label for="manualCategory">Kategorie</label>
+          <select id="manualCategory" name="category">
+            <option value="">Kategorie auswählen</option>
+            <option>Organisation</option>
+            <option>Meetings</option>
+            <option>Marketing Zentral</option>
+            <option>Filialmarketing</option>
+            <option>Eventplanung</option>
+            <option>Administration</option>
+            <option>Netzwerk</option>
+            <option>Fläche</option>
+            <option>Sonstiges</option>
+          </select>
+
+          <label for="manualDate">Datum</label>
+          <input id="manualDate" name="date" type="date" />
+
+          <label for="manualStart">Arbeitsbeginn</label>
+          <input id="manualStart" name="start" type="time" />
+
+          <label for="manualEnd">Arbeitsende</label>
+          <input id="manualEnd" name="end" type="time" />
+
+          <label for="manualNote">Notiz</label>
+          <textarea id="manualNote" name="note" rows="3" placeholder="Notiz ergänzen"></textarea>
+
+          <p class="manual-message" id="manualMessage" role="status" aria-live="polite" hidden></p>
+
+          <button class="manual-save-button" type="submit">Speichern</button>
+        </form>
+      </section>
+
+      <section class="analytics-screen app-view" id="analyticsView" aria-label="Auswertungen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Statistik</h2>
+        </div>
+
+        <div class="analytics-summary" aria-label="Wochenwerte">
+          <section class="analytics-card">
+            <p>Diese Woche</p>
+            <strong id="weeklyTotal">0 Min.</strong>
+          </section>
+          <section class="analytics-card">
+            <p>Hauptfokus</p>
+            <strong id="dailyAverage">Noch offen</strong>
+          </section>
+        </div>
+
+        <section class="capacity-stats" aria-label="Kapazitätsübersicht">
+          <div class="analytics-section-header">
+            <h3>Kapazität</h3>
+            <span class="analytics-status-badge" id="capacityStatus">Noch offen</span>
+          </div>
+          <div class="capacity-layout">
+            <div class="capacity-progress" aria-label="Wochenziel-Fortschritt">
+              <div class="capacity-progress-track">
+                <div class="capacity-progress-fill" id="capacityProgressFill"></div>
+              </div>
+              <strong id="capacityProgressPercent">0 %</strong>
+            </div>
+            <div class="capacity-grid" id="capacityStats"></div>
+          </div>
+        </section>
+
+        <section class="focus-stats" aria-label="Fokuszeit">
+          <h3>Fokuszeit</h3>
+          <div class="analytics-kpi-grid" id="focusStats"></div>
+        </section>
+
+        <section class="week-comparison-stats" aria-label="Vergleich zur Vorwoche">
+          <h3>Vergleich zur Vorwoche</h3>
+          <div class="analytics-kpi-grid" id="weekComparisonStats"></div>
+        </section>
+
+        <section class="interruption-stats" aria-label="Unterbrechungsanalyse">
+          <h3>Unterbrechungen</h3>
+          <div class="analytics-kpi-grid" id="interruptionStats"></div>
+          <article class="fragmentation-card" id="fragmentationCard" aria-label="Fragmentierungsgrad"></article>
+        </section>
+
+        <section class="day-timeline-section" aria-label="Tagesverlauf">
+          <div class="analytics-section-header">
+            <h3>Tagesverlauf</h3>
+            <label class="analytics-day-selector" for="analyticsDaySelect">
+              Tag
+              <select id="analyticsDaySelect"></select>
+            </label>
+          </div>
+          <div class="day-timeline" id="dayTimelineTrack"></div>
+          <p class="analytics-empty" id="dayTimelineEmpty" hidden>Keine Einträge für diesen Tag.</p>
+        </section>
+
+        <section class="day-quality-section" aria-label="Tagesqualität">
+          <h3>Tagesqualität</h3>
+          <div class="analytics-kpi-grid" id="dayQualityStats"></div>
+        </section>
+
+        <section class="category-stats" aria-label="Zeit je Kategorie">
+          <h3>Fokusfelder</h3>
+          <p class="analytics-empty" id="analyticsEmpty">Noch keine Einträge diese Woche.</p>
+          <div class="category-bars" id="categoryBars"></div>
+        </section>
+
+        <section class="weekday-stats" aria-label="Arbeitszeit nach Wochentag">
+          <h3>Wochenrhythmus</h3>
+          <div class="weekday-bars" id="weekdayBars"></div>
+        </section>
+      </section>
+
+      <section class="export-screen app-view" id="exportView" aria-label="Exportieren" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Exportieren</h2>
+        </div>
+
+        <section class="export-panel">
+          <p id="exportSummary">Alle gespeicherten Zeiteinträge werden als CSV exportiert.</p>
+          <label class="export-scope" for="exportScopeSelect">
+            Exportumfang
+            <select id="exportScopeSelect">
+              <option value="active">Nur aktiven Nutzer exportieren</option>
+              <option value="all">Alle Nutzer exportieren</option>
+            </select>
+          </label>
+          <p class="export-message" id="exportMessage" role="status" aria-live="polite" hidden></p>
+          <button class="export-csv-button" id="exportCsvButton" type="button">CSV herunterladen</button>
+        </section>
+      </section>
+
+      <section class="settings-screen app-view" id="settingsView" aria-label="Einstellungen" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Verwalten</h2>
+        </div>
+
+        <div class="settings-layout">
+          <details class="settings-panel">
+            <summary>Cloud</summary>
+            <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
+              Offline
+            </p>
+            <p class="cloud-status-detail" id="cloudStorageDetail">
+              Cloudspeicherung ist noch nicht eingerichtet.
+            </p>
+            <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
+            <p class="cloud-auth-status" id="cloudAuthStatus" role="status" aria-live="polite">
+              Nicht angemeldet
+            </p>
+            <div class="cloud-auth-panel">
+              <label class="settings-field" for="cloudAuthEmail">
+                E-Mail
+                <input id="cloudAuthEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
+              </label>
+              <div class="settings-actions">
+                <button class="settings-secondary-button" id="cloudLoginLinkButton" type="button">
+                  Login-Link senden
+                </button>
+                <button class="settings-secondary-button" id="cloudLogoutButton" type="button">
+                  Abmelden
+                </button>
+              </div>
+            </div>
+            <p class="settings-helper">
+              Cloud-Löschaktionen sind bis zur Einführung geschützter Admin-Rechte deaktiviert.
+            </p>
+            <div class="settings-actions">
+              <button class="settings-primary-button" id="cloudBackupButton" type="button">
+                Sichern
+              </button>
+              <button class="settings-secondary-button" id="cloudImportButton" type="button">
+                Laden
+              </button>
+            </div>
+            <div class="cloud-conflicts" id="cloudConflictPanel" hidden></div>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Nutzer</summary>
+            <label class="settings-field" for="activeUserSelect">
+              Aktive Person
+              <select id="activeUserSelect"></select>
+            </label>
+            <p class="settings-helper">
+              Bis zu 25 Personen können lokal getrennt erfasst werden.
+            </p>
+            <form class="user-settings-form" id="userSettingsForm" aria-label="Nutzerkonten bearbeiten">
+              <div class="user-settings-list" id="userSettingsList"></div>
+            </form>
+            <p class="settings-message" id="userProfileMessage" role="status" aria-live="polite" hidden></p>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Kategorien</summary>
+            <form class="category-settings-form" id="categorySettingsForm">
+              <label>
+                Neue Kategorie
+                <input id="newCategoryName" name="name" type="text" placeholder="Kategorie eingeben" />
+              </label>
+              <button class="settings-secondary-button" type="submit">Kategorie hinzufügen</button>
+            </form>
+            <ol class="category-settings-list" id="categorySettingsList"></ol>
+            <p class="settings-message" id="categorySettingsMessage" role="status" aria-live="polite" hidden></p>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Erinnerungen</summary>
+            <form class="reminder-settings-form" id="reminderSettingsForm">
+              <label class="settings-toggle" for="remindersEnabled">
+                <span>
+                  <strong>Erinnerungen aktiv</strong>
+                  <small>Schaltet Feierabend-Reminder ein oder aus.</small>
+                </span>
+                <input id="remindersEnabled" name="enabled" type="checkbox" />
+              </label>
+
+              <label>
+                Reminder-Text
+                <input id="reminderTextSetting" name="text" type="text" />
+              </label>
+
+              <div class="settings-time-grid">
+                <label>
+                  Erinnerung 1
+                  <input id="reminderTime1" name="time1" type="time" />
+                </label>
+                <label>
+                  Erinnerung 2
+                  <input id="reminderTime2" name="time2" type="time" />
+                </label>
+                <label>
+                  Erinnerung 3
+                  <input id="reminderTime3" name="time3" type="time" />
+                </label>
+              </div>
+
+              <label>
+                Ziel-Arbeitszeit pro Tag
+                <input id="targetWorkHours" name="targetHours" type="number" min="0.5" max="24" step="0.25" inputmode="decimal" />
+              </label>
+
+              <button class="settings-secondary-button" id="restoreReminderDefaultsButton" type="button">
+                Standard wiederherstellen
+              </button>
+            </form>
+          </details>
+
+          <details class="settings-panel">
+            <summary>Datenverwaltung</summary>
+            <p class="settings-message" id="settingsMessage" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <a class="settings-secondary-link" href="#exportieren" data-view-link="export">CSV exportieren</a>
+              <label class="settings-file-label" for="csvImportInput">CSV importieren</label>
+            </div>
+            <section class="data-reset-section" aria-label="Gefahrenbereich">
+              <div>
+                <h4>Gefahrenbereich</h4>
+                <p>Lokale Resets betreffen nur dieses Gerät. Cloud-Daten werden nicht gelöscht.</p>
+                <p>Cloud-Löschaktionen sind bis zur Einführung geschützter Admin-Rechte deaktiviert.</p>
+              </div>
+              <div class="data-reset-actions">
+                <button class="settings-danger-button" id="resetSelectedUserLocalButton" type="button">
+                  Ausgewählten Nutzer lokal zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetSelectedUserCloudButton" type="button" hidden disabled aria-hidden="true">
+                  Ausgewählten Nutzer lokal + Cloud zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetAllLocalButton" type="button">
+                  Alle Nutzer lokal zurücksetzen
+                </button>
+                <button class="settings-danger-button" id="resetAllCloudButton" type="button" hidden disabled aria-hidden="true">
+                  Alle Nutzer lokal + Cloud zurücksetzen
+                </button>
+              </div>
+            </section>
+            <input class="settings-file-input" id="csvImportInput" type="file" accept=".csv,text/csv" />
+          </details>
+
+          <details class="settings-panel settings-panel-developer" hidden>
+            <summary>Entwickleroptionen</summary>
+            <label class="settings-toggle" for="developerModeToggle">
+              <span>
+                <strong>Entwickler-Modus</strong>
+                <small>Zeigt temporäre Testfunktionen.</small>
+              </span>
+              <input id="developerModeToggle" type="checkbox" />
+            </label>
+          </details>
+        </div>
+      </section>
+      <section class="weekplan-screen app-view" id="weekplanView" aria-label="Kalender" hidden>
+        <div class="view-header">
+          <button class="back-button" type="button" data-view-link="timer">Zurück</button>
+          <h2>Kalender</h2>
+        </div>
+
+        <section class="calendar-toolbar" aria-label="Kalender steuern">
+          <label for="calendarViewMode">
+            Ansicht
+            <select id="calendarViewMode">
+              <option value="day">Tag</option>
+              <option value="3days">3 Tage</option>
+              <option value="5days">5 Tage</option>
+              <option value="7days">7 Tage</option>
+              <option value="month">Monat</option>
+            </select>
+          </label>
+          <div class="calendar-navigation">
+            <button id="calendarPrevButton" type="button">Zurück</button>
+            <button id="calendarTodayButton" type="button">Heute</button>
+            <button id="calendarNextButton" type="button">Vor</button>
+          </div>
+          <p class="calendar-period" id="calendarPeriodLabel" aria-live="polite"></p>
+        </section>
+
+        <section class="weekplan-panel">
+          <div class="weekplan-hours" id="weekplanHours" aria-hidden="true">
+            <span>06:00</span>
+            <span>09:00</span>
+            <span>12:00</span>
+            <span>15:00</span>
+            <span>18:00</span>
+            <span>21:00</span>
+            <span>23:59</span>
+          </div>
+          <div class="weekplan-days" id="weekplanDays"></div>
+        </section>
+
+        <aside class="calendar-day-detail" id="calendarDayDetail" aria-live="polite" hidden>
+          <div class="calendar-day-detail-header">
+            <div>
+              <p class="calendar-day-detail-date" id="calendarDayDetailDate"></p>
+              <strong class="calendar-day-detail-total" id="calendarDayDetailTotal"></strong>
+            </div>
+            <button class="calendar-day-detail-close" id="calendarDayDetailClose" type="button" aria-label="Tagesdetails schließen">
+              Schließen
+            </button>
+          </div>
+          <div class="calendar-day-detail-list" id="calendarDayDetailList"></div>
+          <button class="calendar-day-detail-add" id="calendarDayDetailAdd" type="button">Eintrag hinzufügen</button>
+        </aside>
+      </section>
+    </div>
+
+    <div class="reminder-popup" id="reminderPopup" role="dialog" aria-modal="true" aria-labelledby="reminderPopupTitle" hidden>
+      <div class="reminder-popup-content">
+        <h2 id="reminderPopupTitle">Feierabend-Erinnerung</h2>
+        <p id="reminderPopupMessage">Was hast du mit deiner Zeit gemacht?</p>
+        <div class="reminder-popup-actions">
+          <button class="reminder-popup-manual" id="reminderPopupManual" type="button">Nachtragen</button>
+          <button class="reminder-popup-close" id="reminderPopupClose" type="button">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="safety-dialog" id="safetyDialog" aria-labelledby="safetyDialogTitle" aria-describedby="safetyDialogText">
+      <form class="safety-dialog-content" method="dialog">
+        <h2 id="safetyDialogTitle">Aktion bestätigen</h2>
+        <p id="safetyDialogText"></p>
+        <label class="safety-dialog-input" id="safetyDialogInputLabel" for="safetyDialogInput" hidden>
+          <span id="safetyDialogInputHelp"></span>
+          <input id="safetyDialogInput" type="text" autocomplete="off" />
+        </label>
+        <p class="settings-message" id="safetyDialogMessage" role="status" aria-live="polite" hidden></p>
+        <div class="safety-dialog-actions">
+          <button class="settings-secondary-button" id="safetyDialogCancel" type="button">Abbrechen</button>
+          <button class="settings-danger-button" id="safetyDialogConfirm" type="button">Bestätigen</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="supabase-config.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=33"></script>
+  </body>
+</html>
+
