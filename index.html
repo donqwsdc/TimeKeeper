@@ -327,7 +327,7 @@
         </div>
 
         <div class="settings-layout">
-          <details class="settings-panel">
+          <details class="settings-panel" id="cloudSettingsPanel">
             <summary>Cloud</summary>
             <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
               Offline
@@ -637,7 +637,7 @@
       onload="window.dispatchEvent(new Event('timekeeper:supabase-ready'))"
       onerror="window.dispatchEvent(new Event('timekeeper:supabase-unavailable'))"
     ></script>
-    <script src="app.js?v=38"></script>
+    <script src="app.js?v=39"></script>
   </body>
 </html>
 

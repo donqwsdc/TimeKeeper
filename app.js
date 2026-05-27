@@ -111,6 +111,7 @@ const cloudStorageMessage = document.querySelector("#cloudStorageMessage");
 const cloudBackupButton = document.querySelector("#cloudBackupButton");
 const cloudImportButton = document.querySelector("#cloudImportButton");
 const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
+const cloudSettingsPanel = document.querySelector("#cloudSettingsPanel");
 const cloudAuthStatus = document.querySelector("#cloudAuthStatus");
 const cloudAuthEmailInput = document.querySelector("#cloudAuthEmail");
 const cloudPasswordLoginEmailInput = document.querySelector("#cloudPasswordLoginEmail");
@@ -1149,7 +1150,7 @@ function renderSupabaseAuthStatus() {
     return;
   }
 
-  const passwordResetMode = window.location.hash === "#password-reset";
+  const passwordResetMode = isPasswordRecoveryUrl();
 
   if (!supabaseClient) {
     cloudAuthStatus.textContent = "Nicht angemeldet";
@@ -1266,12 +1267,8 @@ function initializeSupabaseAuth() {
         cloudSyncStatusDetail = "";
       }
 
-      if (event === "PASSWORD_RECOVERY") {
-        if (cloudPasswordUpdateSection) {
-          cloudPasswordUpdateSection.hidden = false;
-        }
-
-        showCloudAuthMessage("Bitte vergib ein neues Passwort.", "info");
+      if (event === "PASSWORD_RECOVERY" || isPasswordRecoveryUrl()) {
+        revealPasswordResetSectionIfNeeded();
       }
 
       renderSupabaseStatus();
@@ -1302,12 +1299,23 @@ function handleSupabaseLibraryReady() {
 }
 
 function revealPasswordResetSectionIfNeeded() {
-  if (window.location.hash !== "#password-reset" || !cloudPasswordUpdateSection) {
+  if (!isPasswordRecoveryUrl()) {
     return;
   }
 
-  cloudPasswordUpdateSection.hidden = false;
-  cloudPasswordUpdateSection.closest("details")?.setAttribute("open", "");
+  if (typeof showSettingsView === "function") {
+    showSettingsView({ preserveUrl: true });
+  }
+
+  if (cloudPasswordUpdateSection) {
+    cloudPasswordUpdateSection.hidden = false;
+    cloudPasswordUpdateSection.closest("details")?.setAttribute("open", "");
+  }
+
+  if (cloudSettingsPanel) {
+    cloudSettingsPanel.open = true;
+  }
+
   showCloudAuthMessage("Bitte vergib ein neues Passwort.", "info");
 }
 
@@ -1619,7 +1627,7 @@ async function updateSupabasePassword() {
 
     if (error) {
       showCloudAuthMessage(
-        getFriendlyAuthErrorMessage(error, "Passwort konnte nicht ge\u00e4ndert werden."),
+        getFriendlyAuthErrorMessage(error, "Passwort konnte nicht geändert werden. Bitte fordere einen neuen Passwort-Link an."),
         "error",
       );
       return;
@@ -1635,16 +1643,13 @@ async function updateSupabasePassword() {
 
     currentAuthUser = data?.user || currentAuthUser;
     supabaseAuthLoaded = true;
-
-    if (window.location.hash === "#password-reset") {
-      history.replaceState(null, "", window.location.href.split("#")[0]);
-    }
+    clearAuthUrlState();
 
     renderSupabaseStatus();
     showCloudAuthMessage("Passwort wurde ge\u00e4ndert.", "success");
   } catch (error) {
     showCloudAuthMessage(
-      getFriendlyAuthErrorMessage(error, "Passwort konnte nicht ge\u00e4ndert werden."),
+      getFriendlyAuthErrorMessage(error, "Passwort konnte nicht geändert werden. Bitte fordere einen neuen Passwort-Link an."),
       "error",
     );
   } finally {
@@ -1801,10 +1806,33 @@ function getAuthRedirectUrl(mode = "") {
   const baseUrl = window.location.href.split("#")[0].split("?")[0];
 
   if (mode === "password-reset") {
-    return `${baseUrl}#password-reset`;
+    return `${baseUrl}?auth=password-reset`;
   }
 
   return baseUrl;
+}
+
+function getAuthModeFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("auth") || "";
+}
+
+function isPasswordRecoveryUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+  return (
+    getAuthModeFromUrl() === "password-reset" ||
+    params.get("auth") === "password-reset" ||
+    hashParams.get("type") === "recovery" ||
+    hashParams.get("error_code") === "otp_expired" ||
+    window.location.hash === "#password-reset"
+  );
+}
+
+function clearAuthUrlState() {
+  const cleanUrl = window.location.href.split("#")[0].split("?")[0];
+  history.replaceState(null, "", cleanUrl);
 }
 
 function getPasswordValidationError(password, confirmPassword = password) {
@@ -3708,7 +3736,7 @@ function showExportView() {
   window.location.hash = "exportieren";
 }
 
-function showSettingsView() {
+function showSettingsView(options = {}) {
   setActiveNavigation("settings");
   renderUserProfileSettings();
   renderCategorySettings();
@@ -3727,7 +3755,9 @@ function showSettingsView() {
   clearUserProfileMessage();
   clearCategorySettingsMessage();
   closeNavigationMenu();
-  window.location.hash = "einstellungen";
+  if (!options.preserveUrl) {
+    window.location.hash = "einstellungen";
+  }
 }
 
 function showWeekplanView() {
@@ -7146,8 +7176,13 @@ if (window.location.hash === "#nachtragen") {
   showManualView();
 }
 
-if (window.location.hash === "#password-reset") {
-  showSettingsView();
-  history.replaceState(null, "", `${window.location.href.split("#")[0]}#password-reset`);
-  revealPasswordResetSectionIfNeeded();
+if (isPasswordRecoveryUrl()) {
+  showSettingsView({ preserveUrl: true });
+  if (cloudSettingsPanel) {
+    cloudSettingsPanel.open = true;
+  }
+  if (cloudPasswordUpdateSection) {
+    cloudPasswordUpdateSection.hidden = false;
+  }
+  showCloudAuthMessage("Bitte vergib ein neues Passwort.", "info");
 }
