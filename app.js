@@ -113,6 +113,10 @@ const cloudImportButton = document.querySelector("#cloudImportButton");
 const cloudConflictPanel = document.querySelector("#cloudConflictPanel");
 const cloudAuthStatus = document.querySelector("#cloudAuthStatus");
 const cloudAuthEmailInput = document.querySelector("#cloudAuthEmail");
+const cloudPasswordLoginEmailInput = document.querySelector("#cloudPasswordLoginEmail");
+const cloudPasswordLoginPasswordInput = document.querySelector("#cloudPasswordLoginPassword");
+const cloudPasswordLoginButton = document.querySelector("#cloudPasswordLoginButton");
+const cloudAuthMessage = document.querySelector("#cloudAuthMessage");
 const cloudLoginLinkButton = document.querySelector("#cloudLoginLinkButton");
 const cloudLogoutButton = document.querySelector("#cloudLogoutButton");
 const settingsMessage = document.querySelector("#settingsMessage");
@@ -1136,24 +1140,45 @@ function renderSupabaseAuthStatus() {
   if (!supabaseClient) {
     cloudAuthStatus.textContent = "Nicht angemeldet";
     cloudAuthStatus.dataset.status = "local";
-    cloudLoginLinkButton.disabled = true;
-    cloudLogoutButton.disabled = true;
+    if (cloudPasswordLoginButton) {
+      cloudPasswordLoginButton.disabled = true;
+    }
+    if (cloudLoginLinkButton) {
+      cloudLoginLinkButton.disabled = true;
+    }
+    if (cloudLogoutButton) {
+      cloudLogoutButton.disabled = true;
+    }
     return;
   }
 
   if (!currentAuthUser) {
     cloudAuthStatus.textContent = "Nicht angemeldet";
     cloudAuthStatus.dataset.status = "local";
-    cloudLoginLinkButton.disabled = false;
-    cloudLogoutButton.disabled = true;
+    if (cloudPasswordLoginButton) {
+      cloudPasswordLoginButton.disabled = false;
+    }
+    if (cloudLoginLinkButton) {
+      cloudLoginLinkButton.disabled = false;
+    }
+    if (cloudLogoutButton) {
+      cloudLogoutButton.disabled = true;
+    }
     return;
   }
 
   const userLabel = currentAuthUser.email || currentAuthUser.id;
   cloudAuthStatus.textContent = `Angemeldet als ${userLabel}`;
   cloudAuthStatus.dataset.status = "authenticated";
-  cloudLoginLinkButton.disabled = false;
-  cloudLogoutButton.disabled = false;
+  if (cloudPasswordLoginButton) {
+    cloudPasswordLoginButton.disabled = true;
+  }
+  if (cloudLoginLinkButton) {
+    cloudLoginLinkButton.disabled = false;
+  }
+  if (cloudLogoutButton) {
+    cloudLogoutButton.disabled = false;
+  }
 }
 
 async function refreshSupabaseAuthUser() {
@@ -1310,6 +1335,71 @@ async function sendSupabaseLoginLink() {
   }
 }
 
+async function signInSupabaseWithPassword() {
+  if (!supabaseClient?.auth?.signInWithPassword) {
+    showCloudAuthMessage("Passwort-Login ist nicht verf\u00fcgbar.", "error");
+    return;
+  }
+
+  const email = String(cloudPasswordLoginEmailInput?.value || "").trim();
+  const password = String(cloudPasswordLoginPasswordInput?.value || "");
+
+  if (!email || !isValidEmail(email)) {
+    showCloudAuthMessage("Bitte eine g\u00fcltige E-Mail-Adresse eingeben.", "error");
+    return;
+  }
+
+  if (!password) {
+    showCloudAuthMessage("Bitte Passwort eingeben.", "error");
+    return;
+  }
+
+  if (cloudPasswordLoginButton) {
+    cloudPasswordLoginButton.disabled = true;
+  }
+  showCloudAuthMessage("Login wird gepr\u00fcft ...", "info");
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      showCloudAuthMessage(
+        getFriendlyAuthErrorMessage(error, "Login fehlgeschlagen. Bitte E-Mail und Passwort pr\u00fcfen."),
+        "error",
+      );
+      return;
+    }
+
+    currentAuthUser = data?.user || data?.session?.user || null;
+    supabaseAuthLoaded = true;
+
+    if (cloudPasswordLoginPasswordInput) {
+      cloudPasswordLoginPasswordInput.value = "";
+    }
+
+    cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+    cloudSyncStatusDetail = "";
+
+    renderSupabaseStatus();
+    showCloudAuthMessage("Angemeldet.", "success");
+
+    void synchronizeWithSupabaseOnStartup();
+  } catch (error) {
+    showCloudAuthMessage(
+      getFriendlyAuthErrorMessage(error, "Login fehlgeschlagen. Bitte E-Mail und Passwort pr\u00fcfen."),
+      "error",
+    );
+  } finally {
+    if (cloudPasswordLoginButton) {
+      cloudPasswordLoginButton.disabled = Boolean(currentAuthUser);
+    }
+    renderSupabaseStatus();
+  }
+}
+
 async function signOutSupabaseUser() {
   if (!supabaseClient?.auth?.signOut) {
     return;
@@ -1425,6 +1515,45 @@ function clearCloudStorageMessage() {
   cloudStorageMessage.textContent = "";
   cloudStorageMessage.removeAttribute("data-type");
   cloudStorageMessage.hidden = true;
+}
+
+function showCloudAuthMessage(message, type = "info") {
+  if (cloudAuthMessage) {
+    cloudAuthMessage.textContent = message;
+    cloudAuthMessage.dataset.type = type;
+    cloudAuthMessage.hidden = false;
+    return;
+  }
+
+  showCloudStorageMessage(message, type);
+}
+
+function clearCloudAuthMessage() {
+  if (!cloudAuthMessage) {
+    return;
+  }
+
+  cloudAuthMessage.textContent = "";
+  cloudAuthMessage.removeAttribute("data-type");
+  cloudAuthMessage.hidden = true;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function getFriendlyAuthErrorMessage(error, fallbackMessage) {
+  const message = String(error?.message || "").toLowerCase();
+
+  if (
+    message.includes("rate limit") ||
+    message.includes("too many") ||
+    message.includes("over_email_send_rate_limit")
+  ) {
+    return "Zu viele Versuche in kurzer Zeit. Bitte sp\u00e4ter erneut versuchen.";
+  }
+
+  return fallbackMessage;
 }
 
 function clearCloudConflictPanel() {
@@ -6554,6 +6683,18 @@ categorySettingsList.addEventListener("click", handleCategorySettingsAction);
 cloudBackupButton.addEventListener("click", backupLocalEntriesToCloud);
 cloudImportButton.addEventListener("click", importCloudEntriesToApp);
 cloudLoginLinkButton.addEventListener("click", sendSupabaseLoginLink);
+if (cloudPasswordLoginButton) {
+  cloudPasswordLoginButton.addEventListener("click", signInSupabaseWithPassword);
+}
+
+if (cloudPasswordLoginPasswordInput) {
+  cloudPasswordLoginPasswordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void signInSupabaseWithPassword();
+    }
+  });
+}
 cloudLogoutButton.addEventListener("click", signOutSupabaseUser);
 cloudConflictPanel.addEventListener("click", (event) => {
   const actionButton = event.target.closest("button[data-cloud-conflict-action]");
