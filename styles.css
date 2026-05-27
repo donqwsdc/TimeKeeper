@@ -1731,7 +1731,46 @@ textarea:focus {
 
 .cloud-auth-panel {
   display: grid;
+  gap: 12px;
+}
+
+.cloud-auth-section {
+  display: grid;
   gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.cloud-auth-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.cloud-auth-section h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.cloud-auth-section[hidden] {
+  display: none;
+}
+
+.cloud-magic-link-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.cloud-magic-link-panel summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 740;
+}
+
+.cloud-magic-link-panel[open] {
+  padding-top: 4px;
 }
 
 .cloud-auth-status {
@@ -1989,6 +2028,7 @@ textarea:focus {
 
 .settings-field select,
 .settings-field input[type="email"],
+.settings-field input[type="password"],
 .category-settings-form input[type="text"],
 .user-settings-form input[type="text"],
 .reminder-settings-form input[type="text"],
