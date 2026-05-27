@@ -353,7 +353,59 @@
                 <button class="settings-primary-button" id="cloudPasswordLoginButton" type="button">
                   Einloggen
                 </button>
+                <button class="settings-secondary-button" id="cloudForgotPasswordToggleButton" type="button">
+                  Passwort vergessen
+                </button>
               </div>
+
+              <section class="cloud-auth-section" aria-label="Konto erstellen">
+                <label class="settings-field" for="cloudRegisterEmail">
+                  Registrierungs-E-Mail
+                  <input id="cloudRegisterEmail" name="registerEmail" type="email" autocomplete="email" placeholder="name@example.com" />
+                </label>
+                <label class="settings-field" for="cloudRegisterPassword">
+                  Passwort
+                  <input id="cloudRegisterPassword" name="registerPassword" type="password" autocomplete="new-password" />
+                </label>
+                <label class="settings-field" for="cloudRegisterPasswordConfirm">
+                  Passwort wiederholen
+                  <input id="cloudRegisterPasswordConfirm" name="registerPasswordConfirm" type="password" autocomplete="new-password" />
+                </label>
+                <div class="settings-actions">
+                  <button class="settings-secondary-button" id="cloudRegisterButton" type="button">
+                    Konto erstellen
+                  </button>
+                </div>
+              </section>
+
+              <section class="cloud-auth-section" id="cloudForgotPasswordSection" aria-label="Passwort zurücksetzen" hidden>
+                <label class="settings-field" for="cloudForgotPasswordEmail">
+                  E-Mail für Passwort-Link
+                  <input id="cloudForgotPasswordEmail" name="forgotPasswordEmail" type="email" autocomplete="email" placeholder="name@example.com" />
+                </label>
+                <div class="settings-actions">
+                  <button class="settings-secondary-button" id="cloudForgotPasswordButton" type="button">
+                    Passwort-Link senden
+                  </button>
+                </div>
+              </section>
+
+              <section class="cloud-auth-section" id="cloudPasswordUpdateSection" aria-label="Passwort ändern" hidden>
+                <label class="settings-field" for="cloudNewPassword">
+                  Neues Passwort
+                  <input id="cloudNewPassword" name="newPassword" type="password" autocomplete="new-password" />
+                </label>
+                <label class="settings-field" for="cloudNewPasswordConfirm">
+                  Neues Passwort wiederholen
+                  <input id="cloudNewPasswordConfirm" name="newPasswordConfirm" type="password" autocomplete="new-password" />
+                </label>
+                <div class="settings-actions">
+                  <button class="settings-secondary-button" id="cloudUpdatePasswordButton" type="button">
+                    Passwort ändern
+                  </button>
+                </div>
+              </section>
+
               <label class="settings-field" for="cloudAuthEmail">
                 E-Mail
                 <input id="cloudAuthEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
@@ -585,7 +637,7 @@
       onload="window.dispatchEvent(new Event('timekeeper:supabase-ready'))"
       onerror="window.dispatchEvent(new Event('timekeeper:supabase-unavailable'))"
     ></script>
-    <script src="app.js?v=37"></script>
+    <script src="app.js?v=38"></script>
   </body>
 </html>
 

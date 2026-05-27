@@ -117,6 +117,18 @@ const cloudPasswordLoginEmailInput = document.querySelector("#cloudPasswordLogin
 const cloudPasswordLoginPasswordInput = document.querySelector("#cloudPasswordLoginPassword");
 const cloudPasswordLoginButton = document.querySelector("#cloudPasswordLoginButton");
 const cloudAuthMessage = document.querySelector("#cloudAuthMessage");
+const cloudRegisterEmailInput = document.querySelector("#cloudRegisterEmail");
+const cloudRegisterPasswordInput = document.querySelector("#cloudRegisterPassword");
+const cloudRegisterPasswordConfirmInput = document.querySelector("#cloudRegisterPasswordConfirm");
+const cloudRegisterButton = document.querySelector("#cloudRegisterButton");
+const cloudForgotPasswordToggleButton = document.querySelector("#cloudForgotPasswordToggleButton");
+const cloudForgotPasswordSection = document.querySelector("#cloudForgotPasswordSection");
+const cloudForgotPasswordEmailInput = document.querySelector("#cloudForgotPasswordEmail");
+const cloudForgotPasswordButton = document.querySelector("#cloudForgotPasswordButton");
+const cloudPasswordUpdateSection = document.querySelector("#cloudPasswordUpdateSection");
+const cloudNewPasswordInput = document.querySelector("#cloudNewPassword");
+const cloudNewPasswordConfirmInput = document.querySelector("#cloudNewPasswordConfirm");
+const cloudUpdatePasswordButton = document.querySelector("#cloudUpdatePasswordButton");
 const cloudLoginLinkButton = document.querySelector("#cloudLoginLinkButton");
 const cloudLogoutButton = document.querySelector("#cloudLogoutButton");
 const settingsMessage = document.querySelector("#settingsMessage");
@@ -1137,17 +1149,26 @@ function renderSupabaseAuthStatus() {
     return;
   }
 
+  const passwordResetMode = window.location.hash === "#password-reset";
+
   if (!supabaseClient) {
     cloudAuthStatus.textContent = "Nicht angemeldet";
     cloudAuthStatus.dataset.status = "local";
-    if (cloudPasswordLoginButton) {
-      cloudPasswordLoginButton.disabled = true;
-    }
-    if (cloudLoginLinkButton) {
-      cloudLoginLinkButton.disabled = true;
-    }
-    if (cloudLogoutButton) {
-      cloudLogoutButton.disabled = true;
+    [
+      cloudPasswordLoginButton,
+      cloudRegisterButton,
+      cloudForgotPasswordToggleButton,
+      cloudForgotPasswordButton,
+      cloudUpdatePasswordButton,
+      cloudLoginLinkButton,
+      cloudLogoutButton,
+    ].forEach((button) => {
+      if (button) {
+        button.disabled = true;
+      }
+    });
+    if (cloudPasswordUpdateSection) {
+      cloudPasswordUpdateSection.hidden = !passwordResetMode;
     }
     return;
   }
@@ -1155,11 +1176,18 @@ function renderSupabaseAuthStatus() {
   if (!currentAuthUser) {
     cloudAuthStatus.textContent = "Nicht angemeldet";
     cloudAuthStatus.dataset.status = "local";
-    if (cloudPasswordLoginButton) {
-      cloudPasswordLoginButton.disabled = false;
+    [cloudPasswordLoginButton, cloudRegisterButton, cloudForgotPasswordToggleButton, cloudForgotPasswordButton, cloudLoginLinkButton].forEach(
+      (button) => {
+        if (button) {
+          button.disabled = false;
+        }
+      },
+    );
+    if (cloudUpdatePasswordButton) {
+      cloudUpdatePasswordButton.disabled = !passwordResetMode;
     }
-    if (cloudLoginLinkButton) {
-      cloudLoginLinkButton.disabled = false;
+    if (cloudPasswordUpdateSection) {
+      cloudPasswordUpdateSection.hidden = !passwordResetMode;
     }
     if (cloudLogoutButton) {
       cloudLogoutButton.disabled = true;
@@ -1172,6 +1200,21 @@ function renderSupabaseAuthStatus() {
   cloudAuthStatus.dataset.status = "authenticated";
   if (cloudPasswordLoginButton) {
     cloudPasswordLoginButton.disabled = true;
+  }
+  if (cloudRegisterButton) {
+    cloudRegisterButton.disabled = true;
+  }
+  if (cloudForgotPasswordToggleButton) {
+    cloudForgotPasswordToggleButton.disabled = false;
+  }
+  if (cloudForgotPasswordButton) {
+    cloudForgotPasswordButton.disabled = false;
+  }
+  if (cloudPasswordUpdateSection) {
+    cloudPasswordUpdateSection.hidden = false;
+  }
+  if (cloudUpdatePasswordButton) {
+    cloudUpdatePasswordButton.disabled = false;
   }
   if (cloudLoginLinkButton) {
     cloudLoginLinkButton.disabled = false;
@@ -1214,12 +1257,29 @@ function initializeSupabaseAuth() {
   }
 
   if (typeof supabaseClient.auth.onAuthStateChange === "function") {
-    supabaseClient.auth.onAuthStateChange(() => {
-      refreshSupabaseAuthUser();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      currentAuthUser = session?.user || null;
+      supabaseAuthLoaded = true;
+
+      if (currentAuthUser && [CLOUD_SYNC_STATUS.offline, CLOUD_SYNC_STATUS.authRequired].includes(cloudSyncStatus)) {
+        cloudSyncStatus = CLOUD_SYNC_STATUS.idle;
+        cloudSyncStatusDetail = "";
+      }
+
+      if (event === "PASSWORD_RECOVERY") {
+        if (cloudPasswordUpdateSection) {
+          cloudPasswordUpdateSection.hidden = false;
+        }
+
+        showCloudAuthMessage("Bitte vergib ein neues Passwort.", "info");
+      }
+
+      renderSupabaseStatus();
     });
   }
 
   refreshSupabaseAuthUser();
+  revealPasswordResetSectionIfNeeded();
 }
 
 function handleSupabaseLibraryReady() {
@@ -1240,6 +1300,18 @@ function handleSupabaseLibraryReady() {
   renderSupabaseStatus();
   void synchronizeWithSupabaseOnStartup();
 }
+
+function revealPasswordResetSectionIfNeeded() {
+  if (window.location.hash !== "#password-reset" || !cloudPasswordUpdateSection) {
+    return;
+  }
+
+  cloudPasswordUpdateSection.hidden = false;
+  cloudPasswordUpdateSection.closest("details")?.setAttribute("open", "");
+  showCloudAuthMessage("Bitte vergib ein neues Passwort.", "info");
+}
+
+window.addEventListener("hashchange", revealPasswordResetSectionIfNeeded);
 
 async function ensureSupabaseAuthForCloud(messageTarget = showCloudStorageMessage) {
   if (!supabaseClient) {
@@ -1400,6 +1472,189 @@ async function signInSupabaseWithPassword() {
   }
 }
 
+async function registerSupabaseUser() {
+  if (!supabaseClient?.auth?.signUp) {
+    showCloudAuthMessage("Registrierung ist nicht verf\u00fcgbar.", "error");
+    return;
+  }
+
+  const email = String(cloudRegisterEmailInput?.value || "").trim();
+  const password = String(cloudRegisterPasswordInput?.value || "");
+  const confirmPassword = String(cloudRegisterPasswordConfirmInput?.value || "");
+
+  if (!email || !isValidEmail(email)) {
+    showCloudAuthMessage("Bitte eine g\u00fcltige E-Mail-Adresse eingeben.", "error");
+    return;
+  }
+
+  const passwordError = getPasswordValidationError(password, confirmPassword);
+  if (passwordError) {
+    showCloudAuthMessage(passwordError, "error");
+    return;
+  }
+
+  if (cloudRegisterButton) {
+    cloudRegisterButton.disabled = true;
+  }
+  showCloudAuthMessage("Konto wird erstellt ...", "info");
+
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl(),
+      },
+    });
+
+    if (error) {
+      showCloudAuthMessage(
+        getFriendlyAuthErrorMessage(error, "Registrierung fehlgeschlagen. Bitte Eingaben pr\u00fcfen."),
+        "error",
+      );
+      return;
+    }
+
+    if (cloudRegisterPasswordInput) {
+      cloudRegisterPasswordInput.value = "";
+    }
+
+    if (cloudRegisterPasswordConfirmInput) {
+      cloudRegisterPasswordConfirmInput.value = "";
+    }
+
+    currentAuthUser = data?.user || data?.session?.user || currentAuthUser || null;
+    supabaseAuthLoaded = true;
+
+    renderSupabaseStatus();
+
+    if (data?.session) {
+      showCloudAuthMessage("Konto erstellt und angemeldet.", "success");
+      void synchronizeWithSupabaseOnStartup();
+      return;
+    }
+
+    showCloudAuthMessage("Konto erstellt. Bitte best\u00e4tige deine E-Mail-Adresse.", "success");
+  } catch (error) {
+    showCloudAuthMessage(
+      getFriendlyAuthErrorMessage(error, "Registrierung fehlgeschlagen. Bitte Eingaben pr\u00fcfen."),
+      "error",
+    );
+  } finally {
+    if (cloudRegisterButton) {
+      cloudRegisterButton.disabled = Boolean(currentAuthUser);
+    }
+    renderSupabaseStatus();
+  }
+}
+
+async function sendSupabasePasswordReset() {
+  if (!supabaseClient?.auth?.resetPasswordForEmail) {
+    showCloudAuthMessage("Passwort-Reset ist nicht verf\u00fcgbar.", "error");
+    return;
+  }
+
+  const email = String(cloudForgotPasswordEmailInput?.value || "").trim();
+
+  if (!email || !isValidEmail(email)) {
+    showCloudAuthMessage("Bitte eine g\u00fcltige E-Mail-Adresse eingeben.", "error");
+    return;
+  }
+
+  if (cloudForgotPasswordButton) {
+    cloudForgotPasswordButton.disabled = true;
+  }
+  showCloudAuthMessage("Passwort-Link wird angefordert ...", "info");
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: getAuthRedirectUrl("password-reset"),
+    });
+
+    if (error) {
+      showCloudAuthMessage(
+        getFriendlyAuthErrorMessage(error, "Passwort-Link konnte nicht angefordert werden."),
+        "error",
+      );
+      return;
+    }
+
+    showCloudAuthMessage("Wenn ein Konto existiert, wurde ein Passwort-Link versendet.", "success");
+  } catch (error) {
+    showCloudAuthMessage(
+      getFriendlyAuthErrorMessage(error, "Passwort-Link konnte nicht angefordert werden."),
+      "error",
+    );
+  } finally {
+    if (cloudForgotPasswordButton) {
+      cloudForgotPasswordButton.disabled = false;
+    }
+  }
+}
+
+async function updateSupabasePassword() {
+  if (!supabaseClient?.auth?.updateUser) {
+    showCloudAuthMessage("Passwort\u00e4nderung ist nicht verf\u00fcgbar.", "error");
+    return;
+  }
+
+  const newPassword = String(cloudNewPasswordInput?.value || "");
+  const confirmPassword = String(cloudNewPasswordConfirmInput?.value || "");
+
+  const passwordError = getPasswordValidationError(newPassword, confirmPassword);
+  if (passwordError) {
+    showCloudAuthMessage(passwordError, "error");
+    return;
+  }
+
+  if (cloudUpdatePasswordButton) {
+    cloudUpdatePasswordButton.disabled = true;
+  }
+  showCloudAuthMessage("Passwort wird ge\u00e4ndert ...", "info");
+
+  try {
+    const { data, error } = await supabaseClient.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      showCloudAuthMessage(
+        getFriendlyAuthErrorMessage(error, "Passwort konnte nicht ge\u00e4ndert werden."),
+        "error",
+      );
+      return;
+    }
+
+    if (cloudNewPasswordInput) {
+      cloudNewPasswordInput.value = "";
+    }
+
+    if (cloudNewPasswordConfirmInput) {
+      cloudNewPasswordConfirmInput.value = "";
+    }
+
+    currentAuthUser = data?.user || currentAuthUser;
+    supabaseAuthLoaded = true;
+
+    if (window.location.hash === "#password-reset") {
+      history.replaceState(null, "", window.location.href.split("#")[0]);
+    }
+
+    renderSupabaseStatus();
+    showCloudAuthMessage("Passwort wurde ge\u00e4ndert.", "success");
+  } catch (error) {
+    showCloudAuthMessage(
+      getFriendlyAuthErrorMessage(error, "Passwort konnte nicht ge\u00e4ndert werden."),
+      "error",
+    );
+  } finally {
+    if (cloudUpdatePasswordButton) {
+      cloudUpdatePasswordButton.disabled = false;
+    }
+    renderSupabaseStatus();
+  }
+}
+
 async function signOutSupabaseUser() {
   if (!supabaseClient?.auth?.signOut) {
     return;
@@ -1540,6 +1795,28 @@ function clearCloudAuthMessage() {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function getAuthRedirectUrl(mode = "") {
+  const baseUrl = window.location.href.split("#")[0].split("?")[0];
+
+  if (mode === "password-reset") {
+    return `${baseUrl}#password-reset`;
+  }
+
+  return baseUrl;
+}
+
+function getPasswordValidationError(password, confirmPassword = password) {
+  if (!password || password.length < 8) {
+    return "Passwort muss mindestens 8 Zeichen lang sein.";
+  }
+
+  if (password !== confirmPassword) {
+    return "Passwörter stimmen nicht überein.";
+  }
+
+  return "";
 }
 
 function getFriendlyAuthErrorMessage(error, fallbackMessage) {
@@ -6695,6 +6972,51 @@ if (cloudPasswordLoginPasswordInput) {
     }
   });
 }
+
+if (cloudForgotPasswordToggleButton && cloudForgotPasswordSection) {
+  cloudForgotPasswordToggleButton.addEventListener("click", () => {
+    cloudForgotPasswordSection.hidden = !cloudForgotPasswordSection.hidden;
+  });
+}
+
+if (cloudRegisterButton) {
+  cloudRegisterButton.addEventListener("click", registerSupabaseUser);
+}
+
+if (cloudRegisterPasswordConfirmInput) {
+  cloudRegisterPasswordConfirmInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void registerSupabaseUser();
+    }
+  });
+}
+
+if (cloudForgotPasswordButton) {
+  cloudForgotPasswordButton.addEventListener("click", sendSupabasePasswordReset);
+}
+
+if (cloudForgotPasswordEmailInput) {
+  cloudForgotPasswordEmailInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void sendSupabasePasswordReset();
+    }
+  });
+}
+
+if (cloudUpdatePasswordButton) {
+  cloudUpdatePasswordButton.addEventListener("click", updateSupabasePassword);
+}
+
+if (cloudNewPasswordConfirmInput) {
+  cloudNewPasswordConfirmInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void updateSupabasePassword();
+    }
+  });
+}
 cloudLogoutButton.addEventListener("click", signOutSupabaseUser);
 cloudConflictPanel.addEventListener("click", (event) => {
   const actionButton = event.target.closest("button[data-cloud-conflict-action]");
@@ -6784,6 +7106,7 @@ renderUserProfileSettings();
 renderCategorySettings();
 renderReminderSettingsForm();
 renderSupabaseStatus();
+revealPasswordResetSectionIfNeeded();
 renderExportSummary();
 restoreActiveTimer();
 registerServiceWorker();
@@ -6821,4 +7144,10 @@ if (window.location.hash === "#einstellungen") {
 
 if (window.location.hash === "#nachtragen") {
   showManualView();
+}
+
+if (window.location.hash === "#password-reset") {
+  showSettingsView();
+  history.replaceState(null, "", `${window.location.href.split("#")[0]}#password-reset`);
+  revealPasswordResetSectionIfNeeded();
 }
