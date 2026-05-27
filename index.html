@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="app_icon_light_192.png" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=32" />
+    <link rel="stylesheet" href="styles.css?v=33" />
   </head>
   <body>
     <div class="app-shell">
@@ -327,7 +327,7 @@
         </div>
 
         <div class="settings-layout">
-          <details class="settings-panel">
+          <details class="settings-panel" id="cloudSettingsPanel">
             <summary>Cloud</summary>
             <p class="cloud-status" id="cloudStorageStatus" role="status" aria-live="polite">
               Offline
@@ -336,22 +336,96 @@
               Cloudspeicherung ist noch nicht eingerichtet.
             </p>
             <p class="settings-message" id="cloudStorageMessage" role="status" aria-live="polite" hidden></p>
-            <p class="cloud-auth-status" id="cloudAuthStatus" role="status" aria-live="polite">
-              Nicht angemeldet
-            </p>
             <div class="cloud-auth-panel">
-              <label class="settings-field" for="cloudAuthEmail">
-                E-Mail
-                <input id="cloudAuthEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
-              </label>
-              <div class="settings-actions">
-                <button class="settings-secondary-button" id="cloudLoginLinkButton" type="button">
-                  Login-Link senden
+              <section class="cloud-auth-section" aria-labelledby="cloudLoginHeading">
+                <h3 id="cloudLoginHeading">Login</h3>
+                <label class="settings-field" for="cloudPasswordLoginEmail">
+                  E-Mail
+                  <input id="cloudPasswordLoginEmail" name="cloud-login-email" type="email" autocomplete="email" placeholder="name@example.com" />
+                </label>
+                <label class="settings-field" for="cloudPasswordLoginPassword">
+                  Passwort
+                  <input id="cloudPasswordLoginPassword" name="cloud-login-password" type="password" autocomplete="current-password" />
+                </label>
+                <div class="settings-actions">
+                  <button class="settings-primary-button" id="cloudPasswordLoginButton" type="button">
+                    Einloggen
+                  </button>
+                  <button class="settings-secondary-button" id="cloudForgotPasswordToggleButton" type="button">
+                    Passwort vergessen
+                  </button>
+                </div>
+                <details class="cloud-magic-link-panel">
+                  <summary>Alternative Anmeldung per E-Mail-Link</summary>
+                  <p class="settings-helper">
+                    Alternative Anmeldung per E-Mail-Link. Kann durch E-Mail-Limits verzögert sein.
+                  </p>
+                  <label class="settings-field" for="cloudMagicLinkEmail">
+                    E-Mail
+                    <input id="cloudMagicLinkEmail" name="cloud-magic-email" type="email" autocomplete="email" placeholder="name@example.com" />
+                  </label>
+                  <button class="settings-secondary-button" id="cloudLoginLinkButton" type="button">
+                    Login-Link senden
+                  </button>
+                </details>
+              </section>
+
+              <section class="cloud-auth-section" aria-labelledby="cloudRegisterHeading">
+                <h3 id="cloudRegisterHeading">Registrierung</h3>
+                <label class="settings-field" for="cloudRegisterEmail">
+                  E-Mail
+                  <input id="cloudRegisterEmail" name="cloud-register-email" type="email" autocomplete="email" placeholder="name@example.com" />
+                </label>
+                <label class="settings-field" for="cloudRegisterPassword">
+                  Passwort
+                  <input id="cloudRegisterPassword" name="cloud-register-password" type="password" autocomplete="new-password" />
+                </label>
+                <label class="settings-field" for="cloudRegisterPasswordConfirm">
+                  Passwort wiederholen
+                  <input id="cloudRegisterPasswordConfirm" name="cloud-register-password-confirm" type="password" autocomplete="new-password" />
+                </label>
+                <button class="settings-secondary-button" id="cloudRegisterButton" type="button">
+                  Konto erstellen
                 </button>
+              </section>
+
+              <section class="cloud-auth-section" id="cloudForgotPasswordSection" aria-labelledby="cloudForgotPasswordHeading" hidden>
+                <h3 id="cloudForgotPasswordHeading">Passwort vergessen</h3>
+                <p class="settings-helper">Du erhältst einen Link zum Zurücksetzen deines Passworts.</p>
+                <label class="settings-field" for="cloudForgotPasswordEmail">
+                  E-Mail
+                  <input id="cloudForgotPasswordEmail" name="cloud-forgot-email" type="email" autocomplete="email" placeholder="name@example.com" />
+                </label>
+                <button class="settings-secondary-button" id="cloudForgotPasswordButton" type="button">
+                  Passwort-Link senden
+                </button>
+              </section>
+
+              <section class="cloud-auth-section" id="cloudPasswordUpdateSection" aria-labelledby="cloudPasswordUpdateHeading" hidden>
+                <h3 id="cloudPasswordUpdateHeading">Passwort ändern</h3>
+                <label class="settings-field" for="cloudNewPassword">
+                  Neues Passwort
+                  <input id="cloudNewPassword" name="cloud-new-password" type="password" autocomplete="new-password" />
+                </label>
+                <label class="settings-field" for="cloudNewPasswordConfirm">
+                  Neues Passwort wiederholen
+                  <input id="cloudNewPasswordConfirm" name="cloud-new-password-confirm" type="password" autocomplete="new-password" />
+                </label>
+                <button class="settings-secondary-button" id="cloudUpdatePasswordButton" type="button">
+                  Passwort ändern
+                </button>
+              </section>
+
+              <section class="cloud-auth-section cloud-auth-state" aria-labelledby="cloudAuthStateHeading">
+                <h3 id="cloudAuthStateHeading">Status</h3>
+                <p class="cloud-auth-status" id="cloudAuthStatus" role="status" aria-live="polite">
+                  Nicht angemeldet
+                </p>
+                <p class="settings-message" id="cloudAuthMessage" role="status" aria-live="polite" hidden></p>
                 <button class="settings-secondary-button" id="cloudLogoutButton" type="button">
                   Abmelden
                 </button>
-              </div>
+              </section>
             </div>
             <p class="settings-helper">
               Cloud-Löschaktionen sind bis zur Einführung geschützter Admin-Rechte deaktiviert.
@@ -571,7 +645,7 @@
       onload="window.dispatchEvent(new Event('timekeeper:supabase-ready'))"
       onerror="window.dispatchEvent(new Event('timekeeper:supabase-unavailable'))"
     ></script>
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=40"></script>
   </body>
 </html>
 
